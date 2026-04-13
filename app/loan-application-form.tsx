@@ -257,7 +257,7 @@ export function LoanApplicationForm() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const topRef = React.useRef<HTMLDivElement>(null);
+
 
   const updateField = useCallback(
     <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -309,7 +309,7 @@ export function LoanApplicationForm() {
   }, [step, formData]);
 
   const scrollToTop = useCallback(() => {
-    topRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
 
   const handleNext = useCallback(() => {
@@ -377,7 +377,7 @@ export function LoanApplicationForm() {
   }
 
   return (
-    <div ref={topRef}>
+    <div>
       <StepIndicator current={step} total={TOTAL_STEPS} />
 
       <div key={step} className="animate-slide-in">
@@ -397,14 +397,16 @@ export function LoanApplicationForm() {
         )}
         {step === 3 && (
           <Step3_SingpassGate
-            onBack={() => setStep(2)}
+            onBack={() => { setStep(2); scrollToTop(); }}
             onSingpass={() => {
               updateField("authMethod", "singpass");
               setStep(4);
+              scrollToTop();
             }}
             onManual={() => {
               updateField("authMethod", "manual");
               setStep(4);
+              scrollToTop();
             }}
           />
         )}
@@ -633,17 +635,17 @@ function Step1_LoanDetails({
           </div>
         </div>
 
-        <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle)] p-3 sm:p-5">
-          <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
+        <div className="rounded-[var(--radius-lg)] p-3 sm:p-5" style={{ background: "var(--brand-teal-hex)" }}>
+          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "oklch(0.25 0.08 178)" }}>
             Est. monthly repayment
           </span>
           <div className="mt-0.5 flex items-baseline gap-1">
-            <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] tabular-nums">
+            <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums" style={{ color: "oklch(0.18 0.06 178)" }}>
               {formatCurrency(monthlyRepayment)}
             </span>
-            <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
+            <span className="text-xs font-medium" style={{ color: "oklch(0.28 0.07 178)" }}>/mo</span>
           </div>
-          <span className="mt-0.5 block text-xs text-[var(--text-tertiary)]">
+          <span className="mt-0.5 block text-xs" style={{ color: "oklch(0.30 0.07 178)" }}>
             Estimate only. Your actual rates may be lower.
           </span>
         </div>
