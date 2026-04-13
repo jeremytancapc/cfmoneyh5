@@ -37,7 +37,7 @@ export function SidebarTrustFeatures() {
     <div className="relative z-10 flex flex-col gap-6">
       <SidebarFeatureIcon
         icon={Buildings}
-        title="Licensed Lenders"
+        title="Licensed Lender"
         subtitle="MAS & MinLaw regulated"
       />
       <SidebarFeatureIcon
@@ -47,7 +47,7 @@ export function SidebarTrustFeatures() {
       />
       <SidebarFeatureIcon
         icon={ShieldCheck}
-        title="Credit Impact"
+        title="No Credit Impact"
         subtitle="Soft checks only"
       />
     </div>

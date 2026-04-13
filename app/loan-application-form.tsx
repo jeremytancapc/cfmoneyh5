@@ -13,7 +13,6 @@ import {
   CurrencyDollar,
   User,
   Briefcase,
-  EnvelopeSimple,
   Phone,
   IdentificationCard,
   Buildings,
@@ -42,9 +41,10 @@ const ID_TYPE_OPTIONS = [
 ] as const;
 
 const EMPLOYMENT_OPTIONS = [
-  { value: "employed", label: "Employed" },
-  { value: "self_employed", label: "Self-Employed" },
-  { value: "unemployed", label: "Unemployed" },
+  { value: "full_time", label: "Full-time" },
+  { value: "self_employed", label: "Self-employed" },
+  { value: "part_time_freelance", label: "Part-time / freelance" },
+  { value: "platform_worker", label: "Platform worker (PHV/delivery)" },
 ] as const;
 
 const LOAN_PURPOSE_OPTIONS = [
@@ -87,8 +87,6 @@ interface FormData {
   nric: string;
   employmentStatus: string;
   monthlyIncome: string;
-  companyName: string;
-  email: string;
   mobile: string;
   loanPurpose: string;
   postalCode: string;
@@ -105,8 +103,6 @@ const initialFormData: FormData = {
   nric: "",
   employmentStatus: "",
   monthlyIncome: "",
-  companyName: "",
-  email: "",
   mobile: "",
   loanPurpose: "",
   postalCode: "",
@@ -198,9 +194,13 @@ function InputField({
       <label className="text-sm font-medium text-[var(--text-primary)]">
         {label}
       </label>
-      <div className="relative">
+      <div
+        className={`flex min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10 ${
+          prefix ? "gap-2 pl-4 pr-4" : ""
+        }`}
+      >
         {prefix && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[var(--text-tertiary)]">
+          <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">
             {prefix}
           </span>
         )}
@@ -209,8 +209,9 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10"
-          style={prefix ? { paddingLeft: 36 } : undefined}
+          className={`min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
+            prefix ? "py-3 pl-0" : "px-4 py-3"
+          }`}
         />
       </div>
       {helper && (
@@ -293,10 +294,7 @@ export function LoanApplicationForm() {
       case 5:
         return formData.employmentStatus !== "" && hasDeclaredIncome;
       case 6:
-        return (
-          formData.email.includes("@") &&
-          formData.mobile.trim().length >= 8
-        );
+        return formData.mobile.trim().length >= 8;
       case 7:
         return formData.loanPurpose !== "";
       case 8:
@@ -846,15 +844,6 @@ function Step5_Employment({
             ))}
           </div>
         </div>
-
-        {formData.employmentStatus !== "unemployed" && (
-          <InputField
-            label="Company Name"
-            placeholder="e.g. Accenture Pte Ltd"
-            value={formData.companyName}
-            onChange={(v) => updateField("companyName", v)}
-          />
-        )}
       </div>
     </div>
   );
@@ -870,20 +859,12 @@ function Step6_Contact({
   return (
     <div>
       <StepHeader
-        icon={EnvelopeSimple}
+        icon={Phone}
         title="How can we reach you?"
-        subtitle="We'll send your approval status and loan details here."
+        subtitle="We'll SMS your approval status and loan details."
       />
 
       <div className="flex flex-col gap-5">
-        <InputField
-          label="Email Address"
-          type="email"
-          placeholder="you@example.com"
-          value={formData.email}
-          onChange={(v) => updateField("email", v)}
-        />
-
         <InputField
           label="Mobile Number"
           type="tel"
@@ -1010,16 +991,12 @@ function Step8_Review({
               (o) => o.value === formData.employmentStatus,
             )?.label ?? "—",
         },
-        ...(formData.companyName
-          ? [{ label: "Company", value: formData.companyName }]
-          : []),
       ],
     },
     {
       icon: Phone,
       title: "Contact",
       rows: [
-        { label: "Email", value: formData.email || "—" },
         { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
       ],
     },
