@@ -61,11 +61,41 @@ export default function HomePage() {
           </span>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-8 pt-2 sm:px-8 lg:justify-center lg:px-12 xl:px-20">
+        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-16 pt-5 sm:px-8 sm:pt-2 sm:pb-8 lg:justify-center lg:px-12 xl:px-20">
           <div className="w-full max-w-[520px]">
             <LoanApplicationForm />
           </div>
         </div>
+
+        {/* Mobile-only footer */}
+        <footer className="lg:hidden bg-brand-blue px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
+          <Image
+            src="/images/cf-money-white.png"
+            alt="CF Money"
+            width={160}
+            height={48}
+            className="mb-4 h-5 w-auto"
+          />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
+            <span className="opacity-75">Copyright © 2026 CF Money Pte. Ltd. All rights reserved</span>
+          </div>
+
+          <p className="mt-4 text-xs leading-relaxed opacity-70">
+            CF Money Pte. Ltd. (UEN No. 201406595W) is a company incorporated under the laws of Singapore. Customers are advised to read the{" "}
+            <a href="https://crawfort.com/sg/terms/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 opacity-100">Terms and Conditions</a>
+            {" "}and{" "}
+            <a href="https://crawfort.com/sg/privacy/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 opacity-100">Privacy Policy</a>
+            {" "}carefully. If you have any concerns or further queries about how we are handling your personal data or queries regarding the Terms and Conditions and the Privacy Policy, please contact our Data Protection Officer at{" "}
+            <a href="mailto:dposg@crawfort.com" className="underline underline-offset-2 opacity-100">dposg@crawfort.com</a>.
+          </p>
+
+          <p className="mt-4 text-xs font-semibold">
+            For loan enquiries, please contact us at{" "}
+            <a href="tel:+6567778080" className="underline underline-offset-2">+65 6777 8080</a>
+            {" "}or{" "}
+            <a href="mailto:hellosg@crawfort.com" className="underline underline-offset-2">hellosg@crawfort.com</a>
+          </p>
+        </footer>
       </main>
     </div>
   );

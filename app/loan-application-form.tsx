@@ -116,7 +116,7 @@ function StepIndicator({
   total: number;
 }) {
   return (
-    <div className="flex items-center gap-2 mb-4 sm:mb-6">
+    <div className="flex items-center gap-2 mb-5 sm:mb-6">
       {Array.from({ length: total }, (_, i) => {
         const step = i + 1;
         const isActive = step === current;
@@ -157,7 +157,7 @@ function StepHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-5 sm:mb-6">
+    <div className="mb-6 sm:mb-6">
       {/* Mobile: icon inline with heading */}
       <div className="flex items-center gap-3 sm:block">
         <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06] sm:mb-3">
