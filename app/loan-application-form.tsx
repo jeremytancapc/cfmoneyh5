@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Lightning,
   CalendarBlank,
@@ -67,9 +67,8 @@ function formatCurrency(value: number): string {
 }
 
 function calculateMonthlyRepayment(amount: number, months: number): number {
-  const annualRate = 0.038;
-  const monthlyRate = annualRate / 12;
-  if (monthlyRate === 0) return amount / months;
+  const monthlyRate = 0.47 / 12; // 47% p.a. reducing balance
+  if (months === 0) return 0;
   return (
     (amount * (monthlyRate * Math.pow(1 + monthlyRate, months))) /
     (Math.pow(1 + monthlyRate, months) - 1)
@@ -158,7 +157,7 @@ function StepHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-4 sm:mb-6">
+    <div className="mb-5 sm:mb-6">
       {/* Mobile: icon inline with heading */}
       <div className="flex items-center gap-3 sm:block">
         <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06] sm:mb-3">
@@ -169,7 +168,7 @@ function StepHeader({
           {title}
         </h2>
       </div>
-      <p className="mt-1 sm:mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[45ch]">
+      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[45ch]">
         {subtitle}
       </p>
     </div>
@@ -258,6 +257,7 @@ export function LoanApplicationForm() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const topRef = React.useRef<HTMLDivElement>(null);
 
   const updateField = useCallback(
     <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -308,17 +308,22 @@ export function LoanApplicationForm() {
     }
   }, [step, formData]);
 
+  const scrollToTop = useCallback(() => {
+    topRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, []);
+
   const handleNext = useCallback(() => {
-    if (step < TOTAL_STEPS) setStep((s) => s + 1);
-  }, [step]);
+    if (step < TOTAL_STEPS) { setStep((s) => s + 1); scrollToTop(); }
+  }, [step, scrollToTop]);
 
   const handleBack = useCallback(() => {
-    if (step > 1) setStep((s) => s - 1);
-  }, [step]);
+    if (step > 1) { setStep((s) => s - 1); scrollToTop(); }
+  }, [step, scrollToTop]);
 
   const handleSubmit = useCallback(() => {
     setIsSubmitted(true);
-  }, []);
+    scrollToTop();
+  }, [scrollToTop]);
 
   const sliderPercentage = useMemo(() => {
     return ((formData.amount - 500) / (100000 - 500)) * 100;
@@ -372,7 +377,7 @@ export function LoanApplicationForm() {
   }
 
   return (
-    <div>
+    <div ref={topRef}>
       <StepIndicator current={step} total={TOTAL_STEPS} />
 
       <div key={step} className="animate-slide-in">
@@ -510,14 +515,20 @@ function Step1_LoanDetails({
   const handleTenureBlur = useCallback(() => {
     setTenureFocused(false);
     const num = parseInt(tenureRaw, 10);
-    if (Number.isNaN(num)) { setTenureRaw(String(formData.tenure)); return; }
-    // snap to nearest valid tenure option
-    const closest = TENURE_OPTIONS.reduce((prev, curr) =>
-      Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev
-    );
-    updateField("tenure", closest);
-    setTenureRaw(String(closest));
+    if (Number.isNaN(num) || num <= 0) { setTenureRaw(String(formData.tenure)); return; }
+    const clamped = Math.min(Math.max(num, 1), 24);
+    updateField("tenure", clamped);
+    setTenureRaw(String(clamped));
   }, [tenureRaw, formData.tenure, updateField]);
+
+  // Nearest slider index for display when a custom tenure is typed
+  const tenureSliderIndex = useMemo(() => {
+    const idx = TENURE_OPTIONS.indexOf(formData.tenure);
+    if (idx !== -1) return idx;
+    return TENURE_OPTIONS.reduce((bestIdx, val, i) =>
+      Math.abs(val - formData.tenure) < Math.abs(TENURE_OPTIONS[bestIdx] - formData.tenure) ? i : bestIdx
+    , 0);
+  }, [formData.tenure]);
 
   return (
     <div>
@@ -527,7 +538,7 @@ function Step1_LoanDetails({
         subtitle="Your personalised limit is confirmed on the next step."
       />
 
-      <div className="flex flex-col gap-4 sm:gap-6">
+      <div className="flex flex-col gap-5 sm:gap-6">
         <div>
           <div className="mb-1 flex justify-end">
             <div
@@ -606,7 +617,7 @@ function Step1_LoanDetails({
             <div
               className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full"
               style={{
-                width: `${(TENURE_OPTIONS.indexOf(formData.tenure) / (TENURE_OPTIONS.length - 1)) * 100}%`,
+                width: `${(tenureSliderIndex / (TENURE_OPTIONS.length - 1)) * 100}%`,
                 background: "var(--brand-blue-hex)",
               }}
             />
@@ -615,7 +626,7 @@ function Step1_LoanDetails({
               min={0}
               max={TENURE_OPTIONS.length - 1}
               step={1}
-              value={TENURE_OPTIONS.indexOf(formData.tenure)}
+              value={tenureSliderIndex}
               onChange={(e) => {
                 const val = TENURE_OPTIONS[parseInt(e.target.value, 10)];
                 updateField("tenure", val);
@@ -654,7 +665,7 @@ function Step1_LoanDetails({
             <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
           </div>
           <span className="mt-0.5 block text-xs text-[var(--text-tertiary)]">
-            * Estimate at 3.8% p.a. Your actual rate may be lower.
+            Estimate only. Your actual rates may be lower.
           </span>
         </div>
 

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { LoanApplicationForm } from "./loan-application-form";
 import { SidebarTrustFeatures } from "./sidebar-trust-features";
 
@@ -7,9 +8,14 @@ export default function HomePage() {
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
           <div className="mb-16">
-            <span className="font-display text-2xl font-bold tracking-tight text-[var(--text-on-brand)]">
-              Crawfort
-            </span>
+            <Image
+              src="/images/cf-money-white.png"
+              alt="CF Money"
+              width={160}
+              height={48}
+              className="h-6 w-auto"
+              priority
+            />
           </div>
 
           <h1 className="font-display text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-[var(--text-on-brand)] max-w-[420px]">
@@ -42,9 +48,14 @@ export default function HomePage() {
 
       <main className="flex flex-1 flex-col">
         <div className="flex items-center justify-between px-6 py-4 lg:hidden">
-          <span className="font-display text-xl font-bold tracking-tight text-brand-blue">
-            Crawfort
-          </span>
+          <Image
+            src="/images/cf-money-full-color.png"
+            alt="CF Money"
+            width={120}
+            height={36}
+            className="h-4 w-auto"
+            priority
+          />
           <span className="text-xs font-medium text-[var(--text-tertiary)]">
             Licensed Money Lender
           </span>
