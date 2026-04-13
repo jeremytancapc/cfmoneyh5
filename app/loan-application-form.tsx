@@ -521,14 +521,6 @@ function Step1_LoanDetails({
     setTenureRaw(String(clamped));
   }, [tenureRaw, formData.tenure, updateField]);
 
-  // Nearest slider index for display when a custom tenure is typed
-  const tenureSliderIndex = useMemo(() => {
-    const idx = TENURE_OPTIONS.indexOf(formData.tenure);
-    if (idx !== -1) return idx;
-    return TENURE_OPTIONS.reduce((bestIdx, val, i) =>
-      Math.abs(val - formData.tenure) < Math.abs(TENURE_OPTIONS[bestIdx] - formData.tenure) ? i : bestIdx
-    , 0);
-  }, [formData.tenure]);
 
   return (
     <div>
@@ -617,18 +609,18 @@ function Step1_LoanDetails({
             <div
               className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full"
               style={{
-                width: `${(tenureSliderIndex / (TENURE_OPTIONS.length - 1)) * 100}%`,
+                width: `${((formData.tenure - 1) / (24 - 1)) * 100}%`,
                 background: "var(--brand-blue-hex)",
               }}
             />
             <input
               type="range"
-              min={0}
-              max={TENURE_OPTIONS.length - 1}
+              min={1}
+              max={24}
               step={1}
-              value={tenureSliderIndex}
+              value={formData.tenure}
               onChange={(e) => {
-                const val = TENURE_OPTIONS[parseInt(e.target.value, 10)];
+                const val = parseInt(e.target.value, 10);
                 updateField("tenure", val);
                 setTenureRaw(String(val));
               }}
@@ -636,21 +628,8 @@ function Step1_LoanDetails({
             />
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
-            {TENURE_OPTIONS.map((m) => (
-              <span
-                key={m}
-                className="transition-colors duration-150"
-                style={{
-                  color:
-                    formData.tenure === m
-                      ? "var(--brand-blue-hex)"
-                      : "var(--text-tertiary)",
-                  fontWeight: formData.tenure === m ? 600 : 400,
-                }}
-              >
-                {m}
-              </span>
-            ))}
+            <span>1</span>
+            <span>24 months</span>
           </div>
         </div>
 
