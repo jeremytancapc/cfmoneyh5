@@ -117,7 +117,7 @@ function StepIndicator({
   total: number;
 }) {
   return (
-    <div className="flex items-center gap-2 mb-8">
+    <div className="flex items-center gap-2 mb-4 sm:mb-6">
       {Array.from({ length: total }, (_, i) => {
         const step = i + 1;
         const isActive = step === current;
@@ -158,14 +158,18 @@ function StepHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-8">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06]">
-        <Icon size={22} weight="duotone" className="text-brand-blue" />
+    <div className="mb-4 sm:mb-6">
+      {/* Mobile: icon inline with heading */}
+      <div className="flex items-center gap-3 sm:block">
+        <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06] sm:mb-3">
+          <Icon size={18} weight="duotone" className="text-brand-blue sm:hidden" />
+          <Icon size={22} weight="duotone" className="text-brand-blue hidden sm:block" />
+        </div>
+        <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+          {title}
+        </h2>
       </div>
-      <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[45ch]">
+      <p className="mt-1 sm:mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[45ch]">
         {subtitle}
       </p>
     </div>
@@ -195,7 +199,7 @@ function InputField({
         {label}
       </label>
       <div
-        className={`flex min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10 ${
+        className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10 ${
           prefix ? "gap-2 pl-4 pr-4" : ""
         }`}
       >
@@ -210,7 +214,7 @@ function InputField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={`min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
-            prefix ? "py-3 pl-0" : "px-4 py-3"
+            prefix ? "py-2 sm:py-3 pl-0" : "px-4 py-2 sm:py-3"
           }`}
         />
       </div>
@@ -420,7 +424,7 @@ export function LoanApplicationForm() {
       </div>
 
       {step !== 3 && (
-        <div className="mt-8 flex items-center gap-3">
+        <div className="mt-4 sm:mt-8 flex items-center gap-3">
           {step > 1 && (
             <button
               type="button"
@@ -484,10 +488,10 @@ function Step1_LoanDetails({
         subtitle="Your personalised limit is confirmed on the next step."
       />
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 sm:gap-6">
         <div>
-          <div className="mb-3 flex justify-end">
-            <span className="font-display text-4xl font-bold tracking-tight text-brand-blue tabular-nums">
+          <div className="mb-2 flex justify-end">
+            <span className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-brand-blue tabular-nums">
               {formatCurrency(formData.amount)}
             </span>
           </div>
@@ -518,12 +522,12 @@ function Step1_LoanDetails({
         </div>
 
         <div>
-          <div className="mb-3 flex items-end justify-between">
+          <div className="mb-2 flex items-end justify-between">
             <label className="text-sm font-medium text-[var(--text-primary)]">
               Pick your tenure
             </label>
-            <span className="font-display text-4xl font-bold tracking-tight text-brand-blue tabular-nums">
-              {formData.tenure} <span className="text-2xl font-semibold">months</span>
+            <span className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-brand-blue tabular-nums">
+              {formData.tenure} <span className="text-xl sm:text-2xl font-semibold">months</span>
             </span>
           </div>
           <div className="relative">
@@ -565,17 +569,17 @@ function Step1_LoanDetails({
           </div>
         </div>
 
-        <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle)] p-5">
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle)] p-3 sm:p-5">
           <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
             Est. monthly repayment
           </span>
-          <div className="mt-1 flex items-baseline gap-1">
-            <span className="font-display text-3xl font-bold tracking-tight text-[var(--text-primary)] tabular-nums">
+          <div className="mt-0.5 flex items-baseline gap-1">
+            <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] tabular-nums">
               {formatCurrency(monthlyRepayment)}
             </span>
             <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
           </div>
-          <span className="mt-1 block text-xs text-[var(--text-tertiary)]">
+          <span className="mt-0.5 block text-xs text-[var(--text-tertiary)]">
             * Estimate at 3.8% p.a. Your actual rate may be lower.
           </span>
         </div>
@@ -592,7 +596,7 @@ function Step1_LoanDetails({
                   key={value}
                   type="button"
                   onClick={() => updateField("urgency", value)}
-                  className="flex flex-col items-center gap-2 rounded-[var(--radius-md)] border py-4 transition-all duration-200 active:scale-[0.96]"
+                  className="flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border py-2.5 sm:py-4 transition-all duration-200 active:scale-[0.96]"
                   style={{
                     borderColor: isSelected
                       ? "var(--brand-blue-hex)"
@@ -643,7 +647,7 @@ function Step2_SelfDeclaredIncome({
       <StepHeader
         icon={Coins}
         title="What is your monthly income?"
-        subtitle="Self-declared figure before CPF. You will verify your details with Singpass or a manual form next."
+        subtitle="Helps us confirm the loan fits your budget."
       />
       <div className="flex flex-col gap-5">
         <InputField
@@ -653,7 +657,7 @@ function Step2_SelfDeclaredIncome({
           value={formData.monthlyIncome}
           onChange={(v) => updateField("monthlyIncome", v)}
           prefix="$"
-          helper="Before CPF deductions. Used for eligibility only until your documents are verified."
+          helper=""
         />
       </div>
     </div>
@@ -763,9 +767,9 @@ function Step4_Identity({
         subtitle="We need this to verify your identity and eligibility."
       />
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3 sm:gap-5">
         <div>
-          <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
+          <label className="mb-2 block text-sm font-medium text-[var(--text-primary)]">
             I am a
           </label>
           <div className="flex flex-wrap gap-2">
