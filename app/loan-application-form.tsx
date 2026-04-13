@@ -480,6 +480,45 @@ function Step1_LoanDetails({
   monthlyRepayment: number;
   sliderPercentage: number;
 }) {
+  const [amountRaw, setAmountRaw] = useState(String(formData.amount));
+  const [amountFocused, setAmountFocused] = useState(false);
+  const [tenureRaw, setTenureRaw] = useState(String(formData.tenure));
+  const [tenureFocused, setTenureFocused] = useState(false);
+
+  const handleAmountChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value.replace(/[^0-9]/g, "");
+      setAmountRaw(raw);
+      const num = parseInt(raw, 10);
+      if (!Number.isNaN(num) && num >= 500 && num <= 100000) {
+        updateField("amount", num);
+      }
+    },
+    [updateField],
+  );
+
+  const handleAmountBlur = useCallback(() => {
+    setAmountFocused(false);
+    const num = parseInt(amountRaw, 10);
+    const clamped = Number.isNaN(num)
+      ? 500
+      : Math.round(Math.min(Math.max(num, 500), 100000) / 500) * 500;
+    updateField("amount", clamped);
+    setAmountRaw(String(clamped));
+  }, [amountRaw, updateField]);
+
+  const handleTenureBlur = useCallback(() => {
+    setTenureFocused(false);
+    const num = parseInt(tenureRaw, 10);
+    if (Number.isNaN(num)) { setTenureRaw(String(formData.tenure)); return; }
+    // snap to nearest valid tenure option
+    const closest = TENURE_OPTIONS.reduce((prev, curr) =>
+      Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev
+    );
+    updateField("tenure", closest);
+    setTenureRaw(String(closest));
+  }, [tenureRaw, formData.tenure, updateField]);
+
   return (
     <div>
       <StepHeader
@@ -490,10 +529,24 @@ function Step1_LoanDetails({
 
       <div className="flex flex-col gap-4 sm:gap-6">
         <div>
-          <div className="mb-2 flex justify-end">
-            <span className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-brand-blue tabular-nums">
-              {formatCurrency(formData.amount)}
-            </span>
+          <div className="mb-1 flex justify-end">
+            <div
+              className="flex items-baseline gap-0.5 border-b-2 pb-0.5 transition-colors duration-150"
+              style={{ borderColor: amountFocused ? "var(--brand-blue-hex)" : "var(--border-medium)" }}
+            >
+              <span className="font-display text-xl sm:text-2xl font-bold tracking-tight text-brand-blue">$</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={amountFocused ? amountRaw : formData.amount.toLocaleString("en-SG")}
+                onFocus={() => { setAmountFocused(true); setAmountRaw(String(formData.amount)); }}
+                onBlur={handleAmountBlur}
+                onChange={handleAmountChange}
+                className="min-w-0 border-0 bg-transparent text-right font-display text-xl sm:text-2xl font-bold tracking-tight text-brand-blue tabular-nums outline-none"
+                style={{ width: `${Math.max(amountFocused ? amountRaw.length : formData.amount.toLocaleString("en-SG").length, 3)}ch` }}
+                aria-label="Loan amount"
+              />
+            </div>
           </div>
           <div className="relative">
             <div
@@ -509,9 +562,11 @@ function Step1_LoanDetails({
               max={100000}
               step={500}
               value={formData.amount}
-              onChange={(e) =>
-                updateField("amount", parseInt(e.target.value, 10))
-              }
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                updateField("amount", val);
+                setAmountRaw(String(val));
+              }}
               className="relative z-10 w-full cursor-pointer"
             />
           </div>
@@ -522,13 +577,30 @@ function Step1_LoanDetails({
         </div>
 
         <div>
-          <div className="mb-2 flex items-end justify-between">
+          <div className="mb-1 flex items-end justify-between">
             <label className="text-sm font-medium text-[var(--text-primary)]">
               Pick your tenure
             </label>
-            <span className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-brand-blue tabular-nums">
-              {formData.tenure} <span className="text-xl sm:text-2xl font-semibold">months</span>
-            </span>
+            <div
+              className="flex items-baseline gap-1.5 border-b-2 pb-0.5 transition-colors duration-150"
+              style={{ borderColor: tenureFocused ? "var(--brand-blue-hex)" : "var(--border-medium)" }}
+            >
+              <input
+                type="text"
+                inputMode="numeric"
+                value={tenureFocused ? tenureRaw : String(formData.tenure)}
+                onFocus={() => { setTenureFocused(true); setTenureRaw(String(formData.tenure)); }}
+                onBlur={handleTenureBlur}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9]/g, "");
+                  setTenureRaw(raw);
+                }}
+                className="min-w-0 border-0 bg-transparent text-right font-display text-xl sm:text-2xl font-bold tracking-tight text-brand-blue tabular-nums outline-none"
+                style={{ width: `${Math.max((tenureFocused ? tenureRaw : String(formData.tenure)).length, 2)}ch` }}
+                aria-label="Loan tenure in months"
+              />
+              <span className="text-base sm:text-lg font-semibold text-brand-blue">months</span>
+            </div>
           </div>
           <div className="relative">
             <div
@@ -544,9 +616,11 @@ function Step1_LoanDetails({
               max={TENURE_OPTIONS.length - 1}
               step={1}
               value={TENURE_OPTIONS.indexOf(formData.tenure)}
-              onChange={(e) =>
-                updateField("tenure", TENURE_OPTIONS[parseInt(e.target.value, 10)])
-              }
+              onChange={(e) => {
+                const val = TENURE_OPTIONS[parseInt(e.target.value, 10)];
+                updateField("tenure", val);
+                setTenureRaw(String(val));
+              }}
               className="relative z-10 w-full cursor-pointer"
             />
           </div>
