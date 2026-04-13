@@ -635,19 +635,24 @@ function Step1_LoanDetails({
           </div>
         </div>
 
-        <div className="rounded-[var(--radius-lg)] p-3 sm:p-5" style={{ background: "var(--brand-teal-hex)" }}>
-          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "oklch(0.25 0.08 178)" }}>
-            Est. monthly repayment
-          </span>
-          <div className="mt-0.5 flex items-baseline gap-1">
-            <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums" style={{ color: "oklch(0.18 0.06 178)" }}>
+        <div
+          className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-4 py-3 flex items-center justify-between gap-3"
+          style={{ boxShadow: "3px 3px 0px 0px var(--brand-blue-hex)" }}
+        >
+          <div className="min-w-0">
+            <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-primary)]">
+              Est. monthly repayment
+            </span>
+            <span className="mt-0.5 block text-xs text-[var(--text-tertiary)] max-w-[172px]">
+              Estimate only. Your actual rates may be lower.
+            </span>
+          </div>
+          <div className="flex items-baseline gap-0.5 shrink-0">
+            <span className="font-display text-xl font-bold tracking-tight text-brand-blue tabular-nums">
               {formatCurrency(monthlyRepayment)}
             </span>
-            <span className="text-xs font-medium" style={{ color: "oklch(0.28 0.07 178)" }}>/mo</span>
+            <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
           </div>
-          <span className="mt-0.5 block text-xs" style={{ color: "oklch(0.30 0.07 178)" }}>
-            Estimate only. Your actual rates may be lower.
-          </span>
         </div>
 
         <div>
