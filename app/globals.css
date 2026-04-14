@@ -165,3 +165,94 @@ input[type="range"]::-moz-range-thumb {
 .animate-slide-in {
   animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ─── Date horizontal scroll strip ──────────────────────────────── */
+
+.date-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;            /* Firefox */
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  cursor: grab;
+  user-select: none;
+}
+
+.date-scroll:active {
+  cursor: grabbing;
+}
+
+.date-scroll::-webkit-scrollbar {
+  display: none;                    /* Chrome / Safari / Edge */
+}
+
+/* Let touch pans propagate through the buttons to the scroll container */
+.date-scroll > * {
+  touch-action: pan-x;
+}
+
+/* ─── Circle Loader ─────────────────────────────────────────────────── */
+/*
+ * The whole .loader div spins — SVG arc + dot rotate together, so the
+ * dot is ALWAYS at the arc tip without any dashoffset-to-angle math.
+ * The arc uses a fixed stroke-dasharray to create the partial-circle gap.
+ */
+
+.loader {
+  --duration: 2.4s;
+  width: 44px;
+  height: 44px;
+  display: block;
+  animation: loaderSpin var(--duration) linear infinite;
+  transform-origin: center;
+}
+
+.loader svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The arc track — ~78% of the circle visible, gap at the trailing edge */
+.loader circle.loader-arc {
+  fill: none;
+  stroke: var(--border-subtle);
+  stroke-width: 7;
+  stroke-linecap: round;
+  /* circumference ≈ 201; dasharray 157 ≈ 78% visible arc */
+  stroke-dasharray: 157 44;
+}
+
+/* The teal dot is a small filled SVG circle at the arc leading edge (3 o'clock) */
+.loader circle.loader-dot {
+  fill: var(--brand-teal-hex);
+}
+
+@keyframes loaderSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── Loading screen — blur reveal (background ghost content) ─────── */
+
+@keyframes blur-reveal {
+  0%   { opacity: 0; filter: blur(16px); transform: translateY(6px); }
+  100% { opacity: 0.45; filter: blur(4px); transform: translateY(0); }
+}
+
+.animate-blur-reveal {
+  animation: blur-reveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Status text fade cycle ─────────────────────────────────────── */
+
+@keyframes status-fade {
+  0%   { opacity: 0; transform: translateY(6px); }
+  12%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+.animate-status {
+  animation: status-fade 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

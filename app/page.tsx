@@ -63,7 +63,7 @@ export default function HomePage() {
           </span>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-16 pt-5 sm:px-8 sm:pt-2 sm:pb-8 lg:justify-center lg:px-12 xl:px-20">
+        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-16 pt-5 sm:px-8 sm:pt-2 sm:pb-8 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
             <LoanApplicationForm />
           </div>

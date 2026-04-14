@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import React, { useState, useCallback, useMemo } from "react";
+import { LoanLoadingScreen } from "./loan-loading-screen";
+import { LoanResults } from "./loan-results";
+import { AppointmentBooking } from "./appointment-booking";
 import {
   Lightning,
   CalendarBlank,
@@ -168,7 +171,7 @@ function StepHeader({
           {title}
         </h2>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[45ch]">
+      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
         {subtitle}
       </p>
     </div>
@@ -253,10 +256,12 @@ function SelectableChip({
   );
 }
 
+type PostSubmitPhase = "form" | "loading" | "results" | "booking";
+
 export function LoanApplicationForm() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [postSubmitPhase, setPostSubmitPhase] = useState<PostSubmitPhase>("form");
 
 
   const updateField = useCallback(
@@ -321,7 +326,17 @@ export function LoanApplicationForm() {
   }, [step, scrollToTop]);
 
   const handleSubmit = useCallback(() => {
-    setIsSubmitted(true);
+    setPostSubmitPhase("loading");
+    scrollToTop();
+  }, [scrollToTop]);
+
+  const handleLoadingComplete = useCallback(() => {
+    setPostSubmitPhase("results");
+    scrollToTop();
+  }, [scrollToTop]);
+
+  const handleAcceptOffer = useCallback(() => {
+    setPostSubmitPhase("booking");
     scrollToTop();
   }, [scrollToTop]);
 
@@ -329,51 +344,22 @@ export function LoanApplicationForm() {
     return ((formData.amount - 500) / (100000 - 500)) * 100;
   }, [formData.amount]);
 
-  if (isSubmitted) {
+  if (postSubmitPhase === "loading") {
+    return <LoanLoadingScreen onComplete={handleLoadingComplete} />;
+  }
+
+  if (postSubmitPhase === "results") {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center animate-fade-up">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-brand-teal/10">
-          <CheckCircle size={36} weight="duotone" className="text-brand-teal" />
-        </div>
-        <h2 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          Application Submitted
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[38ch]">
-          We&apos;re reviewing your application now. Expect a response via SMS
-          within 8 minutes.
-        </p>
-        <div className="mt-8 flex w-full flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] p-5">
-          <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-tertiary)]">Loan Amount</span>
-            <span className="font-semibold text-[var(--text-primary)]">
-              {formatCurrency(formData.amount)}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-tertiary)]">Tenure</span>
-            <span className="font-semibold text-[var(--text-primary)]">
-              {formData.tenure} months
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-tertiary)]">Est. Monthly</span>
-            <span className="font-semibold text-brand-blue">
-              {formatCurrency(monthlyRepayment)}
-            </span>
-          </div>
-          {formData.monthlyIncome && (
-            <div className="flex justify-between text-sm">
-              <span className="text-[var(--text-tertiary)]">
-                Declared monthly income
-              </span>
-              <span className="font-semibold text-[var(--text-primary)]">
-                {formatCurrency(parseInt(formData.monthlyIncome, 10) || 0)}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
+      <LoanResults
+        formData={formData}
+        monthlyRepayment={monthlyRepayment}
+        onAccept={handleAcceptOffer}
+      />
     );
+  }
+
+  if (postSubmitPhase === "booking") {
+    return <AppointmentBooking formData={formData} onBack={() => { setPostSubmitPhase("results"); scrollToTop(); }} />;
   }
 
   return (
