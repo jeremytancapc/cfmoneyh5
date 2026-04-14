@@ -38,7 +38,7 @@ export function SidebarTrustFeatures() {
       <SidebarFeatureIcon
         icon={Buildings}
         title="Licensed Lender"
-        subtitle="MAS & MinLaw regulated"
+        subtitle="MinLaw regulated"
       />
       <SidebarFeatureIcon
         icon={Lightning}
