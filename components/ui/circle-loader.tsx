@@ -9,8 +9,9 @@ interface CircleLoaderProps {
  * at the arc's leading edge (no dashoffset-to-angle sync required).
  *
  * SVG coords: viewBox 0 0 80 80, circle r=32 cx=40 cy=40
- *   - 3 o'clock (arc start):  cx + r = 72, cy = 40
- *   - Dot sits at the leading edge, orbits as the loader spins
+ *   - Arc: 157/201 circumference (~78%), gap = 44px (~79°)
+ *   - Gap starts at ~281° and ends at 360°; midpoint at ~320.5°
+ *   - Dot sits at gap midpoint (~1 o'clock), orbits as the loader spins
  */
 export function CircleLoader({ size = 44 }: CircleLoaderProps) {
   return (
@@ -28,12 +29,12 @@ export function CircleLoader({ size = 44 }: CircleLoaderProps) {
           cy="40"
           cx="40"
         />
-        {/* Dot: sits at 3 o'clock — the arc's leading edge */}
+        {/* Dot: sits at the midpoint of the gap (~320.5° from 3 o'clock) */}
         <circle
           className="loader-dot"
           r="4"
-          cy="40"
-          cx="72"
+          cx="64.7"
+          cy="19.6"
         />
       </svg>
     </div>
