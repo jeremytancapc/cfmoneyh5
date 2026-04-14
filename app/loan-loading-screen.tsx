@@ -33,18 +33,20 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
       timers.push(id);
     };
 
-    // Irregular progress ticks — staggered, not smooth
+    // Irregular progress ticks — staggered, not smooth (~9 s total)
     const ticks: [number, number][] = [
-      [320,  9],
-      [780,  13],
-      [1120, 7],
-      [1550, 15],
-      [1880, 8],
-      [2350, 12],
-      [2680, 9],
-      [3050, 14],
-      [3380, 7],
-      [3750, 6],
+      [400,   7],
+      [900,   9],
+      [1500,  5],
+      [2200, 11],
+      [2900,  6],
+      [3700,  8],  // deliberate pause here — feels like a real check
+      [4600, 10],
+      [5400,  7],
+      [6200, 12],
+      [7000,  8],
+      [7800,  9],
+      [8500,  8],
     ];
 
     ticks.forEach(([delay, inc]) => {
@@ -54,12 +56,12 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
         setProgress(current);
         if (current >= 100 && !done) {
           done = true;
-          t(() => onCompleteRef.current(), 500);
+          t(() => onCompleteRef.current(), 600);
         }
       }, delay);
     });
 
-    // Status message cycling
+    // Status message cycling — spread across the full duration
     const cycle = (idx: number, at: number) => {
       if (idx >= STATUS_MESSAGES.length) return;
       t(() => {
@@ -67,11 +69,11 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
         t(() => {
           setStatusIndex(idx);
           setStatusVisible(true);
-          cycle(idx + 1, at + 1100);
-        }, 200);
+          cycle(idx + 1, at + 2200);
+        }, 250);
       }, at);
     };
-    cycle(1, 1100);
+    cycle(1, 2000);
 
     return () => {
       done = true;
@@ -147,30 +149,33 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
       />
 
       {/* ── Loader content — left-of-center on desktop ── */}
-      <div className="relative z-10 flex w-full max-w-[300px] flex-col gap-6 px-6 lg:ml-[-8%]">
+      <div className="relative z-10 flex w-full max-w-[380px] flex-col gap-8 px-8 lg:ml-[-8%]">
 
         {/* Circle loader */}
-        <CircleLoader size={48} />
+        <CircleLoader size={56} />
 
         {/* Status text */}
-        <div className="h-5 overflow-hidden">
+        <div>
           <p
-            className="text-sm font-medium text-[var(--text-secondary)]"
+            className="font-display text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-4xl"
             style={{
               opacity: statusVisible ? 1 : 0,
-              transform: statusVisible ? "translateY(0)" : "translateY(-4px)",
+              transform: statusVisible ? "translateY(0)" : "translateY(-6px)",
               transition:
                 "opacity 200ms cubic-bezier(0.16,1,0.3,1), transform 200ms cubic-bezier(0.16,1,0.3,1)",
             }}
           >
             {STATUS_MESSAGES[statusIndex]}
           </p>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            This usually takes a few seconds.
+          </p>
         </div>
 
         {/* Staggered progress bar — scaleX transform, GPU composited */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <div
-            className="h-[3px] w-full overflow-hidden rounded-full"
+            className="h-1 w-full overflow-hidden rounded-full"
             style={{ background: "var(--border-subtle)" }}
           >
             <div
@@ -186,7 +191,7 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
             />
           </div>
           <p
-            className="text-xs tabular-nums text-[var(--text-tertiary)]"
+            className="text-sm font-medium tabular-nums text-[var(--text-tertiary)]"
             aria-live="polite"
           >
             {progress}%

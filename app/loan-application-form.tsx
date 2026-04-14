@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
@@ -312,6 +312,11 @@ export function LoanApplicationForm() {
         return false;
     }
   }, [step, formData]);
+
+  // Scroll to top after every step/phase change, once new content is in the DOM.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [step, postSubmitPhase]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
