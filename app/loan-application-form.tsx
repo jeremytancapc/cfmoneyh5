@@ -390,8 +390,21 @@ export function LoanApplicationForm() {
           <Step3_SingpassGate
             onBack={() => { setStep(2); scrollToTop(); }}
             onSingpass={() => {
-              updateField("authMethod", "singpass");
-              setStep(4);
+              // Simulate Singpass Myinfo prefill — jump straight to review
+              setFormData((prev) => ({
+                ...prev,
+                authMethod: "singpass",
+                idType: "singaporean",
+                fullName: "Tan Wei Liang",
+                nric: "S8912345D",
+                employmentStatus: "full_time",
+                monthlyIncome: prev.monthlyIncome || "5500",
+                mobile: "91234567",
+                loanPurpose: "personal",
+                postalCode: "179094",
+                address: "1 North Bridge Road #08-01",
+              }));
+              setStep(8);
               scrollToTop();
             }}
             onManual={() => {
@@ -777,7 +790,7 @@ function Step3_SingpassGate({
           alt="Singpass"
           width={88}
           height={28}
-          className="h-5 w-auto"
+          className="h-5 w-auto translate-y-px"
         />
       </button>
 
