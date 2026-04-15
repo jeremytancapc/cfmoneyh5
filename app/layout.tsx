@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { quicksand, raleway } from "./fonts";
+import { quicksand, manrope } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${quicksand.variable} ${raleway.variable} h-full antialiased`}
+      className={`${quicksand.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

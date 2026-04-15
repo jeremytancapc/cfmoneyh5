@@ -1,13 +1,15 @@
-import { Quicksand, Raleway } from "next/font/google";
+import { Quicksand, Manrope } from "next/font/google";
 
 export const quicksand = Quicksand({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-quicksand",
+  weight: ["400", "500", "600", "700"],
 });
 
-export const raleway = Raleway({
+export const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-raleway",
+  variable: "--font-manrope",
+  weight: ["500", "600", "700"],
 });

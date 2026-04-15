@@ -29,10 +29,11 @@ import {
   Minus,
   CaretDown,
   Warning,
+  WarningCircle,
 } from "@phosphor-icons/react";
 
 /** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details · 9: employment & declaration */
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 8;
 
 const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
 
@@ -91,31 +92,17 @@ const INDUSTRY_OPTIONS = [
 ] as const;
 
 const POSITION_OPTIONS = [
-  { value: "senior_executive", label: "Senior Executive" },
-  { value: "non_executive", label: "Non-Executive" },
-  { value: "senior_manager", label: "Senior Manager" },
+  { value: "director_senior_exec", label: "Director / Senior Executive" },
   { value: "manager", label: "Manager / Assistant Manager" },
   { value: "junior_executive", label: "Junior Executive" },
-  { value: "professional", label: "Professional" },
-  { value: "supervisor", label: "Supervisor" },
-  { value: "director_gm", label: "Director / GM" },
   { value: "others", label: "Others" },
 ] as const;
 
 const EMPLOYMENT_DURATION_OPTIONS = [
-  { value: "less_1m", label: "Less than 1 month" },
-  { value: "1m", label: "1 month" },
-  { value: "2m", label: "2 months" },
-  { value: "3m", label: "3 months" },
-  { value: "4m", label: "4 months" },
-  { value: "5m", label: "5 months" },
-  { value: "6_7m", label: "6–7 months" },
-  { value: "8_9m", label: "8–9 months" },
-  { value: "10_12m", label: "10–12 months" },
-  { value: "1_2y", label: "1–2 years" },
-  { value: "3_4y", label: "3–4 years" },
-  { value: "5_7y", label: "5–7 years" },
-  { value: "8_10y", label: "8–10 years" },
+  { value: "less_1y", label: "Less than 1 year" },
+  { value: "1_3y", label: "1 – 3 years" },
+  { value: "4_7y", label: "4 – 7 years" },
+  { value: "8_10y", label: "8 – 10 years" },
   { value: "10y_plus", label: "10 years and above" },
 ] as const;
 
@@ -159,7 +146,7 @@ interface FormData {
   officePhone: string;
   mailingAddress: string;
   secondaryMobile: string;
-  bankruptcyDeclaration: "" | "yes" | "no";
+  bankruptcyDeclaration: "" | "clear" | "discharged_lt5" | "active";
 }
 
 const initialFormData: FormData = {
@@ -258,6 +245,7 @@ function InputField({
   placeholder,
   value,
   onChange,
+  onBlur,
   prefix,
   helper,
 }: {
@@ -266,6 +254,7 @@ function InputField({
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   prefix?: string;
   helper?: string;
 }) {
@@ -289,6 +278,7 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           className={`min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
             prefix ? "py-2 sm:py-3 pl-0" : "px-4 py-2 sm:py-3"
           }`}
@@ -344,9 +334,11 @@ export function LoanApplicationForm() {
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [postSubmitPhase, setPostSubmitPhase] = useState<PostSubmitPhase>("form");
+  const [incomeHighWarningShown, setIncomeHighWarningShown] = useState(false);
 
   const updateField = useCallback(
     <K extends keyof FormData>(key: K, value: FormData[K]) => {
+      if (key === "monthlyIncome") setIncomeHighWarningShown(false);
       setFormData((prev) => ({ ...prev, [key]: value }));
     },
     [],
@@ -362,7 +354,7 @@ export function LoanApplicationForm() {
     const hasDeclaredIncome =
       formData.monthlyIncome.trim() !== "" &&
       !Number.isNaN(incomeNum) &&
-      incomeNum > 0;
+      incomeNum >= 200;
 
     switch (step) {
       case 1:
@@ -382,19 +374,18 @@ export function LoanApplicationForm() {
           formData.nric.trim().length > 3
         );
       case 5:
-        return formData.employmentStatus !== "" && hasDeclaredIncome;
-      case 6:
         return formData.mobile.trim().length >= 8;
-      case 7:
-        return formData.loanPurpose !== "";
-      case 8:
+      case 6:
         return true;
-      case 9:
+      case 7:
+        return true;
+      case 8:
         return (
-          formData.workIndustry !== "" &&
+          formData.employmentStatus !== "" &&
           formData.position !== "" &&
           formData.employmentDuration !== "" &&
-          formData.bankruptcyDeclaration !== ""
+          formData.bankruptcyDeclaration !== "" &&
+          formData.bankruptcyDeclaration !== "active"
         );
       default:
         return false;
@@ -411,8 +402,15 @@ export function LoanApplicationForm() {
   }, []);
 
   const handleNext = useCallback(() => {
+    if (step === 2) {
+      const incomeNum = parseInt(formData.monthlyIncome, 10);
+      if (!Number.isNaN(incomeNum) && incomeNum > 20000 && !incomeHighWarningShown) {
+        setIncomeHighWarningShown(true);
+        return;
+      }
+    }
     if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
-  }, [step, navigateTo, scrollToTop]);
+  }, [step, formData.monthlyIncome, incomeHighWarningShown, navigateTo, scrollToTop]);
 
   const handleBack = useCallback(() => {
     // Pop the history stack so Back always returns to where the user actually
@@ -439,7 +437,7 @@ export function LoanApplicationForm() {
   }, [scrollToTop]);
 
   const sliderPercentage = useMemo(() => {
-    return ((formData.amount - 500) / (100000 - 500)) * 100;
+    return ((formData.amount - 500) / (30000 - 500)) * 100;
   }, [formData.amount]);
 
   if (postSubmitPhase === "loading") {
@@ -477,6 +475,7 @@ export function LoanApplicationForm() {
           <Step2_SelfDeclaredIncome
             formData={formData}
             updateField={updateField}
+            incomeHighWarningShown={incomeHighWarningShown}
           />
         )}
         {step === 3 && (
@@ -497,7 +496,7 @@ export function LoanApplicationForm() {
                 postalCode: "179094",
                 address: "1 North Bridge Road #08-01",
               }));
-              navigateTo(8);
+              navigateTo(7);
               scrollToTop();
             }}
             onManual={() => {
@@ -511,21 +510,18 @@ export function LoanApplicationForm() {
           <Step4_Identity formData={formData} updateField={updateField} />
         )}
         {step === 5 && (
-          <Step5_Employment formData={formData} updateField={updateField} />
-        )}
-        {step === 6 && (
           <Step6_Contact formData={formData} updateField={updateField} />
         )}
-        {step === 7 && (
+        {step === 6 && (
           <Step7_Additional formData={formData} updateField={updateField} />
         )}
-        {step === 8 && (
+        {step === 7 && (
           <Step8_Review
             formData={formData}
             monthlyRepayment={monthlyRepayment}
           />
         )}
-        {step === 9 && (
+        {step === 8 && (
           <Step9_EmploymentDeclaration
             formData={formData}
             updateField={updateField}
@@ -534,7 +530,7 @@ export function LoanApplicationForm() {
       </div>
 
       {step !== 3 && (
-        <div className="mt-4 sm:mt-8 flex items-center gap-3">
+        <div className="mt-10 sm:mt-8 flex items-center gap-3">
           {step > 1 && (
             <button
               type="button"
@@ -601,7 +597,7 @@ function Step1_LoanDetails({
       const raw = e.target.value.replace(/[^0-9]/g, "");
       setAmountRaw(raw);
       const num = parseInt(raw, 10);
-      if (!Number.isNaN(num) && num >= 500 && num <= 100000) {
+      if (!Number.isNaN(num) && num >= 500 && num <= 30000) {
         updateField("amount", num);
       }
     },
@@ -613,7 +609,7 @@ function Step1_LoanDetails({
     const num = parseInt(amountRaw, 10);
     const clamped = Number.isNaN(num)
       ? 500
-      : Math.round(Math.min(Math.max(num, 500), 100000) / 500) * 500;
+      : Math.round(Math.min(Math.max(num, 500), 30000) / 500) * 500;
     updateField("amount", clamped);
     setAmountRaw(String(clamped));
   }, [amountRaw, updateField]);
@@ -647,7 +643,7 @@ function Step1_LoanDetails({
               <input
                 type="text"
                 inputMode="numeric"
-                value={amountFocused ? amountRaw : formData.amount.toLocaleString("en-SG")}
+                value={amountFocused ? amountRaw : `${formData.amount.toLocaleString("en-SG")}${formData.amount >= 30000 ? "+" : ""}`}
                 onFocus={() => { setAmountFocused(true); setAmountRaw(String(formData.amount)); }}
                 onBlur={handleAmountBlur}
                 onChange={handleAmountChange}
@@ -668,7 +664,7 @@ function Step1_LoanDetails({
             <input
               type="range"
               min={500}
-              max={100000}
+              max={30000}
               step={500}
               value={formData.amount}
               onChange={(e) => {
@@ -681,7 +677,7 @@ function Step1_LoanDetails({
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
             <span>$500</span>
-            <span>$100,000</span>
+            <span>$30,000+</span>
           </div>
         </div>
 
@@ -747,8 +743,12 @@ function Step1_LoanDetails({
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-primary)]">
               Est. monthly repayment
             </span>
-            <span className="mt-0.5 block text-xs text-[var(--text-tertiary)] max-w-[172px]">
-              Estimate only. Your actual rates may be lower.
+            <span className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+              <span className="block">*Estimate only</span>
+              <span className="block sm:whitespace-nowrap">
+                <span className="sm:hidden">Maybe lower based on your credit score.</span>
+                <span className="hidden sm:inline">Your final repayment may be lower based on your credit score.</span>
+              </span>
             </span>
           </div>
           <div className="flex items-baseline gap-0.5 shrink-0">
@@ -813,10 +813,19 @@ function Step1_LoanDetails({
 function Step2_SelfDeclaredIncome({
   formData,
   updateField,
+  incomeHighWarningShown,
 }: {
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+  incomeHighWarningShown: boolean;
 }) {
+  const [touched, setTouched] = useState(false);
+
+  const incomeNum = parseInt(formData.monthlyIncome, 10);
+  const hasValue = formData.monthlyIncome.trim() !== "" && !Number.isNaN(incomeNum);
+  const isTooLow = touched && hasValue && incomeNum < 200;
+  const isHighIncome = hasValue && incomeNum > 20000;
+
   return (
     <div>
       <StepHeader
@@ -830,10 +839,29 @@ function Step2_SelfDeclaredIncome({
           type="number"
           placeholder="e.g. 4500"
           value={formData.monthlyIncome}
-          onChange={(v) => updateField("monthlyIncome", v)}
+          onChange={(v) => { setTouched(false); updateField("monthlyIncome", v); }}
+          onBlur={() => setTouched(true)}
           prefix="$"
           helper=""
         />
+
+        {isTooLow && (
+          <div className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3">
+            <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-red-500" />
+            <p className="text-sm text-red-700 leading-snug">
+              Our minimum income requirement is <span className="font-semibold">$200/month</span>.
+            </p>
+          </div>
+        )}
+
+        {isHighIncome && incomeHighWarningShown && (
+          <div className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-amber-200 bg-amber-50 px-4 py-3">
+            <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-amber-500" />
+            <p className="text-sm text-amber-800 leading-snug">
+              Just double checking your income is entered correctly.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -849,21 +877,21 @@ function Step3_SingpassGate({
   onManual: () => void;
 }) {
   const benefits = [
-    "Less paperwork — Myinfo pre-fills your details",
-    "Faster decision — CPF data speeds up assessment",
+    "No documents required — Myinfo retrieves everything automatically",
+    "Increases approval rate to up to 90%",
     "Gov-grade security — your session is encrypted end-to-end",
   ];
 
   return (
-    <div>
+    <div className="py-4 sm:py-6">
       <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
         Continue with Singpass
       </h2>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[42ch]">
+      <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)] sm:whitespace-nowrap">
         Verify with Singpass for higher approval rates and faster processing.
       </p>
 
-      <ul className="mt-5 flex flex-col gap-2">
+      <ul className="mt-7 flex flex-col gap-3.5">
         {benefits.map((text) => (
           <li key={text} className="flex items-start gap-2.5">
             <CheckCircle
@@ -1073,21 +1101,12 @@ function Step7_Additional({
       />
 
       <div className="flex flex-col gap-5">
-        <div>
-          <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
-            Purpose of Loan
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {LOAN_PURPOSE_OPTIONS.map(({ value, label }) => (
-              <SelectableChip
-                key={value}
-                label={label}
-                selected={formData.loanPurpose === value}
-                onClick={() => updateField("loanPurpose", value)}
-              />
-            ))}
-          </div>
-        </div>
+        <InputField
+          label="Residential Address"
+          placeholder="Block, Street, Unit"
+          value={formData.address}
+          onChange={(v) => updateField("address", v)}
+        />
 
         <InputField
           label="Postal Code"
@@ -1095,13 +1114,6 @@ function Step7_Additional({
           placeholder="e.g. 520123"
           value={formData.postalCode}
           onChange={(v) => updateField("postalCode", v)}
-        />
-
-        <InputField
-          label="Residential Address"
-          placeholder="Block, Street, Unit"
-          value={formData.address}
-          onChange={(v) => updateField("address", v)}
         />
       </div>
     </div>
@@ -1265,8 +1277,6 @@ function Step9_EmploymentDeclaration({
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
 }) {
-  const [optionalOpen, setOptionalOpen] = React.useState(false);
-
   return (
     <div>
       <StepHeader
@@ -1276,19 +1286,27 @@ function Step9_EmploymentDeclaration({
       />
 
       <div className="flex flex-col gap-5 sm:gap-6">
-        {/* Work industry */}
-        <SearchableSelect
-          label="Work Industry"
-          placeholder="Select your industry"
-          options={INDUSTRY_OPTIONS}
-          value={formData.workIndustry}
-          onChange={(v) => updateField("workIndustry", v)}
-        />
+        {/* Employment status */}
+        <div>
+          <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
+            Employment Status
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {EMPLOYMENT_OPTIONS.map(({ value, label }) => (
+              <SelectableChip
+                key={value}
+                label={label}
+                selected={formData.employmentStatus === value}
+                onClick={() => updateField("employmentStatus", value)}
+              />
+            ))}
+          </div>
+        </div>
 
         {/* Position */}
         <div>
           <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
-            Position
+            Job Position
           </label>
           <div className="flex flex-wrap gap-2">
             {POSITION_OPTIONS.map(({ value, label }) => (
@@ -1303,128 +1321,133 @@ function Step9_EmploymentDeclaration({
         </div>
 
         {/* Employment duration */}
-        <SearchableSelect
-          label="Duration at Current Employer"
-          placeholder="How long have you been employed here?"
-          options={EMPLOYMENT_DURATION_OPTIONS}
-          value={formData.employmentDuration}
-          onChange={(v) => updateField("employmentDuration", v)}
-        />
+        <div>
+          <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
+            Duration at Current Employer
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {EMPLOYMENT_DURATION_OPTIONS.map(({ value, label }) => (
+              <SelectableChip
+                key={value}
+                label={label}
+                selected={formData.employmentDuration === value}
+                onClick={() => updateField("employmentDuration", value)}
+              />
+            ))}
+          </div>
+        </div>
 
         {/* Bankruptcy declaration */}
         <div>
           <label className="mb-1 block text-base font-medium text-[var(--text-primary)]">
-            Bankruptcy Declaration
+            Bankruptcy & DRS Status
           </label>
           <p className="mb-3 text-sm text-[var(--text-tertiary)]">
-            Have you ever been declared bankrupt or are currently an undischarged bankrupt?
+            Select the option that applies to you as of today.
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["no", "yes"] as const).map((opt) => {
-              const isSelected = formData.bankruptcyDeclaration === opt;
-              const isYes = opt === "yes";
+          <div className="flex flex-col gap-2">
+            {/* Primary confirm option */}
+            <button
+              type="button"
+              onClick={() => updateField("bankruptcyDeclaration", "clear")}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+              style={{
+                borderColor: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "var(--border-subtle)",
+                background: formData.bankruptcyDeclaration === "clear" ? "oklch(0.60 0.13 178 / 0.07)" : "var(--surface-elevated)",
+              }}
+            >
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "var(--border-medium)",
+                  background: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "transparent",
+                }}
+              >
+                {formData.bankruptcyDeclaration === "clear" && (
+                  <CheckCircle size={14} weight="fill" color="white" />
+                )}
+              </span>
+              <span className="text-sm font-semibold" style={{ color: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "var(--text-primary)" }}>
+                Yes, I confirm — I am not bankrupt, under DRS, or self-excluded as of this application.
+              </span>
+            </button>
+
+            {/* Discharged bankrupt — amber */}
+            {(() => {
+              const isSelected = formData.bankruptcyDeclaration === "discharged_lt5";
               return (
                 <button
-                  key={opt}
                   type="button"
-                  onClick={() => updateField("bankruptcyDeclaration", opt)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border text-sm font-semibold transition-all duration-200 active:scale-[0.97]"
+                  onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
+                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
-                    borderColor: isSelected
-                      ? isYes
-                        ? "oklch(0.55 0.16 25)"
-                        : "var(--brand-teal-hex)"
-                      : "var(--border-subtle)",
-                    background: isSelected
-                      ? isYes
-                        ? "oklch(0.55 0.16 25 / 0.07)"
-                        : "oklch(0.60 0.13 178 / 0.08)"
-                      : "transparent",
-                    color: isSelected
-                      ? isYes
-                        ? "oklch(0.50 0.16 25)"
-                        : "var(--brand-teal-hex)"
-                      : "var(--text-secondary)",
+                    borderColor: isSelected ? "oklch(0.65 0.14 50)" : "var(--border-subtle)",
+                    background: isSelected ? "oklch(0.65 0.14 50 / 0.05)" : "transparent",
                   }}
                 >
-                  {isYes ? (
-                    <Warning size={16} weight={isSelected ? "fill" : "regular"} />
-                  ) : (
-                    <CheckCircle size={16} weight={isSelected ? "fill" : "regular"} />
-                  )}
-                  {opt === "no" ? "No" : "Yes"}
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                    style={{
+                      borderColor: isSelected ? "oklch(0.65 0.14 50)" : "var(--border-medium)",
+                      background: isSelected ? "oklch(0.65 0.14 50)" : "transparent",
+                    }}
+                  >
+                    {isSelected && <CheckCircle size={14} weight="fill" color="white" />}
+                  </span>
+                  <span className="text-sm" style={{ color: isSelected ? "oklch(0.45 0.12 50)" : "var(--text-secondary)" }}>
+                    I am a discharged bankrupt (less than 5 years ago)
+                  </span>
                 </button>
               );
-            })}
+            })()}
+
+            {/* Active bankruptcy / DRS — red */}
+            {(() => {
+              const isSelected = formData.bankruptcyDeclaration === "active";
+              return (
+                <button
+                  type="button"
+                  onClick={() => updateField("bankruptcyDeclaration", "active")}
+                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
+                  style={{
+                    borderColor: isSelected ? "oklch(0.55 0.20 25)" : "var(--border-subtle)",
+                    background: isSelected ? "oklch(0.55 0.20 25 / 0.05)" : "transparent",
+                  }}
+                >
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                    style={{
+                      borderColor: isSelected ? "oklch(0.55 0.20 25)" : "var(--border-medium)",
+                      background: isSelected ? "oklch(0.55 0.20 25)" : "transparent",
+                    }}
+                  >
+                    {isSelected && <CheckCircle size={14} weight="fill" color="white" />}
+                  </span>
+                  <span className="text-sm" style={{ color: isSelected ? "oklch(0.45 0.18 25)" : "var(--text-secondary)" }}>
+                    I am currently under bankruptcy / DRS status
+                  </span>
+                </button>
+              );
+            })()}
           </div>
-          {formData.bankruptcyDeclaration === "yes" && (
-            <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.55_0.16_25_/_0.25)] bg-[oklch(0.55_0.16_25_/_0.05)] px-4 py-3">
-              <p className="text-xs leading-relaxed text-[oklch(0.45_0.14_25)]">
+
+          {formData.bankruptcyDeclaration === "discharged_lt5" && (
+            <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.65_0.14_50_/_0.3)] bg-[oklch(0.65_0.14_50_/_0.05)] px-4 py-3">
+              <p className="text-xs leading-relaxed text-[oklch(0.45_0.12_50)]">
                 Our team will review your application and contact you directly. Loan approval is subject to our assessment criteria.
               </p>
             </div>
           )}
-        </div>
 
-        {/* Optional fields disclosure */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-          <button
-            type="button"
-            onClick={() => setOptionalOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3.5 text-sm font-medium text-[var(--text-secondary)] transition-colors duration-200 hover:text-[var(--text-primary)]"
-          >
-            <span className="flex items-center gap-2">
-              {optionalOpen ? (
-                <Minus size={14} weight="bold" className="text-[var(--text-tertiary)]" />
-              ) : (
-                <Plus size={14} weight="bold" className="text-brand-blue" />
-              )}
-              Additional details
-              <span className="rounded-full bg-[var(--surface-secondary)] px-2 py-0.5 text-xs font-normal text-[var(--text-tertiary)]">
-                Optional
-              </span>
-            </span>
-            <CaretDown
-              size={13}
-              weight="bold"
-              className="text-[var(--text-tertiary)] transition-transform duration-200"
-              style={{ transform: optionalOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-            />
-          </button>
-
-          {optionalOpen && (
-            <div className="flex flex-col gap-4 border-t border-[var(--border-subtle)] px-4 pb-4 pt-4">
-              <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">
-                These fields are not required but may help speed up processing.
+          {formData.bankruptcyDeclaration === "active" && (
+            <div className="mt-3 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-xs leading-relaxed text-red-700">
+                We are currently not able to issue loans if you are not discharged from bankruptcy or DRS status.
               </p>
-              <InputField
-                label="Office Phone"
-                type="tel"
-                placeholder="6123 4567"
-                value={formData.officePhone}
-                onChange={(v) => updateField("officePhone", v)}
-                prefix="+65"
-                helper="Your office / work direct line"
-              />
-              <InputField
-                label="Mailing Address"
-                placeholder="If different from residential address"
-                value={formData.mailingAddress}
-                onChange={(v) => updateField("mailingAddress", v)}
-                helper="Leave blank if same as residential address"
-              />
-              <InputField
-                label="Secondary Mobile Number"
-                type="tel"
-                placeholder="8123 4567"
-                value={formData.secondaryMobile}
-                onChange={(v) => updateField("secondaryMobile", v)}
-                prefix="+65"
-                helper="Alternative contact number"
-              />
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
@@ -1482,19 +1505,6 @@ function Step8_Review({
       ],
     },
     {
-      icon: Briefcase,
-      title: "Employment",
-      rows: [
-        {
-          label: "Status",
-          value:
-            EMPLOYMENT_OPTIONS.find(
-              (o) => o.value === formData.employmentStatus,
-            )?.label ?? "—",
-        },
-      ],
-    },
-    {
       icon: Phone,
       title: "Contact",
       rows: [
@@ -1505,16 +1515,8 @@ function Step8_Review({
       icon: MapPin,
       title: "Additional",
       rows: [
-        {
-          label: "Purpose",
-          value:
-            LOAN_PURPOSE_OPTIONS.find(
-              (o) => o.value === formData.loanPurpose,
-            )?.label ?? "—",
-        },
-        ...(formData.postalCode
-          ? [{ label: "Postal Code", value: formData.postalCode }]
-          : []),
+        ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
+        ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
       ],
     },
   ];

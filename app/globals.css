@@ -46,14 +46,18 @@
   --color-text-tertiary: var(--text-tertiary);
   --color-border-subtle: var(--border-subtle);
   --color-border-medium: var(--border-medium);
-  --font-sans: var(--font-raleway);
+  --font-sans: var(--font-manrope);
   --font-display: var(--font-quicksand);
 }
 
 body {
   background: var(--surface-primary);
   color: var(--text-primary);
-  font-family: var(--font-raleway), system-ui, sans-serif;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Grain paper texture — fixed pseudo-element, pointer-events-none, GPU-composited */
