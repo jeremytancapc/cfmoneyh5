@@ -289,7 +289,7 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
+          className={`min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
             prefix ? "py-2 sm:py-3 pl-0" : "px-4 py-2 sm:py-3"
           }`}
         />
@@ -1202,7 +1202,7 @@ function SearchableSelect({
                 placeholder="Type to filter..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+                className="min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
               />
               {query && (
                 <button
