@@ -24,10 +24,15 @@ import {
   Lock,
   Fingerprint,
   Coins,
+  MagnifyingGlass,
+  Plus,
+  Minus,
+  CaretDown,
+  Warning,
 } from "@phosphor-icons/react";
 
-/** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details */
-const TOTAL_STEPS = 8;
+/** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details · 9: employment & declaration */
+const TOTAL_STEPS = 9;
 
 const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
 
@@ -58,6 +63,60 @@ const LOAN_PURPOSE_OPTIONS = [
   { value: "business", label: "Business" },
   { value: "debt_consolidation", label: "Debt Consolidation" },
   { value: "other", label: "Other" },
+] as const;
+
+const INDUSTRY_OPTIONS = [
+  { value: "households", label: "Activities of Households as Employers of Domestic Personnel" },
+  { value: "mining", label: "Mining and Quarrying" },
+  { value: "not_defined", label: "Activities Not Adequately Defined" },
+  { value: "education", label: "Education" },
+  { value: "finance_insurance", label: "Financial and Insurance Activities" },
+  { value: "real_estate", label: "Real Estate Activities" },
+  { value: "admin_support", label: "Administrative and Support Service Activities" },
+  { value: "construction", label: "Construction" },
+  { value: "agriculture", label: "Agriculture and Fishing" },
+  { value: "manufacturing", label: "Manufacturing" },
+  { value: "ict", label: "Information and Communications" },
+  { value: "water_waste", label: "Water Supply, Sewerage, Waste Management and Remediation Activities" },
+  { value: "extraterritorial", label: "Activities of Extra-Territorial Organisations and Bodies" },
+  { value: "professional", label: "Professional, Scientific and Technical Activities" },
+  { value: "wholesale_retail", label: "Wholesale and Retail Trade" },
+  { value: "electricity_gas", label: "Electricity, Gas, Steam and Air Conditioning Supply" },
+  { value: "health_social", label: "Health and Social Services" },
+  { value: "public_admin", label: "Public Administration and Defence" },
+  { value: "accommodation_food", label: "Accommodation and Food Service Activities" },
+  { value: "transport_storage", label: "Transportation and Storage" },
+  { value: "other_services", label: "Other Service Activities" },
+  { value: "arts_entertainment", label: "Arts, Entertainment and Recreation" },
+] as const;
+
+const POSITION_OPTIONS = [
+  { value: "senior_executive", label: "Senior Executive" },
+  { value: "non_executive", label: "Non-Executive" },
+  { value: "senior_manager", label: "Senior Manager" },
+  { value: "manager", label: "Manager / Assistant Manager" },
+  { value: "junior_executive", label: "Junior Executive" },
+  { value: "professional", label: "Professional" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "director_gm", label: "Director / GM" },
+  { value: "others", label: "Others" },
+] as const;
+
+const EMPLOYMENT_DURATION_OPTIONS = [
+  { value: "less_1m", label: "Less than 1 month" },
+  { value: "1m", label: "1 month" },
+  { value: "2m", label: "2 months" },
+  { value: "3m", label: "3 months" },
+  { value: "4m", label: "4 months" },
+  { value: "5m", label: "5 months" },
+  { value: "6_7m", label: "6–7 months" },
+  { value: "8_9m", label: "8–9 months" },
+  { value: "10_12m", label: "10–12 months" },
+  { value: "1_2y", label: "1–2 years" },
+  { value: "3_4y", label: "3–4 years" },
+  { value: "5_7y", label: "5–7 years" },
+  { value: "8_10y", label: "8–10 years" },
+  { value: "10y_plus", label: "10 years and above" },
 ] as const;
 
 function formatCurrency(value: number): string {
@@ -93,6 +152,14 @@ interface FormData {
   loanPurpose: string;
   postalCode: string;
   address: string;
+  // Step 9 fields
+  workIndustry: string;
+  position: string;
+  employmentDuration: string;
+  officePhone: string;
+  mailingAddress: string;
+  secondaryMobile: string;
+  bankruptcyDeclaration: "" | "yes" | "no";
 }
 
 const initialFormData: FormData = {
@@ -109,6 +176,13 @@ const initialFormData: FormData = {
   loanPurpose: "",
   postalCode: "",
   address: "",
+  workIndustry: "",
+  position: "",
+  employmentDuration: "",
+  officePhone: "",
+  mailingAddress: "",
+  secondaryMobile: "",
+  bankruptcyDeclaration: "",
 };
 
 function StepIndicator({
@@ -160,18 +234,18 @@ function StepHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-6 sm:mb-6">
+    <div className="mb-6 sm:mb-8">
       {/* Mobile: icon inline with heading */}
       <div className="flex items-center gap-3 sm:block">
         <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06] sm:mb-3">
           <Icon size={18} weight="duotone" className="text-brand-blue sm:hidden" />
           <Icon size={22} weight="duotone" className="text-brand-blue hidden sm:block" />
         </div>
-        <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+        <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
           {title}
         </h2>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
+      <p className="mt-3 text-base leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
         {subtitle}
       </p>
     </div>
@@ -196,8 +270,8 @@ function InputField({
   helper?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-[var(--text-primary)]">
+    <div className="flex flex-col gap-2">
+      <label className="text-base font-medium text-[var(--text-primary)]">
         {label}
       </label>
       <div
@@ -308,6 +382,13 @@ export function LoanApplicationForm() {
         return formData.loanPurpose !== "";
       case 8:
         return true;
+      case 9:
+        return (
+          formData.workIndustry !== "" &&
+          formData.position !== "" &&
+          formData.employmentDuration !== "" &&
+          formData.bankruptcyDeclaration !== ""
+        );
       default:
         return false;
     }
@@ -432,6 +513,12 @@ export function LoanApplicationForm() {
             monthlyRepayment={monthlyRepayment}
           />
         )}
+        {step === 9 && (
+          <Step9_EmploymentDeclaration
+            formData={formData}
+            updateField={updateField}
+          />
+        )}
       </div>
 
       {step !== 3 && (
@@ -454,14 +541,15 @@ export function LoanApplicationForm() {
               disabled={!canProceed}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
-              Continue
+              {step === 8 ? "Confirm" : "Continue"}
               <ArrowRight size={16} weight="bold" />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSubmit}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              disabled={!canProceed}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
               <ShieldCheck size={18} weight="bold" />
               Submit Application
@@ -760,7 +848,7 @@ function Step3_SingpassGate({
         Continue with Singpass
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)] max-w-[42ch]">
-        Auto-fill your details via Myinfo to speed things up.
+        Verify with Singpass for higher approval rates and faster processing.
       </p>
 
       <ul className="mt-5 flex flex-col gap-2">
@@ -895,7 +983,7 @@ function Step5_Employment({
       <StepHeader
         icon={Briefcase}
         title="Employment details"
-        subtitle="Tell us how you earn a living. Your declared income was captured earlier."
+        subtitle="Tell us how you currently earn your income."
       />
 
       <div className="mb-6 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-brand-blue/[0.04] px-4 py-3">
@@ -1003,6 +1091,328 @@ function Step7_Additional({
           value={formData.address}
           onChange={(v) => updateField("address", v)}
         />
+      </div>
+    </div>
+  );
+}
+
+// ── SearchableSelect ────────────────────────────────────────────────────────
+
+function SearchableSelect({
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  options: readonly { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [query, options]);
+
+  // Close on outside click
+  React.useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  // Close on Escape
+  React.useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { setOpen(false); setQuery(""); }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [open]);
+
+  return (
+    <div className="flex flex-col gap-2" ref={containerRef}>
+      <label className="text-base font-medium text-[var(--text-primary)]">{label}</label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen((prev) => !prev);
+            setQuery("");
+          }}
+          className="flex h-[46px] w-full items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 text-sm transition-all duration-200 focus-visible:outline-none"
+          style={{
+            borderColor: open ? "var(--brand-blue-hex)" : undefined,
+            boxShadow: open ? "0 0 0 2px oklch(0.32 0.14 260 / 0.10)" : undefined,
+          }}
+        >
+          <span
+            className={value ? "text-[var(--text-primary)] font-medium" : "text-[var(--text-tertiary)]"}
+            style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 28px)", textAlign: "left" }}
+          >
+            {value ? selectedLabel : placeholder}
+          </span>
+          <CaretDown
+            size={14}
+            weight="bold"
+            className="shrink-0 text-[var(--text-tertiary)] transition-transform duration-200"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
+        </button>
+
+        {open && (
+          <div
+            className="absolute left-0 right-0 top-full z-20 mt-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-[0_8px_24px_-4px_rgba(0,0,51,0.12)]"
+            style={{ overflow: "hidden" }}
+          >
+            {/* Search input */}
+            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] px-3 py-2.5">
+              <MagnifyingGlass size={14} className="shrink-0 text-[var(--text-tertiary)]" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Type to filter..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="shrink-0 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {/* Options list */}
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {filtered.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-[var(--text-tertiary)]">No results</div>
+              ) : (
+                filtered.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors duration-100"
+                    style={{
+                      background: opt.value === value ? "oklch(0.32 0.14 260 / 0.06)" : "transparent",
+                      color: opt.value === value ? "var(--brand-blue-hex)" : "var(--text-secondary)",
+                      fontWeight: opt.value === value ? 600 : 400,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (opt.value !== value) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface-secondary)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (opt.value !== value) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    }}
+                  >
+                    <span style={{ lineHeight: 1.4 }}>{opt.label}</span>
+                    {opt.value === value && (
+                      <CheckCircle size={14} weight="fill" className="shrink-0 ml-2" style={{ color: "var(--brand-blue-hex)" }} />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Step9_EmploymentDeclaration ──────────────────────────────────────────────
+
+function Step9_EmploymentDeclaration({
+  formData,
+  updateField,
+}: {
+  formData: FormData;
+  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+}) {
+  const [optionalOpen, setOptionalOpen] = React.useState(false);
+
+  return (
+    <div>
+      <StepHeader
+        icon={Briefcase}
+        title="Employment details"
+        subtitle="A few final questions before we process your application."
+      />
+
+      <div className="flex flex-col gap-5 sm:gap-6">
+        {/* Work industry */}
+        <SearchableSelect
+          label="Work Industry"
+          placeholder="Select your industry"
+          options={INDUSTRY_OPTIONS}
+          value={formData.workIndustry}
+          onChange={(v) => updateField("workIndustry", v)}
+        />
+
+        {/* Position */}
+        <div>
+          <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
+            Position
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {POSITION_OPTIONS.map(({ value, label }) => (
+              <SelectableChip
+                key={value}
+                label={label}
+                selected={formData.position === value}
+                onClick={() => updateField("position", value)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Employment duration */}
+        <SearchableSelect
+          label="Duration at Current Employer"
+          placeholder="How long have you been employed here?"
+          options={EMPLOYMENT_DURATION_OPTIONS}
+          value={formData.employmentDuration}
+          onChange={(v) => updateField("employmentDuration", v)}
+        />
+
+        {/* Bankruptcy declaration */}
+        <div>
+          <label className="mb-1 block text-base font-medium text-[var(--text-primary)]">
+            Bankruptcy Declaration
+          </label>
+          <p className="mb-3 text-sm text-[var(--text-tertiary)]">
+            Have you ever been declared bankrupt or are currently an undischarged bankrupt?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(["no", "yes"] as const).map((opt) => {
+              const isSelected = formData.bankruptcyDeclaration === opt;
+              const isYes = opt === "yes";
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => updateField("bankruptcyDeclaration", opt)}
+                  className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border text-sm font-semibold transition-all duration-200 active:scale-[0.97]"
+                  style={{
+                    borderColor: isSelected
+                      ? isYes
+                        ? "oklch(0.55 0.16 25)"
+                        : "var(--brand-teal-hex)"
+                      : "var(--border-subtle)",
+                    background: isSelected
+                      ? isYes
+                        ? "oklch(0.55 0.16 25 / 0.07)"
+                        : "oklch(0.60 0.13 178 / 0.08)"
+                      : "transparent",
+                    color: isSelected
+                      ? isYes
+                        ? "oklch(0.50 0.16 25)"
+                        : "var(--brand-teal-hex)"
+                      : "var(--text-secondary)",
+                  }}
+                >
+                  {isYes ? (
+                    <Warning size={16} weight={isSelected ? "fill" : "regular"} />
+                  ) : (
+                    <CheckCircle size={16} weight={isSelected ? "fill" : "regular"} />
+                  )}
+                  {opt === "no" ? "No" : "Yes"}
+                </button>
+              );
+            })}
+          </div>
+          {formData.bankruptcyDeclaration === "yes" && (
+            <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.55_0.16_25_/_0.25)] bg-[oklch(0.55_0.16_25_/_0.05)] px-4 py-3">
+              <p className="text-xs leading-relaxed text-[oklch(0.45_0.14_25)]">
+                Our team will review your application and contact you directly. Loan approval is subject to our assessment criteria.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Optional fields disclosure */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+          <button
+            type="button"
+            onClick={() => setOptionalOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-3.5 text-sm font-medium text-[var(--text-secondary)] transition-colors duration-200 hover:text-[var(--text-primary)]"
+          >
+            <span className="flex items-center gap-2">
+              {optionalOpen ? (
+                <Minus size={14} weight="bold" className="text-[var(--text-tertiary)]" />
+              ) : (
+                <Plus size={14} weight="bold" className="text-brand-blue" />
+              )}
+              Additional details
+              <span className="rounded-full bg-[var(--surface-secondary)] px-2 py-0.5 text-xs font-normal text-[var(--text-tertiary)]">
+                Optional
+              </span>
+            </span>
+            <CaretDown
+              size={13}
+              weight="bold"
+              className="text-[var(--text-tertiary)] transition-transform duration-200"
+              style={{ transform: optionalOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+            />
+          </button>
+
+          {optionalOpen && (
+            <div className="flex flex-col gap-4 border-t border-[var(--border-subtle)] px-4 pb-4 pt-4">
+              <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">
+                These fields are not required but may help speed up processing.
+              </p>
+              <InputField
+                label="Office Phone"
+                type="tel"
+                placeholder="6123 4567"
+                value={formData.officePhone}
+                onChange={(v) => updateField("officePhone", v)}
+                prefix="+65"
+                helper="Your office / work direct line"
+              />
+              <InputField
+                label="Mailing Address"
+                placeholder="If different from residential address"
+                value={formData.mailingAddress}
+                onChange={(v) => updateField("mailingAddress", v)}
+                helper="Leave blank if same as residential address"
+              />
+              <InputField
+                label="Secondary Mobile Number"
+                type="tel"
+                placeholder="8123 4567"
+                value={formData.secondaryMobile}
+                onChange={(v) => updateField("secondaryMobile", v)}
+                prefix="+65"
+                helper="Alternative contact number"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
