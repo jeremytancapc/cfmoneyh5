@@ -87,15 +87,15 @@ export function ContainerTextFlip({
   const { container, containerStyle, glowBg } = getVariantClasses();
 
   return (
-    <div className="relative w-full flex items-center justify-center">
-      {/* Glow */}
+    <div className="relative isolate w-full flex items-center justify-center">
+      {/* Glow — scoped behind the pill via isolate + -z-10 */}
       <motion.div
         animate={{
           scale: isAnimating ? [1, 1.05, 1] : 1,
           opacity: isAnimating ? [0.8, 1, 0.8] : 0.8,
         }}
         transition={{ duration: animationDuration / 1000, ease: "easeInOut" }}
-        className="absolute inset-0 rounded-2xl blur-xl"
+        className="absolute inset-0 -z-10 rounded-2xl blur-lg"
         style={{ background: glowBg }}
       />
 

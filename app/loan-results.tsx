@@ -201,7 +201,7 @@ export function LoanResults({
 
         {/* ── Loan offer details ──────────────────────────────────── */}
         <div
-          className="-mt-2 flex flex-col items-center gap-1 text-center"
+          className="mt-4 flex flex-col items-center gap-1 text-center"
           style={{
             opacity: 0,
             animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 60ms both",
