@@ -333,10 +333,17 @@ function SelectableChip({
 type PostSubmitPhase = "form" | "loading" | "results" | "booking";
 
 export function LoanApplicationForm() {
-  const [step, setStep] = useState(1);
+  // Navigation history stack — Back always pops, so non-linear jumps (e.g.
+  // Singpass skipping steps 4-7) are correctly unwound on Back.
+  const [history, setHistory] = useState<number[]>([1]);
+  const step = history[history.length - 1];
+
+  const navigateTo = useCallback((next: number) => {
+    setHistory((h) => [...h, next]);
+  }, []);
+
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [postSubmitPhase, setPostSubmitPhase] = useState<PostSubmitPhase>("form");
-
 
   const updateField = useCallback(
     <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -404,12 +411,17 @@ export function LoanApplicationForm() {
   }, []);
 
   const handleNext = useCallback(() => {
-    if (step < TOTAL_STEPS) { setStep((s) => s + 1); scrollToTop(); }
-  }, [step, scrollToTop]);
+    if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
+  }, [step, navigateTo, scrollToTop]);
 
   const handleBack = useCallback(() => {
-    if (step > 1) { setStep((s) => s - 1); scrollToTop(); }
-  }, [step, scrollToTop]);
+    // Pop the history stack so Back always returns to where the user actually
+    // came from, including non-linear jumps (e.g. Singpass skipping steps 4-7).
+    if (history.length > 1) {
+      setHistory((h) => h.slice(0, -1));
+      scrollToTop();
+    }
+  }, [history, scrollToTop]);
 
   const handleSubmit = useCallback(() => {
     setPostSubmitPhase("loading");
@@ -469,7 +481,7 @@ export function LoanApplicationForm() {
         )}
         {step === 3 && (
           <Step3_SingpassGate
-            onBack={() => { setStep(2); scrollToTop(); }}
+            onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
             onSingpass={() => {
               // Simulate Singpass Myinfo prefill — jump straight to review
               setFormData((prev) => ({
@@ -485,12 +497,12 @@ export function LoanApplicationForm() {
                 postalCode: "179094",
                 address: "1 North Bridge Road #08-01",
               }));
-              setStep(8);
+              navigateTo(8);
               scrollToTop();
             }}
             onManual={() => {
               updateField("authMethod", "manual");
-              setStep(4);
+              navigateTo(4);
               scrollToTop();
             }}
           />
