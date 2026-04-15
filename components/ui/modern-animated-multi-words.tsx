@@ -52,7 +52,7 @@ export function ContainerTextFlip({
             "text-white shadow-2xl border",
           containerStyle: {
             background: "#0033AA",
-            boxShadow: "0 25px 50px -12px rgba(0, 51, 170, 0.35)",
+            boxShadow: "0 8px 24px -4px rgba(0, 51, 170, 0.20)",
             borderColor: "rgba(0, 51, 170, 0.5)",
           },
           glowBg:
