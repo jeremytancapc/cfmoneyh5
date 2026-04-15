@@ -42,17 +42,20 @@ function formatCurrency(value: number): string {
 const NOTICE_ITEMS = [
   {
     icon: ShieldCheck,
+    short: "In-person visit required for AML/KYC.",
     text: "A face-to-face visit is required by local regulations for AML and KYC purposes.",
   },
   {
     icon: Scroll,
+    short: "Loan officer explains all terms in person.",
     text: "Our loan officer will explain all terms, conditions, and interest rates in person.",
   },
   {
     icon: HandCoins,
+    short: "Takes 20 mins: Verify, sign & receive funds.",
     text: "The entire process takes approximately 20 minutes — verification, signing, and disbursement on the spot.",
   },
-] as const;
+];
 
 const DETERRENT_ITEMS = [
   {
@@ -208,7 +211,7 @@ export function LoanResults({
           }}
         >
           <p className="font-display text-5xl sm:text-6xl font-black tracking-tighter text-brand-blue tabular-nums">
-            {formatCurrency(formData.amount)}
+            {formatCurrency(formData.amount)}<sup className="text-2xl sm:text-3xl align-super">*</sup>
           </p>
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mt-1">
             <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
@@ -255,8 +258,8 @@ export function LoanResults({
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
             To receive your funds
           </p>
-          <ul className="flex flex-col gap-4">
-            {NOTICE_ITEMS.map(({ icon: Icon, text }, i) => (
+          <ul className="flex flex-col gap-3 sm:gap-4">
+            {NOTICE_ITEMS.map(({ icon: Icon, short, text }, i) => (
               <li
                 key={i}
                 className="flex items-start gap-3"
@@ -271,20 +274,20 @@ export function LoanResults({
                   className="mt-0.5 shrink-0 text-brand-blue"
                 />
                 <span className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {text}
+                  <span className="sm:hidden">{short}</span>
+                  <span className="hidden sm:inline">{text}</span>
                 </span>
               </li>
             ))}
           </ul>
           <p
-            className="text-xs leading-relaxed text-[var(--text-tertiary)]"
+            className="text-[10px] sm:text-xs leading-relaxed text-[var(--text-tertiary)]"
             style={{
               opacity: 0,
               animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 490ms both",
             }}
           >
-            * The pre-approved amount shown is indicative and may vary if there
-            are changes to your profile between now and your appointment.
+            * The pre-approved amount shown is indicative and may vary if there are changes to your profile between now and your appointment.
           </p>
         </div>
 
