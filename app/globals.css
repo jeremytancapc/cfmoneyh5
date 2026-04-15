@@ -248,6 +248,20 @@ input[type="range"]::-moz-range-thumb {
   animation: blur-reveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ─── Gentle pulse — for expiry / urgency indicators ────────────── */
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+/* ─── Clock tick — 12-step rotation simulating a ticking clock ───── */
+
+@keyframes clock-tick {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ─── Status text fade cycle ─────────────────────────────────────── */
 
 @keyframes status-fade {

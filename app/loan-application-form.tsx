@@ -1367,7 +1367,7 @@ function Step9_EmploymentDeclaration({
                   <CheckCircle size={14} weight="fill" color="white" />
                 )}
               </span>
-              <span className="text-sm font-semibold" style={{ color: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "var(--text-primary)" }}>
+              <span className="text-sm font-semibold" style={{ color: formData.bankruptcyDeclaration === "clear" ? "oklch(0.32 0.13 178)" : "var(--text-primary)" }}>
                 Yes, I confirm — I am not bankrupt, under DRS, or self-excluded as of this application.
               </span>
             </button>

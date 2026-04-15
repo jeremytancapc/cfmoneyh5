@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import {
-  CheckCircle,
   ShieldCheck,
   Scroll,
   HandCoins,
   ArrowRight,
   Warning,
-  Timer,
+  Clock,
   ArrowLeft,
   X,
   TrendUp,
 } from "@phosphor-icons/react";
+import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
 
 interface FormData {
   amount: number;
@@ -39,20 +39,10 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-const LOAN_PURPOSE_LABELS: Record<string, string> = {
-  personal: "Personal Expenses",
-  medical: "Medical",
-  renovation: "Renovation",
-  education: "Education",
-  business: "Business",
-  debt_consolidation: "Debt Consolidation",
-  other: "Other",
-};
-
 const NOTICE_ITEMS = [
   {
     icon: ShieldCheck,
-    text: "A physical visit to our office is required by Singapore law for loan assessment.",
+    text: "A face-to-face visit is required by local regulations for AML and KYC purposes.",
   },
   {
     icon: Scroll,
@@ -60,13 +50,13 @@ const NOTICE_ITEMS = [
   },
   {
     icon: HandCoins,
-    text: "Upon approval, loan disbursement is done on the spot — no waiting.",
+    text: "The entire process takes approximately 20 minutes — verification, signing, and disbursement on the spot.",
   },
 ] as const;
 
 const DETERRENT_ITEMS = [
   {
-    icon: Timer,
+    icon: Clock,
     heading: "Offer expires in 3 days",
     body: "This in-principle approval is time-limited. After 3 days it lapses and you will need to submit a full application again.",
   },
@@ -81,20 +71,6 @@ const DETERRENT_ITEMS = [
     body: "We have already performed a soft credit assessment for this offer. Reapplying later triggers a fresh check.",
   },
 ] as const;
-
-const SUMMARY_ITEMS = (formData: FormData, monthlyRepayment: number) => [
-  { label: "Loan Amount", value: formatCurrency(formData.amount) },
-  { label: "Tenure", value: `${formData.tenure} months` },
-  { label: "Est. Monthly Repayment", value: formatCurrency(monthlyRepayment) },
-  ...(formData.loanPurpose
-    ? [
-        {
-          label: "Purpose",
-          value: LOAN_PURPOSE_LABELS[formData.loanPurpose] ?? formData.loanPurpose,
-        },
-      ]
-    : []),
-];
 
 interface LoanResultsProps {
   formData: FormData;
@@ -111,7 +87,6 @@ function ReconsiderModal({
   onClose: () => void;
 }) {
   return (
-    /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
       style={{
@@ -122,13 +97,11 @@ function ReconsiderModal({
       }}
       onClick={onClose}
     >
-      {/* Dialog panel — stop clicks from reaching backdrop */}
       <div
         className="relative w-full max-w-[480px] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] px-6 pb-8 pt-6 flex flex-col gap-6"
         style={{ background: "var(--surface-elevated)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
         <button
           type="button"
           onClick={onClose}
@@ -138,7 +111,6 @@ function ReconsiderModal({
           <X size={16} weight="bold" className="text-[var(--text-tertiary)]" />
         </button>
 
-        {/* Header */}
         <div className="flex flex-col gap-2 pr-8">
           <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
             Are you sure?
@@ -149,7 +121,6 @@ function ReconsiderModal({
           </p>
         </div>
 
-        {/* Deterrent list */}
         <ul className="flex flex-col gap-5">
           {DETERRENT_ITEMS.map(({ icon: Icon, heading, body }, i) => (
             <li
@@ -178,10 +149,8 @@ function ReconsiderModal({
           ))}
         </ul>
 
-        {/* Divider */}
         <div className="h-px bg-[var(--border-subtle)]" />
 
-        {/* CTAs */}
         <div className="flex flex-col gap-3">
           <button
             type="button"
@@ -211,82 +180,80 @@ export function LoanResults({
   onAccept,
 }: LoanResultsProps) {
   const [showModal, setShowModal] = useState(false);
-  const summaryItems = SUMMARY_ITEMS(formData, monthlyRepayment);
 
   return (
     <>
       <div className="animate-fade-up flex flex-col gap-8">
-        {/* ── Offer headline ─────────────────────────────────────── */}
-        <div className="flex flex-col gap-3">
-          <div
-            className="flex items-center gap-2"
-            style={{
-              opacity: 0,
-              animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 0ms both",
-            }}
-          >
-            <CheckCircle
-              size={18}
-              weight="duotone"
-              className="shrink-0 text-brand-teal"
-            />
-            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
-              Your loan offer is ready
-            </span>
-          </div>
 
-          {/* Amount — the hero, no card wrapper */}
-          <div
-            style={{
-              opacity: 0,
-              animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 80ms both",
-            }}
-          >
-            <p className="font-display text-5xl font-bold tracking-tight text-brand-blue tabular-nums sm:text-6xl">
-              {formatCurrency(formData.amount)}
-            </p>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Over {formData.tenure} months &middot;{" "}
-              <span className="font-semibold text-[var(--text-primary)]">
-                {formatCurrency(monthlyRepayment)}/mo
-              </span>{" "}
-              est.
-            </p>
-          </div>
-        </div>
-
-        {/* ── Loan summary — divide-y, no card ───────────────────── */}
+        {/* ── "Approved in principal" animated hero ────────────────── */}
         <div
-          className="divide-y divide-[var(--border-subtle)]"
           style={{
             opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 160ms both",
+            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 0ms both",
           }}
         >
-          {summaryItems.map(({ label, value }) => (
-            <div
-              key={label}
-              className="flex items-center justify-between py-4"
-            >
-              <span className="text-[15px] text-[var(--text-secondary)]">{label}</span>
-              <span className="text-[15px] font-semibold text-[var(--text-primary)]">
-                {value}
-              </span>
-            </div>
-          ))}
+          <ContainerTextFlip
+            words={["Approved in principal"]}
+            variant="primary"
+            className="font-display"
+          />
         </div>
 
-        {/* ── Important notice ───────────────────────────────────── */}
+        {/* ── Loan offer details ──────────────────────────────────── */}
+        <div
+          className="-mt-2 flex flex-col items-center gap-1 text-center"
+          style={{
+            opacity: 0,
+            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 60ms both",
+          }}
+        >
+          <p className="font-display text-5xl sm:text-6xl font-black tracking-tighter text-brand-blue tabular-nums">
+            {formatCurrency(formData.amount)}
+          </p>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mt-1">
+            <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
+              {formData.tenure} months
+            </span>
+            <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
+              {formatCurrency(monthlyRepayment)}/mo est.
+            </span>
+          </div>
+          <div
+            className="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5 mt-3"
+            style={{
+              background: "oklch(0.72 0.18 50 / 0.15)",
+              border: "1px solid oklch(0.72 0.18 50 / 0.40)",
+            }}
+          >
+            <Clock
+              size={13}
+              weight="duotone"
+              style={{
+                color: "oklch(0.55 0.20 50)",
+                flexShrink: 0,
+                animation: "clock-tick 3s steps(12, end) infinite",
+              }}
+            />
+            <span
+              className="text-xs font-semibold"
+              style={{ color: "oklch(0.45 0.20 50)" }}
+            >
+              Offer valid for 3 days only
+            </span>
+          </div>
+        </div>
+
+        {/* ── To receive your funds ───────────────────────────────── */}
         <div
           className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-4"
           style={{
-            background: "oklch(0.32 0.14 260 / 0.04)",
+            background: "oklch(0.32 0.14 260 / 0.03)",
             opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 240ms both",
+            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 200ms both",
           }}
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-            Before we proceed
+            To receive your funds
           </p>
           <ul className="flex flex-col gap-4">
             {NOTICE_ITEMS.map(({ icon: Icon, text }, i) => (
@@ -295,7 +262,7 @@ export function LoanResults({
                 className="flex items-start gap-3"
                 style={{
                   opacity: 0,
-                  animation: `fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${320 + i * 80}ms both`,
+                  animation: `fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${280 + i * 70}ms both`,
                 }}
               >
                 <Icon
@@ -309,6 +276,16 @@ export function LoanResults({
               </li>
             ))}
           </ul>
+          <p
+            className="text-xs leading-relaxed text-[var(--text-tertiary)]"
+            style={{
+              opacity: 0,
+              animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 490ms both",
+            }}
+          >
+            * The pre-approved amount shown is indicative and may vary if there
+            are changes to your profile between now and your appointment.
+          </p>
         </div>
 
         {/* ── CTA ────────────────────────────────────────────────── */}
@@ -316,7 +293,7 @@ export function LoanResults({
           className="flex flex-col gap-3"
           style={{
             opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 560ms both",
+            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 480ms both",
           }}
         >
           <button
