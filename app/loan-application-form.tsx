@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
@@ -30,6 +30,7 @@ import {
   CaretDown,
   Warning,
   WarningCircle,
+  ArrowDown,
 } from "@phosphor-icons/react";
 
 /** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details · 9: employment & declaration */
@@ -401,6 +402,42 @@ export function LoanApplicationForm() {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const bottomCtaRef = useRef<HTMLDivElement>(null);
+  const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
+
+  useEffect(() => {
+    const el = bottomCtaRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsBottomCtaVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [step]);
+
+  const scrollToBottomCta = useCallback(() => {
+    const el = bottomCtaRef.current;
+    if (!el) return;
+    const start = window.scrollY;
+    const target = el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2 + el.offsetHeight / 2;
+    const distance = target - start;
+    const duration = 900;
+    let startTime: number | null = null;
+    const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      window.scrollTo(0, start + distance * easeInOut(progress));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, []);
+
   const handleNext = useCallback(() => {
     if (step === 2) {
       const incomeNum = parseInt(formData.monthlyIncome, 10);
@@ -529,8 +566,37 @@ export function LoanApplicationForm() {
         )}
       </div>
 
+      {/* ── Floating Continue button — outside animate-slide-in so fixed works ── */}
+      {step === 7 && !isBottomCtaVisible && (
+        <>
+          {/* Mobile: full-width pill */}
+          <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-sm">
+            <button
+              type="button"
+              onClick={scrollToBottomCta}
+            disabled={mounted && !canProceed}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] shadow-lg shadow-brand-blue/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Continue
+              <ArrowRight size={16} weight="bold" />
+            </button>
+          </div>
+
+          {/* Desktop: circle arrow button bottom-right */}
+          <button
+            type="button"
+            onClick={scrollToBottomCta}
+            disabled={mounted && !canProceed}
+            className="hidden lg:flex fixed bottom-8 right-8 z-40 h-12 w-12 items-center justify-center rounded-full bg-brand-blue shadow-lg shadow-brand-blue/30 transition-all duration-200 hover:brightness-110 active:scale-[0.95] disabled:opacity-40 disabled:pointer-events-none"
+            aria-label="Scroll to continue"
+          >
+            <ArrowDown size={20} weight="bold" className="text-[var(--text-on-brand)]" />
+          </button>
+        </>
+      )}
+
       {step !== 3 && (
-        <div className="mt-10 sm:mt-8 flex items-center gap-3">
+        <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3">
           {step > 1 && (
             <button
               type="button"
@@ -546,7 +612,7 @@ export function LoanApplicationForm() {
             <button
               type="button"
               onClick={handleNext}
-              disabled={!canProceed}
+              disabled={mounted && !canProceed}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
               {step === 8 ? "Confirm" : "Continue"}
@@ -556,7 +622,7 @@ export function LoanApplicationForm() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!canProceed}
+              disabled={mounted && !canProceed}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
               <ShieldCheck size={18} weight="bold" />
