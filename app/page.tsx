@@ -47,7 +47,7 @@ export default function HomePage() {
       </aside>
 
       <main className="flex flex-1 flex-col">
-        <div className="flex items-center justify-between px-6 pb-4 pt-8 lg:hidden">
+        <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
           <a href="https://crawfort.com/sg/" target="_blank" rel="noopener noreferrer">
             <Image
               src="/images/cf-money-full-color.png"
@@ -58,9 +58,6 @@ export default function HomePage() {
               priority
             />
           </a>
-          <span className="text-xs font-medium text-[var(--text-tertiary)]">
-            Licensed Money Lender
-          </span>
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-start px-5 pb-16 pt-5 sm:px-8 sm:pt-2 sm:pb-8 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
