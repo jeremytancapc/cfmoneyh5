@@ -522,7 +522,7 @@ function Step1_LoanDetails({
     setTenureFocused(false);
     const num = parseInt(tenureRaw, 10);
     if (Number.isNaN(num) || num <= 0) { setTenureRaw(String(formData.tenure)); return; }
-    const clamped = Math.min(Math.max(num, 1), 24);
+    const clamped = Math.min(Math.max(num, 1), 12);
     updateField("tenure", clamped);
     setTenureRaw(String(clamped));
   }, [tenureRaw, formData.tenure, updateField]);
@@ -615,14 +615,14 @@ function Step1_LoanDetails({
             <div
               className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full"
               style={{
-                width: `${((formData.tenure - 1) / (24 - 1)) * 100}%`,
+                width: `${((formData.tenure - 1) / (12 - 1)) * 100}%`,
                 background: "var(--brand-blue-hex)",
               }}
             />
             <input
               type="range"
               min={1}
-              max={24}
+              max={12}
               step={1}
               value={formData.tenure}
               onChange={(e) => {
@@ -635,7 +635,7 @@ function Step1_LoanDetails({
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
             <span>1</span>
-            <span>24 months</span>
+            <span>12 months</span>
           </div>
         </div>
 
@@ -726,7 +726,7 @@ function Step2_SelfDeclaredIncome({
       />
       <div className="flex flex-col gap-5">
         <InputField
-          label="Monthly income (self-declared)"
+          label="Monthly Income (Estimated)"
           type="number"
           placeholder="e.g. 4500"
           value={formData.monthlyIncome}

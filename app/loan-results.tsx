@@ -266,10 +266,10 @@ export function LoanResults({
           {summaryItems.map(({ label, value }) => (
             <div
               key={label}
-              className="flex items-center justify-between py-3 text-sm"
+              className="flex items-center justify-between py-4"
             >
-              <span className="text-[var(--text-tertiary)]">{label}</span>
-              <span className="font-medium text-[var(--text-primary)]">
+              <span className="text-[15px] text-[var(--text-secondary)]">{label}</span>
+              <span className="text-[15px] font-semibold text-[var(--text-primary)]">
                 {value}
               </span>
             </div>
