@@ -9,6 +9,8 @@ import {
   CheckCircle,
   ArrowRight,
   ArrowLeft,
+  Train,
+  Car,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD)
@@ -88,6 +90,9 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [qrState, setQrState] = useState<"idle" | "active" | "expired">("idle");
+  const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startX: number; startScroll: number; pointerId: number; dragging: boolean } | null>(null);
@@ -108,6 +113,31 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
     el.addEventListener("scroll", updateFades, { passive: true });
     return () => el.removeEventListener("scroll", updateFades);
   }, [updateFades]);
+
+  useEffect(() => {
+    if (qrExpiresAt === null) return;
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((qrExpiresAt - Date.now()) / 1000));
+      setRemainingSeconds(secs);
+      if (secs === 0) {
+        setQrState("expired");
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [qrExpiresAt]);
+
+  const handleGenerateQr = useCallback(() => {
+    setQrExpiresAt(Date.now() + 15 * 1000);
+    setQrState("active");
+  }, []);
+
+  const formatCountdown = (seconds: number): string => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
 
   const scrollDates = useCallback((direction: "left" | "right") => {
     const el = dateScrollRef.current;
@@ -221,80 +251,202 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
         {/* ── QR Check-in Code ───────────────────────────────────── */}
         <div className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-white px-6 py-6 text-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-primary)]">
-              Your QR Code
+            <p className="font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
+              Check-in QR Code
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-              Show this at our entrance scanner when you arrive &mdash; your queue number will be generated automatically.
-            </p>
+            {qrState === "idle" && (
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                Only click on <strong className="font-semibold text-[var(--text-primary)]">Show QR Code</strong> below once you have arrived at our office.
+              </p>
+            )}
+            {qrState === "active" && (
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                <strong className="font-semibold text-[var(--text-primary)]">Scan this QR Code</strong> at our entrance scanner to generate your queue number.
+              </p>
+            )}
+            {qrState === "expired" && (
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                Your QR code has expired. Generate a new one when you&rsquo;re ready to check in.
+              </p>
+            )}
           </div>
 
-          {/* Placeholder QR — will be replaced with a backend-generated code */}
-          <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+          {/* QR image — always rendered; blurred+overlaid in idle/expired, clear when active */}
+          <div className="relative rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
             <img
               src="/images/qr-placeholder.png"
               alt="Your appointment check-in QR code"
               width={160}
               height={160}
-              className="block sm:h-[180px] sm:w-[180px]"
-              style={{ imageRendering: "pixelated" }}
+              className="block sm:h-[180px] sm:w-[180px] transition-all duration-300"
+              style={{
+                imageRendering: "pixelated",
+                filter: qrState === "active" ? "none" : "blur(6px) grayscale(0.4)",
+              }}
             />
+
+            {/* Idle overlay — "Show QR Code" button centred on the blurred QR */}
+            {qrState === "idle" && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+                <button
+                  type="button"
+                  onClick={handleGenerateQr}
+                  className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+                >
+                  Show QR Code
+                </button>
+              </div>
+            )}
+
+            {/* Expired overlay — bold red "EXPIRED" stamp */}
+            {qrState === "expired" && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+                <span
+                  className="select-none font-display text-2xl font-black uppercase tracking-widest"
+                  style={{
+                    color: "oklch(0.50 0.22 25)",
+                    border: "3px solid oklch(0.50 0.22 25)",
+                    padding: "4px 10px",
+                    borderRadius: 4,
+                    opacity: 0.85,
+                    transform: "rotate(-12deg)",
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  EXPIRED
+                </span>
+              </div>
+            )}
           </div>
 
+          {/* Below-QR area: countdown while active, "Show QR Code" button when expired */}
+          {qrState === "active" && (
+            <div
+              className="flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-4 py-2.5 transition-colors duration-500"
+              style={{
+                borderColor: remainingSeconds <= 5 ? "oklch(0.75 0.15 55)" : "var(--border-subtle)",
+                background: remainingSeconds <= 5 ? "oklch(0.98 0.04 75)" : "transparent",
+              }}
+            >
+              <span
+                className="font-display text-2xl font-bold tabular-nums tracking-tight transition-colors duration-500"
+                style={{ color: remainingSeconds <= 5 ? "oklch(0.55 0.18 45)" : "var(--text-primary)" }}
+              >
+                {formatCountdown(remainingSeconds)}
+              </span>
+              <span
+                className="text-xs font-medium transition-colors duration-500"
+                style={{ color: remainingSeconds <= 5 ? "oklch(0.60 0.16 45)" : "var(--text-tertiary)" }}
+              >
+                {remainingSeconds <= 5 ? "Expiring soon" : "Time remaining"}
+              </span>
+            </div>
+          )}
+
+          {qrState === "expired" && (
+            <button
+              type="button"
+              onClick={handleGenerateQr}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            >
+              Show QR Code
+            </button>
+          )}
         </div>
 
         {/* Office details */}
-        <div className="flex flex-col items-center gap-4 sm:items-start">
-          <div className="flex items-start gap-3">
-            <MapPin
-              size={16}
-              weight="duotone"
-              className="mt-0.5 shrink-0 text-brand-blue"
+        <div className="flex flex-col gap-4 text-left">
+          {/* Landscape shopfront image */}
+          <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            <img
+              src="/images/cf-money-shopfront.jpg"
+              alt="CF Money office shopfront at 1 North Bridge Road"
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: "35% center", transform: "scale(1.35)", transformOrigin: "35% center" }}
+              loading="lazy"
             />
-            <div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                Our office
+              </h3>
+              <a
+                href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              >
+                View on Google Maps
+                <ArrowSquareOut size={14} weight="bold" />
+              </a>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <MapPin size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
+              <div>
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  1 North Bridge Road, High Street Centre
+                </p>
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  #01-35, Singapore 179094
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Clock size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
+              <div>
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  Mon &ndash; Sat &nbsp;&middot;&nbsp; 10:30am &ndash; 7:30pm
+                </p>
+                <p className="text-sm text-[var(--text-tertiary)]">
+                  Closed on Sundays &amp; Public Holidays
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Train size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
               <p className="text-sm font-medium text-[var(--text-primary)]">
-                1 North Bridge Road
+                City Hall MRT (Exit B) or Clarke Quay MRT (Exit E)
               </p>
-              <p className="text-sm text-[var(--text-secondary)]">
-                #01-35, Singapore 179094
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Car size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                Multi-storey carpark in the building
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Clock
-              size={16}
-              weight="duotone"
-              className="shrink-0 text-brand-blue"
-            />
-            <p className="text-sm text-[var(--text-secondary)]">
-              Mon &ndash; Sat, 10:30am &ndash; 7:30pm
-            </p>
-          </div>
-
-          <a
-            href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-          >
-            View on Google Maps
-            <ArrowSquareOut size={14} weight="bold" />
-          </a>
         </div>
 
-        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-          We look forward to meeting you.{" "}
-          {formData.mobile && (
-            <>
-              A confirmation will be sent to{" "}
-              <span className="font-medium text-[var(--text-primary)]">
-                +65 {formData.mobile}
-              </span>
-              .
-            </>
-          )}
-        </p>
+        <div className="h-px bg-[var(--border-subtle)]" />
+
+        <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+          <p>We look forward to meeting you.</p>
+          <p>
+            If you have any questions, call us at{" "}
+            <a
+              href="tel:+6567778080"
+              className="font-medium text-brand-blue transition-colors duration-200 hover:brightness-110"
+            >
+              6777 8080
+            </a>
+            {" "}or{" "}
+            <a
+              href="https://wa.me/6560119380?text=I%20have%20a%20question%20about%20my%20appointment"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-brand-blue transition-colors duration-200 hover:brightness-110"
+            >
+              WhatsApp us
+            </a>
+            .
+          </p>
+        </div>
       </div>
     );
   }
@@ -478,10 +630,10 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
                       ? "var(--brand-blue-hex)"
                       : "var(--border-subtle)",
                     background: isSelected
-                      ? "oklch(0.32 0.14 260 / 0.06)"
+                      ? "var(--brand-blue-hex)"
                       : "transparent",
                     color: isSelected
-                      ? "var(--brand-blue-hex)"
+                      ? "#ffffff"
                       : "var(--text-secondary)",
                     opacity: disabled ? 0.3 : 1,
                     pointerEvents: disabled ? "none" : "auto",
@@ -504,13 +656,37 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 160ms both",
         }}
       >
-        {/* Row: address info + photo */}
-        <div className="flex items-center gap-4">
-          {/* Left — heading + address details */}
+        {/* Mobile: image on top, details below. sm+: side-by-side row */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4">
+
+          {/* Landscape image — full width on mobile, fixed sidebar on sm+ */}
+          <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] sm:h-52 sm:w-52 sm:shrink-0">
+            <img
+              src="/images/cf-money-shopfront.jpg"
+              alt="CF Money office shopfront at 1 North Bridge Road"
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: "35% center", transform: "scale(1.35)", transformOrigin: "35% center" }}
+              loading="lazy"
+            />
+          </div>
+
+          {/* Address + hours + map link */}
           <div className="flex flex-1 flex-col gap-3">
-            <h3 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-              Our office
-            </h3>
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+                Our office
+              </h3>
+              <a
+                href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              >
+                View on Google Maps
+                <ArrowSquareOut size={14} weight="bold" />
+              </a>
+            </div>
+
             <div className="flex items-start gap-3">
               <MapPin
                 size={16}
@@ -519,45 +695,51 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
               />
               <div>
                 <p className="text-sm font-medium text-[var(--text-primary)]">
-                  1 North Bridge Road
+                  1 North Bridge Road, High Street Centre
                 </p>
-                <p className="text-sm text-[var(--text-secondary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)]">
                   #01-35, Singapore 179094
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <Clock
                 size={16}
                 weight="duotone"
-                className="shrink-0 text-brand-blue"
+                className="mt-0.5 shrink-0 text-brand-blue"
               />
-              <p className="text-sm text-[var(--text-secondary)]">
-                Mon &ndash; Sat &nbsp;&middot;&nbsp; 10:30am &ndash; 7:30pm
+              <div>
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  Mon &ndash; Sat &nbsp;&middot;&nbsp; 10:30am &ndash; 7:30pm
+                </p>
+                <p className="text-sm text-[var(--text-tertiary)]">
+                  Closed on Sundays &amp; Public Holidays
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Train
+                size={16}
+                weight="duotone"
+                className="mt-0.5 shrink-0 text-brand-blue"
+              />
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                City Hall MRT (Exit B) or Clarke Quay MRT (Exit E)
               </p>
             </div>
 
-            <a
-              href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-            >
-              View on Google Maps
-              <ArrowSquareOut size={14} weight="bold" />
-            </a>
-          </div>
-
-          {/* Right — Office shopfront photo */}
-          <div className="relative h-44 w-40 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] sm:h-52 sm:w-52">
-            <img
-              src="/images/cf-money-shopfront.jpg"
-              alt="CF Money office shopfront at 1 North Bridge Road"
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{ objectPosition: "55% center", transform: "scale(1.35)", transformOrigin: "55% center" }}
-              loading="lazy"
-            />
+            <div className="flex items-start gap-3">
+              <Car
+                size={16}
+                weight="duotone"
+                className="mt-0.5 shrink-0 text-brand-blue"
+              />
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                Multi-storey carpark in the building
+              </p>
+            </div>
           </div>
         </div>
       </div>
