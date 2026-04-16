@@ -16,7 +16,7 @@ export interface ContainerTextFlipProps {
   /** Duration of the transition animation in milliseconds */
   animationDuration?: number;
   /** Color theme variant */
-  variant?: "primary" | "gradient" | "neon" | "glass";
+  variant?: "primary" | "gradient" | "neon" | "glass" | "rejected" | "pending";
 }
 
 export function ContainerTextFlip({
@@ -72,6 +72,30 @@ export function ContainerTextFlip({
             "bg-white/10 backdrop-blur-xl text-white shadow-2xl shadow-black/20 border border-white/20",
           containerStyle: undefined,
           glowBg: "linear-gradient(45deg, rgba(255,255,255,0.1))",
+        };
+      case "rejected":
+        return {
+          container:
+            "text-white shadow-2xl border",
+          containerStyle: {
+            background: "#C41E3A",
+            boxShadow: "0 8px 24px -4px rgba(196, 30, 58, 0.25)",
+            borderColor: "rgba(196, 30, 58, 0.5)",
+          },
+          glowBg:
+            "linear-gradient(45deg, rgba(196, 30, 58, 0.3), rgba(220, 50, 70, 0.3))",
+        };
+      case "pending":
+        return {
+          container:
+            "text-white shadow-2xl border",
+          containerStyle: {
+            background: "#B8860B",
+            boxShadow: "0 8px 24px -4px rgba(184, 134, 11, 0.25)",
+            borderColor: "rgba(184, 134, 11, 0.5)",
+          },
+          glowBg:
+            "linear-gradient(45deg, rgba(184, 134, 11, 0.3), rgba(218, 165, 32, 0.3))",
         };
       default:
         return {
