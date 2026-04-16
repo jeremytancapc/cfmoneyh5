@@ -560,6 +560,9 @@ export function LoanApplicationForm() {
           <Step9_EmploymentDeclaration
             formData={formData}
             updateField={updateField}
+            onBankruptcyClear={() => {
+              if (window.innerWidth < 1024) scrollToBottomCta();
+            }}
           />
         )}
       </div>
@@ -1326,9 +1329,11 @@ function SearchableSelect({
 function Step9_EmploymentDeclaration({
   formData,
   updateField,
+  onBankruptcyClear,
 }: {
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+  onBankruptcyClear?: () => void;
 }) {
   const CARDS = 4;
 
@@ -1641,7 +1646,10 @@ function Step9_EmploymentDeclaration({
                 <button
                   type="button"
                   disabled={activeCard !== 3}
-                  onClick={() => updateField("bankruptcyDeclaration", "clear")}
+                  onClick={() => {
+                    updateField("bankruptcyDeclaration", "clear");
+                    setTimeout(() => onBankruptcyClear?.(), 50);
+                  }}
                   className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
                     borderColor: isBankruptcyClearSelected ? "white" : "rgba(255,255,255,0.25)",
