@@ -561,7 +561,13 @@ export function LoanApplicationForm() {
             formData={formData}
             updateField={updateField}
             onBankruptcyClear={() => {
-              if (window.innerWidth < 1024) scrollToBottomCta();
+              if (window.innerWidth >= 1024) return;
+              const el = bottomCtaRef.current;
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              // Position the bottom of the CTA at ~82% of viewport height
+              const targetY = window.scrollY + rect.bottom - window.innerHeight * 0.82;
+              window.scrollTo({ top: targetY, behavior: "smooth" });
             }}
           />
         )}
