@@ -560,7 +560,10 @@ export function LoanApplicationForm() {
           <Step9_EmploymentDeclaration
             formData={formData}
             updateField={updateField}
-            onBankruptcyClear={scrollToBottomCta}
+            onBankruptcyClear={() => {
+              if (window.innerWidth >= 1024) return;
+              bottomCtaRef.current?.scrollIntoView({ block: "end" });
+            }}
           />
         )}
       </div>
