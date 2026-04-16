@@ -19,7 +19,6 @@ import {
   Phone,
   IdentificationCard,
   Buildings,
-  MapPin,
   ChartLineUp,
   Lock,
   Fingerprint,
@@ -631,13 +630,6 @@ export function LoanApplicationForm() {
           )}
         </div>
       )}
-
-      {step === 1 && (
-        <p className="mt-5 text-center text-xs text-[var(--text-tertiary)] leading-relaxed">
-          Checking rates won&apos;t affect your credit score. We only perform
-          soft checks.
-        </p>
-      )}
     </div>
   );
 }
@@ -796,33 +788,29 @@ function Step1_LoanDetails({
             />
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
-            <span>1</span>
-            <span>12 months</span>
+            <span>1 month</span>
+            <span>12 months+</span>
           </div>
         </div>
 
-        <div
-          className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-4 py-3 flex items-center justify-between gap-3"
-          style={{ boxShadow: "3px 3px 0px 0px var(--brand-blue-hex)" }}
-        >
-          <div className="min-w-0">
+        <div>
+          <div
+            className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-4 py-3 flex items-center justify-between gap-3"
+            style={{ boxShadow: "3px 3px 0px 0px var(--brand-blue-hex)" }}
+          >
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-primary)]">
-              Est. monthly repayment
+              Monthly repayment
             </span>
-            <span className="mt-0.5 text-xs text-[var(--text-tertiary)]">
-              <span className="block">*Estimate only</span>
-              <span className="block sm:whitespace-nowrap">
-                <span className="sm:hidden">Maybe lower based on your credit score.</span>
-                <span className="hidden sm:inline">Your final repayment may be lower based on your credit score.</span>
+            <div className="flex items-baseline gap-0.5 shrink-0">
+              <span className="font-display text-xl font-bold tracking-tight text-brand-blue tabular-nums">
+                {formatCurrency(monthlyRepayment)}*
               </span>
-            </span>
+              <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
+            </div>
           </div>
-          <div className="flex items-baseline gap-0.5 shrink-0">
-            <span className="font-display text-xl font-bold tracking-tight text-brand-blue tabular-nums">
-              {formatCurrency(monthlyRepayment)}
-            </span>
-            <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
-          </div>
+          <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
+            *Estimate only. Maybe lower based on your credit score.
+          </p>
         </div>
 
         <div>
@@ -901,7 +889,7 @@ function Step2_SelfDeclaredIncome({
       />
       <div className="flex flex-col gap-5">
         <InputField
-          label="Monthly Income (Estimated)"
+          label="Monthly Income"
           type="number"
           placeholder="e.g. 4500"
           value={formData.monthlyIncome}
@@ -1134,7 +1122,7 @@ function Step6_Contact({
       <StepHeader
         icon={Phone}
         title="How can we reach you?"
-        subtitle="We'll SMS your approval status and loan details."
+        subtitle="We'll contact you regarding your loan status and details"
       />
 
       <div className="flex flex-col gap-5">
@@ -1343,6 +1331,128 @@ function Step9_EmploymentDeclaration({
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
 }) {
+  const CARDS = 4;
+
+  const [activeCard, setActiveCard] = useState(0);
+
+  // exitingCard tracks which card is currently flying off-screen.
+  // Setting activeCard and exitingCard simultaneously means both cards
+  // animate in parallel — zero pause between exit and entrance.
+  const [exitingCard, setExitingCard] = useState<number | null>(null);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cardTitles = [
+    "Employment Status",
+    "Job Position",
+    "Time at Current Job",
+    "Bankruptcy & DRS Status",
+  ];
+
+  function advanceTo(next: number) {
+    if (next >= CARDS) return;
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    setExitingCard(activeCard);
+    setActiveCard(next);
+    exitTimerRef.current = setTimeout(() => setExitingCard(null), 450);
+  }
+
+  function goBack() {
+    if (activeCard === 0) return;
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    setExitingCard(activeCard);
+    setActiveCard((c) => c - 1);
+    exitTimerRef.current = setTimeout(() => setExitingCard(null), 450);
+  }
+
+  React.useEffect(() => {
+    return () => {
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    };
+  }, []);
+
+  // Render full content for the active card and the card that's mid-exit animation
+  function showContent(index: number): boolean {
+    return index === activeCard || index === exitingCard;
+  }
+
+  // Compute per-card CSS transform based on its role
+  function cardStyle(index: number): React.CSSProperties {
+    const spring = "transform 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.28s ease";
+
+    if (index === exitingCard) {
+      return {
+        transform: "translateX(115%) rotate(8deg)",
+        opacity: 0,
+        transition: spring,
+        zIndex: 11,
+        pointerEvents: "none",
+      };
+    }
+
+    if (index === activeCard) {
+      return {
+        transform: "translateX(0) scale(1) translateY(0px)",
+        opacity: 1,
+        transition: spring,
+        zIndex: 10,
+        pointerEvents: "auto",
+      };
+    }
+
+    if (index < activeCard) {
+      // Already-answered — off-screen right, no transition (instant)
+      return {
+        transform: "translateX(115%) rotate(8deg)",
+        opacity: 0,
+        transition: "none",
+        zIndex: 9 - (activeCard - index),
+        pointerEvents: "none",
+      };
+    }
+
+    // Cards behind (index > activeCard) — stacked depth effect
+    const depth = index - activeCard;
+    return {
+      transform: `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+      opacity: 1 - depth * 0.2,
+      transition: spring,
+      zIndex: 9 - depth,
+      pointerEvents: "none",
+    };
+  }
+
+  // Background / border for a card based on whether it's the active front card
+  function cardBg(index: number): React.CSSProperties {
+    const isFront = showContent(index);
+    if (isFront) {
+      return {
+        background: "var(--brand-blue-hex)",
+        borderColor: "transparent",
+        boxShadow: "0 8px 32px oklch(0.32 0.14 260 / 0.28)",
+      };
+    }
+    // Behind cards — neutral, same fixed height so none peek out
+    return {
+      background: "var(--surface-elevated)",
+      borderColor: "var(--border-subtle)",
+      minHeight: "80px",
+      overflow: "hidden",
+    };
+  }
+
+  const isBankruptcyClearSelected = formData.bankruptcyDeclaration === "clear";
+  const isBankruptcyDischargedSelected = formData.bankruptcyDeclaration === "discharged_lt5";
+  const isBankruptcyActiveSelected = formData.bankruptcyDeclaration === "active";
+
+  // Measure the active card's real DOM height so the container hugs it exactly.
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
+  const [containerHeight, setContainerHeight] = useState(220);
+
+  React.useEffect(() => {
+    const el = cardRefs.current[activeCard];
+    if (el) setContainerHeight(el.offsetHeight);
+  }, [activeCard, formData.bankruptcyDeclaration]);
+
   return (
     <div>
       <StepHeader
@@ -1351,169 +1461,270 @@ function Step9_EmploymentDeclaration({
         subtitle="A few final questions before we process your application."
       />
 
-      <div className="flex flex-col gap-5 sm:gap-6">
-        {/* Employment status */}
-        <div>
-          <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
-            Employment Status
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {EMPLOYMENT_OPTIONS.map(({ value, label }) => (
-              <SelectableChip
-                key={value}
-                label={label}
-                selected={formData.employmentStatus === value}
-                onClick={() => updateField("employmentStatus", value)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Position */}
-        <div>
-          <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
-            Job Position
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {POSITION_OPTIONS.map(({ value, label }) => (
-              <SelectableChip
-                key={value}
-                label={label}
-                selected={formData.position === value}
-                onClick={() => updateField("position", value)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Employment duration */}
-        <div>
-          <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
-            Duration at Current Employer
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {EMPLOYMENT_DURATION_OPTIONS.map(({ value, label }) => (
-              <SelectableChip
-                key={value}
-                label={label}
-                selected={formData.employmentDuration === value}
-                onClick={() => updateField("employmentDuration", value)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Bankruptcy declaration */}
-        <div>
-          <label className="mb-1 block text-base font-medium text-[var(--text-primary)]">
-            Bankruptcy & DRS Status
-          </label>
-          <p className="mb-3 text-sm text-[var(--text-tertiary)]">
-            Select the option that applies to you as of today.
-          </p>
-          <div className="flex flex-col gap-2">
-            {/* Primary confirm option */}
-            <button
-              type="button"
-              onClick={() => updateField("bankruptcyDeclaration", "clear")}
-              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+      {/* Progress dots + contextual action */}
+      <div className="mb-5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {Array.from({ length: CARDS }).map((_, i) => (
+            <div
+              key={i}
+              className="h-1.5 rounded-full transition-all duration-300"
               style={{
-                borderColor: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "var(--border-subtle)",
-                background: formData.bankruptcyDeclaration === "clear" ? "oklch(0.60 0.13 178 / 0.07)" : "var(--surface-elevated)",
+                width: i === activeCard ? "24px" : "6px",
+                background: i < activeCard
+                  ? "var(--brand-teal-hex)"
+                  : i === activeCard
+                    ? "var(--brand-blue-hex)"
+                    : "var(--border-medium)",
+                opacity: i > activeCard ? 0.4 : 1,
               }}
-            >
-              <span
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
-                style={{
-                  borderColor: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "var(--border-medium)",
-                  background: formData.bankruptcyDeclaration === "clear" ? "var(--brand-teal-hex)" : "transparent",
-                }}
-              >
-                {formData.bankruptcyDeclaration === "clear" && (
-                  <CheckCircle size={14} weight="fill" color="white" />
-                )}
-              </span>
-              <span className="text-sm font-semibold" style={{ color: formData.bankruptcyDeclaration === "clear" ? "oklch(0.32 0.13 178)" : "var(--text-primary)" }}>
-                Yes, I confirm — I am not bankrupt, under DRS, or self-excluded as of this application.
-              </span>
-            </button>
+            />
+          ))}
+          <span className="ml-1 text-xs text-[var(--text-tertiary)]">
+            {activeCard + 1} of {CARDS}
+          </span>
+        </div>
 
-            {/* Discharged bankrupt — amber */}
-            {(() => {
-              const isSelected = formData.bankruptcyDeclaration === "discharged_lt5";
-              return (
+        {activeCard > 0 && (
+          <button
+            type="button"
+            onClick={goBack}
+            className="flex items-center gap-1 rounded-full border border-[var(--border-subtle)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
+          >
+            <ArrowLeft size={11} weight="bold" />
+            Back
+          </button>
+        )}
+      </div>
+
+      {/* Card stack container */}
+      <div
+        className="relative w-full"
+        style={{ height: `${containerHeight}px`, transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)" }}
+      >
+        {/* ── Card 0: Employment Status ── */}
+        <div
+          ref={(el) => { cardRefs.current[0] = el; }}
+          className="absolute inset-x-0 top-0 rounded-[var(--radius-lg)] border px-5 py-5"
+          style={{ ...cardStyle(0), ...cardBg(0) }}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <span className="truncate min-w-0 text-base font-bold text-white">{cardTitles[0]}</span>
+            <span className="whitespace-nowrap shrink-0 text-xs text-white/60">Select one</span>
+          </div>
+          {showContent(0) && (
+            <div className="flex flex-wrap gap-2">
+              {EMPLOYMENT_OPTIONS.map(({ value, label }) => {
+                const isSelected = formData.employmentStatus === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={activeCard !== 0 || exitingCard !== null}
+                    onClick={() => {
+                      updateField("employmentStatus", value);
+                      setTimeout(() => advanceTo(1), 320);
+                    }}
+                    className="rounded-[var(--radius-md)] border px-4 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.97]"
+                    style={{
+                      borderColor: isSelected ? "white" : "rgba(255,255,255,0.3)",
+                      background: isSelected ? "white" : "rgba(255,255,255,0.12)",
+                      color: isSelected ? "var(--brand-blue-hex)" : "white",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Card 1: Job Position ── */}
+        <div
+          ref={(el) => { cardRefs.current[1] = el; }}
+          className="absolute inset-x-0 top-0 rounded-[var(--radius-lg)] border px-5 py-5"
+          style={{ ...cardStyle(1), ...cardBg(1) }}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <span className={`truncate min-w-0 text-base font-bold ${showContent(1) ? "text-white" : "text-[var(--text-primary)]"}`}>{cardTitles[1]}</span>
+            {showContent(1) && <span className="whitespace-nowrap shrink-0 text-xs text-white/60">Select one</span>}
+          </div>
+          {showContent(1) && (
+            <div className="flex flex-wrap gap-2">
+              {POSITION_OPTIONS.map(({ value, label }) => {
+                const isSelected = formData.position === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={activeCard !== 1 || exitingCard !== null}
+                    onClick={() => {
+                      updateField("position", value);
+                      setTimeout(() => advanceTo(2), 320);
+                    }}
+                    className="rounded-[var(--radius-md)] border px-4 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.97]"
+                    style={{
+                      borderColor: isSelected ? "white" : "rgba(255,255,255,0.3)",
+                      background: isSelected ? "white" : "rgba(255,255,255,0.12)",
+                      color: isSelected ? "var(--brand-blue-hex)" : "white",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Card 2: Employment Duration ── */}
+        <div
+          ref={(el) => { cardRefs.current[2] = el; }}
+          className="absolute inset-x-0 top-0 rounded-[var(--radius-lg)] border px-5 py-5"
+          style={{ ...cardStyle(2), ...cardBg(2) }}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <span className={`truncate min-w-0 text-base font-bold ${showContent(2) ? "text-white" : "text-[var(--text-primary)]"}`}>{cardTitles[2]}</span>
+            {showContent(2) && <span className="whitespace-nowrap shrink-0 text-xs text-white/60">Select one</span>}
+          </div>
+          {showContent(2) && (
+            <div className="flex flex-wrap gap-2">
+              {EMPLOYMENT_DURATION_OPTIONS.map(({ value, label }) => {
+                const isSelected = formData.employmentDuration === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={activeCard !== 2 || exitingCard !== null}
+                    onClick={() => {
+                      updateField("employmentDuration", value);
+                      setTimeout(() => advanceTo(3), 320);
+                    }}
+                    className="rounded-[var(--radius-md)] border px-4 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.97]"
+                    style={{
+                      borderColor: isSelected ? "white" : "rgba(255,255,255,0.3)",
+                      background: isSelected ? "white" : "rgba(255,255,255,0.12)",
+                      color: isSelected ? "var(--brand-blue-hex)" : "white",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Card 3: Bankruptcy & DRS ── */}
+        <div
+          ref={(el) => { cardRefs.current[3] = el; }}
+          className="absolute inset-x-0 top-0 rounded-[var(--radius-lg)] border px-5 py-5"
+          style={{ ...cardStyle(3), ...cardBg(3) }}
+        >
+          <div className="mb-1 flex items-center justify-between">
+            <span className={`truncate min-w-0 text-base font-bold ${showContent(3) ? "text-white" : "text-[var(--text-primary)]"}`}>{cardTitles[3]}</span>
+            {showContent(3) && <span className="whitespace-nowrap shrink-0 text-xs text-white/60">Select one</span>}
+          </div>
+          {showContent(3) && (
+            <>
+              <p className="mb-3 text-sm text-white/70">
+                Select the option that applies to you as of today.
+              </p>
+              <div className="flex flex-col gap-2">
+                {/* Primary confirm option */}
                 <button
                   type="button"
+                  disabled={activeCard !== 3}
+                  onClick={() => updateField("bankruptcyDeclaration", "clear")}
+                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+                  style={{
+                    borderColor: isBankruptcyClearSelected ? "white" : "rgba(255,255,255,0.25)",
+                    background: isBankruptcyClearSelected ? "white" : "rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                    style={{
+                      borderColor: isBankruptcyClearSelected ? "var(--brand-teal-hex)" : "rgba(255,255,255,0.5)",
+                      background: isBankruptcyClearSelected ? "var(--brand-teal-hex)" : "transparent",
+                    }}
+                  >
+                    {isBankruptcyClearSelected && <CheckCircle size={14} weight="fill" color="white" />}
+                  </span>
+                  <span className="text-sm font-semibold" style={{ color: isBankruptcyClearSelected ? "oklch(0.32 0.13 178)" : "white" }}>
+                    Yes, I confirm — I am not bankrupt, under DRS, or self-excluded as of this application.
+                  </span>
+                </button>
+
+                {/* Discharged bankrupt — amber */}
+                <button
+                  type="button"
+                  disabled={activeCard !== 3}
                   onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
                   className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
-                    borderColor: isSelected ? "oklch(0.65 0.14 50)" : "var(--border-subtle)",
-                    background: isSelected ? "oklch(0.65 0.14 50 / 0.05)" : "transparent",
+                    borderColor: isBankruptcyDischargedSelected ? "oklch(0.85 0.14 80)" : "rgba(255,255,255,0.25)",
+                    background: isBankruptcyDischargedSelected ? "oklch(0.65 0.14 50 / 0.25)" : "rgba(255,255,255,0.08)",
                   }}
                 >
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
                     style={{
-                      borderColor: isSelected ? "oklch(0.65 0.14 50)" : "var(--border-medium)",
-                      background: isSelected ? "oklch(0.65 0.14 50)" : "transparent",
+                      borderColor: isBankruptcyDischargedSelected ? "oklch(0.85 0.14 80)" : "rgba(255,255,255,0.5)",
+                      background: isBankruptcyDischargedSelected ? "oklch(0.65 0.14 50)" : "transparent",
                     }}
                   >
-                    {isSelected && <CheckCircle size={14} weight="fill" color="white" />}
+                    {isBankruptcyDischargedSelected && <CheckCircle size={14} weight="fill" color="white" />}
                   </span>
-                  <span className="text-sm" style={{ color: isSelected ? "oklch(0.45 0.12 50)" : "var(--text-secondary)" }}>
+                  <span className="text-sm" style={{ color: isBankruptcyDischargedSelected ? "oklch(0.95 0.10 80)" : "rgba(255,255,255,0.85)" }}>
                     I am a discharged bankrupt (less than 5 years ago)
                   </span>
                 </button>
-              );
-            })()}
 
-            {/* Active bankruptcy / DRS — red */}
-            {(() => {
-              const isSelected = formData.bankruptcyDeclaration === "active";
-              return (
+                {/* Active bankruptcy / DRS — red */}
                 <button
                   type="button"
+                  disabled={activeCard !== 3}
                   onClick={() => updateField("bankruptcyDeclaration", "active")}
                   className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
-                    borderColor: isSelected ? "oklch(0.55 0.20 25)" : "var(--border-subtle)",
-                    background: isSelected ? "oklch(0.55 0.20 25 / 0.05)" : "transparent",
+                    borderColor: isBankruptcyActiveSelected ? "oklch(0.85 0.15 25)" : "rgba(255,255,255,0.25)",
+                    background: isBankruptcyActiveSelected ? "oklch(0.55 0.20 25 / 0.25)" : "rgba(255,255,255,0.08)",
                   }}
                 >
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
                     style={{
-                      borderColor: isSelected ? "oklch(0.55 0.20 25)" : "var(--border-medium)",
-                      background: isSelected ? "oklch(0.55 0.20 25)" : "transparent",
+                      borderColor: isBankruptcyActiveSelected ? "oklch(0.85 0.15 25)" : "rgba(255,255,255,0.5)",
+                      background: isBankruptcyActiveSelected ? "oklch(0.55 0.20 25)" : "transparent",
                     }}
                   >
-                    {isSelected && <CheckCircle size={14} weight="fill" color="white" />}
+                    {isBankruptcyActiveSelected && <CheckCircle size={14} weight="fill" color="white" />}
                   </span>
-                  <span className="text-sm" style={{ color: isSelected ? "oklch(0.45 0.18 25)" : "var(--text-secondary)" }}>
+                  <span className="text-sm" style={{ color: isBankruptcyActiveSelected ? "oklch(0.95 0.10 25)" : "rgba(255,255,255,0.85)" }}>
                     I am currently under bankruptcy / DRS status
                   </span>
                 </button>
-              );
-            })()}
-          </div>
+              </div>
 
-          {formData.bankruptcyDeclaration === "discharged_lt5" && (
-            <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.65_0.14_50_/_0.3)] bg-[oklch(0.65_0.14_50_/_0.05)] px-4 py-3">
-              <p className="text-xs leading-relaxed text-[oklch(0.45_0.12_50)]">
-                Our team will review your application and contact you directly. Loan approval is subject to our assessment criteria.
-              </p>
-            </div>
-          )}
+              {isBankruptcyDischargedSelected && (
+                <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.85_0.14_80_/_0.4)] bg-[oklch(0.65_0.14_50_/_0.2)] px-4 py-3">
+                  <p className="text-xs leading-relaxed text-[oklch(0.95_0.10_80)]">
+                    Our team will review your application and contact you directly. Loan approval is subject to our assessment criteria.
+                  </p>
+                </div>
+              )}
 
-          {formData.bankruptcyDeclaration === "active" && (
-            <div className="mt-3 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-xs leading-relaxed text-red-700">
-                We are currently not able to issue loans if you are not discharged from bankruptcy or DRS status.
-              </p>
-            </div>
+              {isBankruptcyActiveSelected && (
+                <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.85_0.15_25_/_0.4)] bg-[oklch(0.55_0.20_25_/_0.2)] px-4 py-3">
+                  <p className="text-xs leading-relaxed text-[oklch(0.95_0.10_25)]">
+                    We are currently not able to issue loans if you are not discharged from bankruptcy or DRS status.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
-
       </div>
     </div>
   );
@@ -1540,7 +1751,7 @@ function Step8_Review({
       rows: [
         { label: "Amount", value: formatCurrency(formData.amount) },
         { label: "Tenure", value: `${formData.tenure} months` },
-        { label: "Est. Monthly", value: formatCurrency(monthlyRepayment) },
+        { label: "Monthly instalment", value: formatCurrency(monthlyRepayment) },
         {
           label: "Urgency",
           value:
@@ -1548,7 +1759,7 @@ function Step8_Review({
             "—",
         },
         {
-          label: "Declared monthly income",
+          label: "Monthly income",
           value: formData.monthlyIncome
             ? formatCurrency(parseInt(formData.monthlyIncome, 10) || 0)
             : "—",
@@ -1568,19 +1779,7 @@ function Step8_Review({
         },
         { label: "Name", value: formData.fullName || "—" },
         { label: "NRIC / FIN", value: formData.nric ? `${formData.nric.slice(0, 1)}****${formData.nric.slice(-1)}` : "—" },
-      ],
-    },
-    {
-      icon: Phone,
-      title: "Contact",
-      rows: [
         { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
-      ],
-    },
-    {
-      icon: MapPin,
-      title: "Additional",
-      rows: [
         ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
         ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
       ],
