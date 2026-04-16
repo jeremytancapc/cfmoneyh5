@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShieldCheck,
   Scroll,
@@ -12,6 +12,7 @@ import {
   X,
   TrendUp,
 } from "@phosphor-icons/react";
+import { motion } from "motion/react";
 import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
 
 interface FormData {
@@ -176,6 +177,18 @@ function ReconsiderModal({
   );
 }
 
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+function blurIn(active: boolean, delay = 0) {
+  return {
+    animate: active
+      ? { opacity: 1, filter: "blur(0px)", y: 0 }
+      : { opacity: 0, filter: "blur(12px)", y: 12 },
+    transition: { duration: 0.55, ease: EASE, delay: active ? delay : 0 },
+    style: { pointerEvents: (active ? "auto" : "none") as React.CSSProperties["pointerEvents"] },
+  };
+}
+
 /* ── Main component ───────────────────────────────────────────────── */
 export function LoanResults({
   formData,
@@ -183,50 +196,81 @@ export function LoanResults({
   onAccept,
 }: LoanResultsProps) {
   const [showModal, setShowModal] = useState(false);
+  // 0 = hero only  1 = amount  2 = tenure row  3 = badge  4 = notice + CTA
+  const [revealStage, setRevealStage] = useState(0);
+
+  useEffect(() => {
+    // Stage 0 → 1: wait for hero letter-by-letter + shimmer (~1.2s)
+    const t1 = setTimeout(() => setRevealStage(1), 1200);
+    // Stage 1 → 2: after amount blurs in (~650ms)
+    const t2 = setTimeout(() => setRevealStage(2), 1200 + 650);
+    // Stage 2 → 3: after tenure row blurs in (~550ms)
+    const t3 = setTimeout(() => setRevealStage(3), 1200 + 650 + 550);
+    // Stage 3 → 4: after badge swipes in (~500ms)
+    const t4 = setTimeout(() => setRevealStage(4), 1200 + 650 + 550 + 500);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+  }, []);
 
   return (
     <>
-      <div className="animate-fade-up flex flex-col gap-8">
+      {/*
+        All sections are always in the DOM — this locks the full page height
+        from the very first render so nothing shifts as stages reveal.
+        Visibility is driven by motion's animate prop, not conditional rendering.
+      */}
+      <div className="flex flex-col gap-8">
 
-        {/* ── "Approved in principal" animated hero ────────────────── */}
-        <div
-          style={{
-            opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 0ms both",
-          }}
-        >
+        {/* ── Stage 0: "Approved in Principle" animated hero ─────── */}
+        <div>
           <ContainerTextFlip
-            words={["Approved in principal"]}
+            words={["Approved in Principle"]}
             variant="primary"
             className="font-display"
           />
         </div>
 
-        {/* ── Loan offer details ──────────────────────────────────── */}
-        <div
-          className="mt-1 flex flex-col items-center gap-1 text-center"
-          style={{
-            opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 60ms both",
-          }}
+        {/* ── Stage 1: Loan amount ────────────────────────────────── */}
+        <motion.p
+          className="font-display text-5xl sm:text-6xl font-black tracking-tighter text-brand-blue tabular-nums text-center mt-1"
+          initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
+          {...blurIn(revealStage >= 1)}
         >
-          <p className="font-display text-5xl sm:text-6xl font-black tracking-tighter text-brand-blue tabular-nums">
-            {formatCurrency(formData.amount)}<sup className="text-2xl sm:text-3xl align-super">*</sup>
-          </p>
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mt-1">
-            <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
-              {formData.tenure} months
-            </span>
-            <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
-              {formatCurrency(monthlyRepayment)}/mo est.
-            </span>
-          </div>
-          <div
-            className="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5 mt-3"
+          {formatCurrency(formData.amount)}<sup className="text-2xl sm:text-3xl align-super">*</sup>
+        </motion.p>
+
+        {/* ── Stage 2: Tenure + monthly repayment ────────────────── */}
+        <motion.div
+          className="flex flex-wrap items-baseline justify-center gap-x-4 gap-y-1 -mt-6"
+          initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
+          {...blurIn(revealStage >= 2)}
+        >
+          <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
+            {formData.tenure} months
+          </span>
+          <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
+            {formatCurrency(monthlyRepayment)}/mo est.
+          </span>
+        </motion.div>
+
+        {/* ── Stage 3: "Offer valid" urgency badge — swipe in ─────── */}
+        {/*
+          overflow-hidden clips the horizontal slide without affecting vertical
+          space, so the row height is reserved from mount.
+        */}
+        <div
+          className="flex justify-center -mt-4 overflow-hidden"
+          style={{ pointerEvents: revealStage >= 3 ? "auto" : "none" }}
+        >
+          <motion.div
+            className="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5"
             style={{
               background: "oklch(0.72 0.18 50 / 0.15)",
               border: "1px solid oklch(0.72 0.18 50 / 0.40)",
             }}
+            initial={{ opacity: 0, x: "-120%" }}
+            animate={revealStage >= 3 ? { opacity: 1, x: 0 } : { opacity: 0, x: "-120%" }}
+            transition={{ type: "spring", stiffness: 200, damping: 22 }}
           >
             <Clock
               size={13}
@@ -243,30 +287,31 @@ export function LoanResults({
             >
               Offer valid for 3 days only
             </span>
-          </div>
+          </motion.div>
         </div>
 
-        {/* ── To receive your funds ───────────────────────────────── */}
-        <div
+        {/* ── Stage 4: Notice card ────────────────────────────────── */}
+        <motion.div
           className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-4"
-          style={{
-            background: "oklch(0.32 0.14 260 / 0.03)",
-            opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 200ms both",
-          }}
+          style={{ background: "oklch(0.32 0.14 260 / 0.03)" }}
+          initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
+          {...blurIn(revealStage >= 4)}
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-            To receive your funds
+            To receive your funds:
           </p>
           <ul className="flex flex-col gap-3 sm:gap-4">
             {NOTICE_ITEMS.map(({ icon: Icon, short, text }, i) => (
-              <li
+              <motion.li
                 key={i}
                 className="flex items-start gap-3"
-                style={{
-                  opacity: 0,
-                  animation: `fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${280 + i * 70}ms both`,
-                }}
+                initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
+                animate={
+                  revealStage >= 4
+                    ? { opacity: 1, filter: "blur(0px)", y: 0 }
+                    : { opacity: 0, filter: "blur(8px)", y: 8 }
+                }
+                transition={{ duration: 0.4, ease: EASE, delay: revealStage >= 4 ? i * 0.1 : 0 }}
               >
                 <Icon
                   size={16}
@@ -277,27 +322,30 @@ export function LoanResults({
                   <span className="sm:hidden">{short}</span>
                   <span className="hidden sm:inline">{text}</span>
                 </span>
-              </li>
+              </motion.li>
             ))}
           </ul>
-          <p
+          <motion.p
             className="text-[10px] sm:text-xs leading-relaxed text-[var(--text-tertiary)]"
-            style={{
-              opacity: 0,
-              animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 490ms both",
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: revealStage >= 4 ? 1 : 0 }}
+            transition={{ duration: 0.4, delay: revealStage >= 4 ? NOTICE_ITEMS.length * 0.1 + 0.1 : 0 }}
           >
             * The pre-approved amount shown is indicative and may vary if there are changes to your profile between now and your appointment.
-          </p>
-        </div>
+          </motion.p>
+        </motion.div>
 
-        {/* ── CTA ────────────────────────────────────────────────── */}
-        <div
+        {/* ── Stage 4: CTA ────────────────────────────────────────── */}
+        <motion.div
           className="flex flex-col gap-3"
-          style={{
-            opacity: 0,
-            animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 480ms both",
-          }}
+          initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
+          animate={
+            revealStage >= 4
+              ? { opacity: 1, filter: "blur(0px)", y: 0 }
+              : { opacity: 0, filter: "blur(8px)", y: 8 }
+          }
+          transition={{ duration: 0.5, ease: EASE, delay: revealStage >= 4 ? 0.35 : 0 }}
+          style={{ pointerEvents: revealStage >= 4 ? "auto" : "none" }}
         >
           <button
             type="button"
@@ -315,7 +363,7 @@ export function LoanResults({
           >
             I need to think about it
           </button>
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Reconsider modal ───────────────────────────────────── */}

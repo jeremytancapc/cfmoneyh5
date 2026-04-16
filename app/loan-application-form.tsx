@@ -595,7 +595,7 @@ export function LoanApplicationForm() {
       )}
 
       {step !== 3 && (
-        <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3">
+        <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3 relative z-20">
           {step > 1 && (
             <button
               type="button"
@@ -1428,13 +1428,20 @@ function Step9_EmploymentDeclaration({
       return {
         background: "var(--brand-blue-hex)",
         borderColor: "transparent",
-        boxShadow: "0 8px 32px oklch(0.32 0.14 260 / 0.28)",
+        boxShadow: [
+          "0 2px 4px oklch(0.18 0.16 260 / 0.18)",
+          "0 8px 16px oklch(0.22 0.16 260 / 0.28)",
+          "0 20px 40px oklch(0.26 0.14 260 / 0.36)",
+          "0 40px 64px oklch(0.18 0.12 260 / 0.22)",
+          "inset 0 1px 0 oklch(1 0 0 / 0.12)",
+        ].join(", "),
       };
     }
     // Behind cards — neutral, same fixed height so none peek out
     return {
       background: "var(--surface-elevated)",
       borderColor: "var(--border-subtle)",
+      boxShadow: "0 4px 12px oklch(0 0 0 / 0.10), 0 1px 3px oklch(0 0 0 / 0.08)",
       minHeight: "80px",
       overflow: "hidden",
     };
