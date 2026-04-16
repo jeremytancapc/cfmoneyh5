@@ -422,19 +422,25 @@ export function LoanApplicationForm() {
     const el = bottomCtaRef.current;
     if (!el) return;
     const start = window.scrollY;
-    const target = el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2 + el.offsetHeight / 2;
+    const rawTarget = el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2 + el.offsetHeight / 2;
+    // Clamp to the true max scroll so we never ask the browser to scroll past
+    // the document bottom — on mobile Android this can expand the document and
+    // leave a permanent white gap below the footer.
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const target = Math.max(0, Math.min(rawTarget, maxScroll));
     const distance = target - start;
-    const duration = 900;
+    if (Math.abs(distance) < 2) return;
+    const duration = 500;
     let startTime: number | null = null;
     const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-    const step = (timestamp: number) => {
+    const tick = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / duration, 1);
       window.scrollTo(0, start + distance * easeInOut(progress));
-      if (progress < 1) requestAnimationFrame(step);
+      if (progress < 1) requestAnimationFrame(tick);
     };
-    requestAnimationFrame(step);
+    requestAnimationFrame(tick);
   }, []);
 
   const handleNext = useCallback(() => {
@@ -1656,45 +1662,45 @@ function Step9_EmploymentDeclaration({
                   }}
                   className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
-                    borderColor: isBankruptcyClearSelected ? "white" : "rgba(255,255,255,0.25)",
-                    background: isBankruptcyClearSelected ? "white" : "rgba(255,255,255,0.1)",
+                    borderColor: isBankruptcyClearSelected ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.25)",
+                    background: isBankruptcyClearSelected ? "oklch(0.50 0.15 145 / 0.30)" : "rgba(255,255,255,0.1)",
                   }}
                 >
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
                     style={{
-                      borderColor: isBankruptcyClearSelected ? "var(--brand-teal-hex)" : "rgba(255,255,255,0.5)",
-                      background: isBankruptcyClearSelected ? "var(--brand-teal-hex)" : "transparent",
+                      borderColor: isBankruptcyClearSelected ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.5)",
+                      background: isBankruptcyClearSelected ? "oklch(0.55 0.18 145)" : "transparent",
                     }}
                   >
                     {isBankruptcyClearSelected && <CheckCircle size={14} weight="fill" color="white" />}
                   </span>
-                  <span className="text-sm font-semibold" style={{ color: isBankruptcyClearSelected ? "oklch(0.32 0.13 178)" : "white" }}>
+                  <span className="text-sm font-semibold" style={{ color: isBankruptcyClearSelected ? "oklch(0.95 0.06 145)" : "white" }}>
                     Yes, I confirm — I am not bankrupt, under DRS, or self-excluded as of this application.
                   </span>
                 </button>
 
-                {/* Discharged bankrupt — amber */}
+                {/* Discharged bankrupt — green */}
                 <button
                   type="button"
                   disabled={activeCard !== 3}
                   onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
                   className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
-                    borderColor: isBankruptcyDischargedSelected ? "oklch(0.85 0.14 80)" : "rgba(255,255,255,0.25)",
-                    background: isBankruptcyDischargedSelected ? "oklch(0.65 0.14 50 / 0.25)" : "rgba(255,255,255,0.08)",
+                    borderColor: isBankruptcyDischargedSelected ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.25)",
+                    background: isBankruptcyDischargedSelected ? "oklch(0.50 0.15 145 / 0.30)" : "rgba(255,255,255,0.08)",
                   }}
                 >
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
                     style={{
-                      borderColor: isBankruptcyDischargedSelected ? "oklch(0.85 0.14 80)" : "rgba(255,255,255,0.5)",
-                      background: isBankruptcyDischargedSelected ? "oklch(0.65 0.14 50)" : "transparent",
+                      borderColor: isBankruptcyDischargedSelected ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.5)",
+                      background: isBankruptcyDischargedSelected ? "oklch(0.55 0.18 145)" : "transparent",
                     }}
                   >
                     {isBankruptcyDischargedSelected && <CheckCircle size={14} weight="fill" color="white" />}
                   </span>
-                  <span className="text-sm" style={{ color: isBankruptcyDischargedSelected ? "oklch(0.95 0.10 80)" : "rgba(255,255,255,0.85)" }}>
+                  <span className="text-sm" style={{ color: isBankruptcyDischargedSelected ? "oklch(0.95 0.06 145)" : "rgba(255,255,255,0.85)" }}>
                     I am a discharged bankrupt (less than 5 years ago)
                   </span>
                 </button>
@@ -1726,9 +1732,9 @@ function Step9_EmploymentDeclaration({
               </div>
 
               {isBankruptcyDischargedSelected && (
-                <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.85_0.14_80_/_0.4)] bg-[oklch(0.65_0.14_50_/_0.2)] px-4 py-3">
-                  <p className="text-xs leading-relaxed text-[oklch(0.95_0.10_80)]">
-                    Our team will review your application and contact you directly. Loan approval is subject to our assessment criteria.
+                <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.75_0.17_145_/_0.4)] bg-[oklch(0.50_0.15_145_/_0.2)] px-4 py-3">
+                  <p className="text-xs leading-relaxed text-[oklch(0.95_0.06_145)]">
+                    Please bring along your bankruptcy/DRS discharge letter to the appointment.
                   </p>
                 </div>
               )}
