@@ -657,34 +657,36 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
         }}
       >
         {/* Mobile: image on top, details below. sm+: side-by-side row */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-4">
 
           {/* Landscape image — full width on mobile, fixed sidebar on sm+ */}
-          <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] sm:h-52 sm:w-52 sm:shrink-0">
-            <img
-              src="/images/cf-money-shopfront.jpg"
-              alt="CF Money office shopfront at 1 North Bridge Road"
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{ objectPosition: "35% center", transform: "scale(1.35)", transformOrigin: "35% center" }}
-              loading="lazy"
-            />
+          <div className="flex flex-col gap-2 sm:shrink-0">
+            <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] sm:h-52 sm:w-52">
+              <img
+                src="/images/cf-money-shopfront.jpg"
+                alt="CF Money office shopfront at 1 North Bridge Road"
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ objectPosition: "35% center", transform: "scale(1.35)", transformOrigin: "35% center" }}
+                loading="lazy"
+              />
+            </div>
+            <a
+              href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            >
+              View on Google Maps
+              <ArrowSquareOut size={14} weight="bold" />
+            </a>
           </div>
 
-          {/* Address + hours + map link */}
+          {/* Address + hours */}
           <div className="flex flex-1 flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+            <div>
+              <h3 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl whitespace-nowrap">
                 Our office
               </h3>
-              <a
-                href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-              >
-                View on Google Maps
-                <ArrowSquareOut size={14} weight="bold" />
-              </a>
             </div>
 
             <div className="flex items-start gap-3">
