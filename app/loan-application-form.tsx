@@ -525,7 +525,6 @@ export function LoanApplicationForm() {
                 idType: "singaporean",
                 fullName: "Tan Wei Liang",
                 nric: "S8912345D",
-                employmentStatus: "full_time",
                 monthlyIncome: prev.monthlyIncome || "5500",
                 mobile: "91234567",
                 loanPurpose: "personal",
