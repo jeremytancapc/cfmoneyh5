@@ -179,13 +179,16 @@ function ReconsiderModal({
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-function blurIn(active: boolean, delay = 0) {
+function blurIn(active: boolean, delay = 0, extraStyle?: React.CSSProperties) {
   return {
     animate: active
       ? { opacity: 1, filter: "blur(0px)", y: 0 }
       : { opacity: 0, filter: "blur(12px)", y: 12 },
     transition: { duration: 0.55, ease: EASE, delay: active ? delay : 0 },
-    style: { pointerEvents: (active ? "auto" : "none") as React.CSSProperties["pointerEvents"] },
+    style: {
+      pointerEvents: (active ? "auto" : "none") as React.CSSProperties["pointerEvents"],
+      ...extraStyle,
+    },
   };
 }
 
@@ -293,9 +296,8 @@ export function LoanResults({
         {/* ── Stage 4: Notice card ────────────────────────────────── */}
         <motion.div
           className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-4"
-          style={{ background: "oklch(0.32 0.14 260 / 0.03)" }}
           initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
-          {...blurIn(revealStage >= 4)}
+          {...blurIn(revealStage >= 4, 0, { background: "oklch(0.32 0.14 260 / 0.03)" })}
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
             To receive your funds:
