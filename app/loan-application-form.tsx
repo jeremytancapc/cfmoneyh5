@@ -566,8 +566,20 @@ export function LoanApplicationForm() {
               if (!el) return;
               const rect = el.getBoundingClientRect();
               // Position the bottom of the CTA at ~82% of viewport height
-              const targetY = window.scrollY + rect.bottom - window.innerHeight * 0.82;
-              window.scrollTo({ top: targetY, behavior: "smooth" });
+              const start = window.scrollY;
+              const target = start + rect.bottom - window.innerHeight * 0.82;
+              const distance = target - start;
+              if (Math.abs(distance) < 2) return;
+              const duration = 600;
+              const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+              let startTime: number | null = null;
+              const animate = (ts: number) => {
+                if (!startTime) startTime = ts;
+                const progress = Math.min((ts - startTime) / duration, 1);
+                window.scrollTo(0, start + distance * easeOut(progress));
+                if (progress < 1) requestAnimationFrame(animate);
+              };
+              requestAnimationFrame(animate);
             }}
           />
         )}
