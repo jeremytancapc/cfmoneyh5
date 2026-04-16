@@ -505,6 +505,7 @@ export function LoanApplicationForm() {
             updateField={updateField}
             monthlyRepayment={monthlyRepayment}
             sliderPercentage={sliderPercentage}
+            onUrgencySelect={scrollToBottomCta}
           />
         )}
         {step === 2 && (
@@ -560,10 +561,7 @@ export function LoanApplicationForm() {
           <Step9_EmploymentDeclaration
             formData={formData}
             updateField={updateField}
-            onBankruptcyClear={() => {
-              if (window.innerWidth >= 1024) return;
-              bottomCtaRef.current?.scrollIntoView({ block: "end" });
-            }}
+            onBankruptcyClear={scrollToBottomCta}
           />
         )}
       </div>
@@ -642,11 +640,13 @@ function Step1_LoanDetails({
   updateField,
   monthlyRepayment,
   sliderPercentage,
+  onUrgencySelect,
 }: {
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
   monthlyRepayment: number;
   sliderPercentage: number;
+  onUrgencySelect?: () => void;
 }) {
   const [amountRaw, setAmountRaw] = useState(String(formData.amount));
   const [amountFocused, setAmountFocused] = useState(false);
@@ -827,7 +827,10 @@ function Step1_LoanDetails({
                 <button
                   key={value}
                   type="button"
-                  onClick={() => updateField("urgency", value)}
+                  onClick={() => {
+                    updateField("urgency", value);
+                    onUrgencySelect?.();
+                  }}
                   className="flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border py-2.5 sm:py-4 transition-all duration-200 active:scale-[0.96]"
                   style={{
                     borderColor: isSelected
