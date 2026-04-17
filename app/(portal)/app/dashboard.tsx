@@ -16,6 +16,10 @@ import {
   Headset,
   Plus,
   Download,
+  Wallet,
+  Stack,
+  ClipboardText,
+  CheckFat,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
@@ -179,122 +183,6 @@ function LoanCard({ loan }: { loan: Loan }) {
   );
 }
 
-function LoanRow({ loan }: { loan: Loan }) {
-  const { navigate } = usePortal();
-  const progressPct = Math.round(
-    (loan.paymentsCompleted / loan.totalPayments) * 100
-  );
-  const daysUntil =
-    loan.status !== "completed" ? getDaysUntil(loan.nextPaymentDate) : null;
-
-  return (
-    <div
-      className={cn(
-        "grid grid-cols-[1.2fr_0.9fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 transition-colors",
-        loan.status === "overdue"
-          ? "bg-red-50/40 hover:bg-red-50/60"
-          : "hover:bg-[var(--surface-secondary)]/60"
-      )}
-    >
-      <div className="min-w-0">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="font-display text-sm font-bold text-[var(--text-primary)]">
-            {loan.loanId}
-          </span>
-          <LoanStatusBadge status={loan.status} />
-        </div>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          {loan.loanPurpose} · {loan.tenure} months
-        </p>
-      </div>
-
-      <div>
-        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-          Outstanding
-        </p>
-        <p className="font-display text-sm font-bold text-[var(--text-primary)]">
-          {loan.status === "completed"
-            ? "—"
-            : formatCurrency(loan.outstandingBalance)}
-        </p>
-      </div>
-
-      <div>
-        <div className="mb-1.5 flex items-baseline justify-between gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-            Progress
-          </span>
-          <span className="text-xs font-semibold text-[var(--text-secondary)]">
-            {loan.paymentsCompleted}/{loan.totalPayments}
-          </span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--border-subtle)]">
-          <div
-            className={cn(
-              "h-full rounded-full",
-              loan.status === "completed"
-                ? "bg-emerald-500"
-                : loan.status === "overdue"
-                ? "bg-red-500"
-                : "bg-brand-blue"
-            )}
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="text-sm">
-        {loan.status === "completed" ? (
-          <span className="inline-flex items-center gap-1 text-emerald-600">
-            <CheckCircle size={14} weight="fill" />
-            <span className="text-xs font-semibold">Fully paid</span>
-          </span>
-        ) : loan.status === "overdue" ? (
-          <div>
-            <p className="text-xs font-semibold text-red-600">
-              {formatCurrency(loan.overdueAmount ?? 0)}
-            </p>
-            <p className="text-[11px] text-red-500">
-              {loan.overdueDays} days overdue
-            </p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-xs font-semibold text-[var(--text-primary)]">
-              {loan.nextPaymentDate}
-            </p>
-            <p className="text-[11px] text-[var(--text-tertiary)]">
-              {daysUntil !== null && daysUntil <= 5
-                ? `in ${daysUntil} day${daysUntil !== 1 ? "s" : ""}`
-                : formatCurrency(loan.nextPaymentAmount)}
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        {loan.status !== "completed" && (
-          <button
-            onClick={() =>
-              navigate({ type: "make-payment", loanId: loan.loanId })
-            }
-            className="rounded-xl bg-brand-blue px-3.5 py-2 text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.98]"
-          >
-            Pay
-          </button>
-        )}
-        <button
-          onClick={() => navigate({ type: "loan-detail", loanId: loan.loanId })}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-medium)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
-          aria-label={`View loan ${loan.loanId}`}
-        >
-          <CaretRight size={14} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function Dashboard() {
   const { user, loans, applications, navigate, showToast } = usePortal();
   const [activeTab, setActiveTab] = useState<LoanTab>("active");
@@ -331,6 +219,15 @@ export function Dashboard() {
     (sum, l) => sum + (l.overdueAmount ?? 0),
     0
   );
+
+  const hasDocumentsRequired = applications.some(
+    (a) => a.status === "documents_required"
+  );
+
+  const payableLoanId =
+    loans.find((l) => l.status === "overdue")?.loanId ??
+    loans.find((l) => l.status === "active")?.loanId ??
+    loans[0]?.loanId;
 
   return (
     <>
@@ -581,7 +478,7 @@ export function Dashboard() {
       <PageHeader
         eyebrow={today}
         title={`Welcome back, ${user?.firstName ?? "there"}.`}
-        subtitle="Here's everything that needs your attention today."
+        subtitle="Here's a snapshot of your account."
         actions={
           <>
             <button
@@ -605,170 +502,60 @@ export function Dashboard() {
       <Workspace
         primary={
           <div className="space-y-8">
-            <DesktopKpiStrip
+            {/* Hero next-action card */}
+            <HeroNextActionCard
+              nextPaymentLoan={nextPaymentLoan}
+              totalOverdue={totalOverdue}
+              onPay={() =>
+                nextPaymentLoan
+                  ? navigate({
+                      type: "make-payment",
+                      loanId: nextPaymentLoan.loanId,
+                    })
+                  : showToast("No active loans to pay")
+              }
+            />
+
+            {/* 4 color-differentiated summary tiles */}
+            <DesktopSummaryTiles
               totalOutstanding={totalOutstanding}
               totalOverdue={totalOverdue}
               activeCount={activeLoans.length}
               nextPaymentLoan={nextPaymentLoan}
+              applicationsCount={applications.length}
+              hasDocumentsRequired={hasDocumentsRequired}
+              onViewLoan={() =>
+                payableLoanId
+                  ? navigate({ type: "loan-detail", loanId: payableLoanId })
+                  : showToast("No loans found")
+              }
+              onViewApplications={() =>
+                showToast("Application details coming soon.")
+              }
             />
 
-            {nextPaymentLoan && nextPaymentLoan.status === "overdue" && (
-              <DesktopOverdueBanner
-                loan={nextPaymentLoan}
-                onPay={() =>
-                  navigate({
-                    type: "make-payment",
-                    loanId: nextPaymentLoan.loanId,
-                  })
-                }
-              />
-            )}
-
-            <section>
-              <div className="mb-5 flex items-end justify-between gap-4">
-                <div>
-                  <h2 className="font-display text-xl font-bold text-[var(--text-primary)]">
-                    My Loans
-                  </h2>
-                  <p className="mt-0.5 text-sm text-[var(--text-tertiary)]">
-                    {loans.length} loan{loans.length !== 1 ? "s" : ""} on file
-                  </p>
-                </div>
-                <LoanTabBar
-                  tabs={tabs}
-                  activeTab={activeTab}
-                  onChange={setActiveTab}
-                  compact
-                />
-              </div>
-
-              <div className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
-                {tabLoans[activeTab].length === 0 ? (
-                  <div className="px-6 py-16">
-                    <EmptyLoanState tab={activeTab} />
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--border-subtle)]">
-                    <div className="hidden grid-cols-[1.2fr_0.9fr_1fr_1fr_auto] gap-4 bg-[var(--surface-secondary)] px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)] lg:grid">
-                      <span>Loan</span>
-                      <span>Balance</span>
-                      <span>Progress</span>
-                      <span>
-                        {activeTab === "overdue" ? "Overdue" : "Next payment"}
-                      </span>
-                      <span className="text-right">Actions</span>
-                    </div>
-                    {tabLoans[activeTab].map((loan) => (
-                      <LoanRow key={loan.loanId} loan={loan} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {applications.length > 0 && (
-              <section>
-                <div className="mb-5">
-                  <h2 className="font-display text-xl font-bold text-[var(--text-primary)]">
-                    Loan Applications
-                  </h2>
-                  <p className="mt-0.5 text-sm text-[var(--text-tertiary)]">
-                    Submitted applications in review
-                  </p>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
-                  <div className="divide-y divide-[var(--border-subtle)]">
-                    {applications.map((app) => (
-                      <div
-                        key={app.applicationId}
-                        className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 transition-colors hover:bg-[var(--surface-secondary)]/60"
-                      >
-                        <div>
-                          <p className="mb-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                            {app.applicationId}
-                          </p>
-                          <p className="font-display text-sm font-bold text-[var(--text-primary)]">
-                            {formatCurrency(app.amount)}
-                            <span className="ml-1 text-xs font-normal text-[var(--text-tertiary)]">
-                              · {app.tenure} months
-                            </span>
-                          </p>
-                        </div>
-                        <div>
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-                              APPLICATION_STATUS_COLORS[app.status]
-                            )}
-                          >
-                            {APPLICATION_STATUS_LABELS[app.status]}
-                          </span>
-                        </div>
-                        <div className="text-xs text-[var(--text-tertiary)]">
-                          <p className="flex items-center gap-1">
-                            <Clock size={12} />
-                            Submitted {app.submittedDate}
-                          </p>
-                          <p className="mt-0.5">Updated {app.lastUpdated}</p>
-                        </div>
-                        <div className="text-right">
-                          {app.remarks ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
-                              <Warning size={12} weight="fill" />
-                              Action needed
-                            </span>
-                          ) : (
-                            <span className="text-xs text-[var(--text-tertiary)]">
-                              Awaiting review
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
+            {/* Quick actions */}
+            <DesktopQuickActions
+              onPay={() =>
+                payableLoanId
+                  ? navigate({ type: "make-payment", loanId: payableLoanId })
+                  : showToast("No active loans to pay")
+              }
+              onContracts={() =>
+                payableLoanId
+                  ? navigate({ type: "loan-detail", loanId: payableLoanId })
+                  : showToast("No loans found")
+              }
+              onStatement={() => showToast("Statement download coming soon.")}
+              onSupport={() =>
+                showToast("Call us at +65 6777 8080 · Mon–Fri 10am–7pm")
+              }
+            />
           </div>
         }
         rail={
           <>
-            {nextPaymentLoan && (
-              <RailPaymentCard
-                loan={nextPaymentLoan}
-                onPay={() =>
-                  navigate({
-                    type: "make-payment",
-                    loanId: nextPaymentLoan.loanId,
-                  })
-                }
-              />
-            )}
-
             <CFOneMarketingCard showToast={showToast} compact />
-
-            <RailQuickActions
-              onPay={() =>
-                loans.length > 0
-                  ? navigate({
-                      type: "make-payment",
-                      loanId:
-                        loans.find((l) => l.status !== "completed")?.loanId ??
-                        loans[0].loanId,
-                    })
-                  : showToast("No active loans to pay")
-              }
-              onContracts={() =>
-                loans.length > 0
-                  ? navigate({ type: "loan-detail", loanId: loans[0].loanId })
-                  : showToast("No loans found")
-              }
-              onStatement={() =>
-                showToast("Statement download coming soon.")
-              }
-            />
-
             <RailSupportCard />
           </>
         }
@@ -906,218 +693,384 @@ function CFOneMarketingCard({
   );
 }
 
-// ─── Desktop-only components ────────────────────────────────────────
+// ─── Desktop-only components ─────────────────────────────────────────
 
-function DesktopKpiStrip({
+function HeroNextActionCard({
+  nextPaymentLoan,
+  totalOverdue,
+  onPay,
+}: {
+  nextPaymentLoan: Loan | null;
+  totalOverdue: number;
+  onPay: () => void;
+}) {
+  if (!nextPaymentLoan) {
+    return (
+      <div
+        className="overflow-hidden rounded-2xl p-7"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.35 0.12 162) 0%, oklch(0.45 0.14 170) 100%)",
+        }}
+      >
+        <div className="flex items-center gap-5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20">
+            <CheckFat size={28} weight="fill" className="text-white" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">
+              All Clear
+            </p>
+            <p className="font-display text-2xl font-bold text-white">
+              You&apos;re all caught up
+            </p>
+            <p className="mt-0.5 text-sm text-white/70">
+              No upcoming or overdue payments at this time.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isOverdue = nextPaymentLoan.status === "overdue";
+
+  return (
+    <div
+      className="overflow-hidden rounded-2xl p-7"
+      style={{
+        background: isOverdue
+          ? "linear-gradient(135deg, oklch(0.38 0.20 25) 0%, oklch(0.48 0.22 20) 100%)"
+          : "linear-gradient(135deg, oklch(0.32 0.14 260) 0%, oklch(0.42 0.16 255) 50%, oklch(0.38 0.12 230) 100%)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex items-start gap-5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+            {isOverdue ? (
+              <Warning size={28} weight="fill" className="text-white" />
+            ) : (
+              <Bell size={28} weight="fill" className="text-white" />
+            )}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/70">
+              {isOverdue ? "Payment Overdue" : "Upcoming Payment"}
+            </p>
+            <p className="font-display text-4xl font-bold leading-none text-white">
+              {formatCurrency(
+                isOverdue
+                  ? totalOverdue
+                  : nextPaymentLoan.nextPaymentAmount
+              )}
+            </p>
+            <p className="mt-2 text-sm text-white/75">
+              Loan{" "}
+              <span className="font-semibold">{nextPaymentLoan.loanId}</span>
+              {isOverdue
+                ? ` · ${nextPaymentLoan.overdueDays} days overdue`
+                : ` · Due ${nextPaymentLoan.nextPaymentDate}`}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onPay}
+          className={cn(
+            "flex shrink-0 items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-all active:scale-[0.97]",
+            isOverdue
+              ? "bg-white text-red-600 hover:bg-red-50"
+              : "bg-white text-brand-blue hover:bg-blue-50"
+          )}
+        >
+          Pay Now
+          <ArrowRight size={16} weight="bold" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Summary tiles ───────────────────────────────────────────────────
+
+type TileTone = "blue" | "emerald" | "amber" | "red" | "violet";
+
+type SummaryTileProps = {
+  tone: TileTone;
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  meta?: string;
+  badge?: string;
+  onClick?: () => void;
+};
+
+const TILE_STYLES: Record<
+  TileTone,
+  { bg: string; border: string; iconBg: string; valueCls: string }
+> = {
+  blue: {
+    bg: "bg-blue-50",
+    border: "border-blue-100",
+    iconBg: "bg-brand-blue text-white",
+    valueCls: "text-[var(--text-primary)]",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-100",
+    iconBg: "bg-emerald-500 text-white",
+    valueCls: "text-[var(--text-primary)]",
+  },
+  amber: {
+    bg: "bg-amber-50",
+    border: "border-amber-100",
+    iconBg: "bg-amber-500 text-white",
+    valueCls: "text-[var(--text-primary)]",
+  },
+  red: {
+    bg: "bg-red-50",
+    border: "border-red-100",
+    iconBg: "bg-red-600 text-white",
+    valueCls: "text-red-700",
+  },
+  violet: {
+    bg: "bg-violet-50",
+    border: "border-violet-100",
+    iconBg: "bg-violet-500 text-white",
+    valueCls: "text-[var(--text-primary)]",
+  },
+};
+
+function SummaryTile({
+  tone,
+  icon,
+  label,
+  value,
+  meta,
+  badge,
+  onClick,
+}: SummaryTileProps) {
+  const styles = TILE_STYLES[tone];
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      onClick={onClick}
+      className={cn(
+        "group flex flex-col gap-5 rounded-2xl border p-5 text-left transition-all duration-200",
+        styles.bg,
+        styles.border,
+        onClick
+          ? "cursor-pointer hover:brightness-[0.97] hover:shadow-sm active:scale-[0.99]"
+          : "cursor-default"
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+            styles.iconBg
+          )}
+        >
+          {icon}
+        </span>
+        <div className="flex items-center gap-2">
+          {badge && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+              {badge}
+            </span>
+          )}
+          {onClick && (
+            <CaretRight
+              size={16}
+              className="text-[var(--text-tertiary)] transition-transform group-hover:translate-x-0.5"
+            />
+          )}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+          {label}
+        </p>
+        <p
+          className={cn(
+            "font-display text-2xl font-bold leading-none",
+            styles.valueCls
+          )}
+        >
+          {value}
+        </p>
+        {meta && (
+          <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">{meta}</p>
+        )}
+      </div>
+    </Tag>
+  );
+}
+
+function DesktopSummaryTiles({
   totalOutstanding,
   totalOverdue,
   activeCount,
   nextPaymentLoan,
+  applicationsCount,
+  hasDocumentsRequired,
+  onViewLoan,
+  onViewApplications,
 }: {
   totalOutstanding: number;
   totalOverdue: number;
   activeCount: number;
   nextPaymentLoan: Loan | null;
+  applicationsCount: number;
+  hasDocumentsRequired: boolean;
+  onViewLoan: () => void;
+  onViewApplications: () => void;
 }) {
-  const kpis: { label: string; value: string; tone?: "danger" | "neutral" }[] =
-    [
-      {
-        label: "Total outstanding",
-        value: formatCurrency(totalOutstanding),
-      },
-      {
-        label: "Active loans",
-        value: `${activeCount}`,
-      },
-      {
-        label:
-          nextPaymentLoan?.status === "overdue"
-            ? "Overdue now"
-            : "Next payment",
-        value:
+  const isOverdue = nextPaymentLoan?.status === "overdue";
+
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <SummaryTile
+        tone="blue"
+        icon={<Wallet size={22} />}
+        label="Total Outstanding"
+        value={formatCurrency(totalOutstanding)}
+        meta={`Across ${activeCount} active loan${activeCount !== 1 ? "s" : ""}`}
+        onClick={onViewLoan}
+      />
+      <SummaryTile
+        tone="emerald"
+        icon={<Stack size={22} />}
+        label="Active Loans"
+        value={String(activeCount)}
+        meta="Currently on repayment"
+        onClick={onViewLoan}
+      />
+      <SummaryTile
+        tone={isOverdue ? "red" : "amber"}
+        icon={<CalendarBlank size={22} />}
+        label={isOverdue ? "Overdue Amount" : "Next Payment"}
+        value={
           nextPaymentLoan === null
             ? "—"
-            : nextPaymentLoan.status === "overdue"
+            : isOverdue
             ? formatCurrency(totalOverdue)
-            : formatCurrency(nextPaymentLoan.nextPaymentAmount),
-        tone: nextPaymentLoan?.status === "overdue" ? "danger" : "neutral",
-      },
-    ];
-
-  return (
-    <div className="grid grid-cols-3 divide-x divide-[var(--border-subtle)] rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
-      {kpis.map((kpi) => (
-        <div key={kpi.label} className="px-6 py-5">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-            {kpi.label}
-          </p>
-          <p
-            className={cn(
-              "font-display text-2xl font-bold leading-none",
-              kpi.tone === "danger"
-                ? "text-red-600"
-                : "text-[var(--text-primary)]"
-            )}
-          >
-            {kpi.value}
-          </p>
-          {kpi.label === "Next payment" && nextPaymentLoan && (
-            <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
-              {nextPaymentLoan.loanId} · {nextPaymentLoan.nextPaymentDate}
-            </p>
-          )}
-          {kpi.label === "Overdue now" && nextPaymentLoan && (
-            <p className="mt-1.5 text-xs text-red-500">
-              {nextPaymentLoan.loanId} · {nextPaymentLoan.overdueDays} days
-              overdue
-            </p>
-          )}
-        </div>
-      ))}
+            : formatCurrency(nextPaymentLoan.nextPaymentAmount)
+        }
+        meta={
+          nextPaymentLoan
+            ? isOverdue
+              ? `${nextPaymentLoan.overdueDays} days past due`
+              : `Due ${nextPaymentLoan.nextPaymentDate}`
+            : "No upcoming payments"
+        }
+        onClick={onViewLoan}
+      />
+      <SummaryTile
+        tone="violet"
+        icon={<ClipboardText size={22} />}
+        label="Applications"
+        value={String(applicationsCount)}
+        meta={
+          applicationsCount === 0
+            ? "No pending applications"
+            : `${applicationsCount} application${applicationsCount !== 1 ? "s" : ""} in review`
+        }
+        badge={hasDocumentsRequired ? "Action needed" : undefined}
+        onClick={onViewApplications}
+      />
     </div>
   );
 }
 
-function DesktopOverdueBanner({
-  loan,
-  onPay,
-}: {
-  loan: Loan;
-  onPay: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-5 rounded-2xl border border-red-200 bg-red-50 p-5">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/15 text-red-600">
-        <Warning size={22} weight="fill" />
-      </div>
-      <div className="flex-1">
-        <p className="text-sm font-bold text-red-700">
-          Payment overdue on loan {loan.loanId}
-        </p>
-        <p className="mt-0.5 text-xs text-red-600">
-          {formatCurrency(loan.overdueAmount ?? 0)} unpaid for{" "}
-          {loan.overdueDays} days. Settle now to avoid further late fees.
-        </p>
-      </div>
-      <button
-        onClick={onPay}
-        className="flex shrink-0 items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-red-700 active:scale-[0.98]"
-      >
-        Pay now
-        <ArrowRight size={14} weight="bold" />
-      </button>
-    </div>
-  );
-}
+// ─── Quick actions ────────────────────────────────────────────────────
 
-function RailPaymentCard({ loan, onPay }: { loan: Loan; onPay: () => void }) {
-  const isOverdue = loan.status === "overdue";
+type QuickActionTileProps = {
+  iconBg: string;
+  icon: React.ReactNode;
+  label: string;
+  sub: string;
+  onClick: () => void;
+};
+
+function QuickActionTile({
+  iconBg,
+  icon,
+  label,
+  sub,
+  onClick,
+}: QuickActionTileProps) {
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-2xl p-5",
-        isOverdue ? "bg-red-600 text-white" : "bg-brand-blue text-white"
-      )}
+    <button
+      onClick={onClick}
+      className="group flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-5 text-left transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-sm active:scale-[0.98]"
     >
-      <div className="mb-3 flex items-center gap-2">
-        {isOverdue ? (
-          <Warning size={15} weight="fill" className="text-red-200" />
-        ) : (
-          <Bell size={15} weight="fill" className="text-blue-200" />
-        )}
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-85">
-          {isOverdue ? "Payment overdue" : "Upcoming payment"}
-        </span>
-      </div>
-      <p className="mb-1 font-display text-3xl font-bold leading-none">
-        {formatCurrency(
-          isOverdue
-            ? loan.overdueAmount ?? 0
-            : loan.nextPaymentAmount
-        )}
-      </p>
-      <p className="text-xs opacity-80">
-        Loan <span className="font-semibold">{loan.loanId}</span>
-        {isOverdue
-          ? ` · ${loan.overdueDays} days overdue`
-          : ` · Due ${loan.nextPaymentDate}`}
-      </p>
-      <button
-        onClick={onPay}
+      <span
         className={cn(
-          "mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-[0.97]",
-          isOverdue
-            ? "bg-white text-red-600 hover:bg-red-50"
-            : "bg-white text-brand-blue hover:bg-blue-50"
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          iconBg
         )}
       >
-        Pay now
-        <ArrowRight size={14} weight="bold" />
-      </button>
-    </div>
+        {icon}
+      </span>
+      <div className="flex flex-1 flex-col gap-0.5">
+        <p className="text-sm font-bold text-[var(--text-primary)]">{label}</p>
+        <p className="text-xs text-[var(--text-tertiary)]">{sub}</p>
+      </div>
+      <CaretRight
+        size={16}
+        className="text-[var(--text-tertiary)] transition-transform group-hover:translate-x-0.5"
+      />
+    </button>
   );
 }
 
-function RailQuickActions({
+function DesktopQuickActions({
   onPay,
   onContracts,
   onStatement,
+  onSupport,
 }: {
   onPay: () => void;
   onContracts: () => void;
   onStatement: () => void;
+  onSupport: () => void;
 }) {
-  const actions = [
-    {
-      icon: <CurrencyDollar size={16} />,
-      label: "Make a payment",
-      sub: "PayNow or cash",
-      onClick: onPay,
-    },
-    {
-      icon: <FileText size={16} />,
-      label: "View contracts",
-      sub: "Loan agreements",
-      onClick: onContracts,
-    },
-    {
-      icon: <Download size={16} />,
-      label: "Download statement",
-      sub: "Last 12 months",
-      onClick: onStatement,
-    },
-  ];
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
-      <p className="px-5 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-        Quick actions
-      </p>
-      <div className="divide-y divide-[var(--border-subtle)]">
-        {actions.map((action) => (
-          <button
-            key={action.label}
-            onClick={action.onClick}
-            className="group flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-[var(--surface-secondary)]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-blue/10 text-brand-blue">
-              {action.icon}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
-                {action.label}
-              </p>
-              <p className="text-xs text-[var(--text-tertiary)]">
-                {action.sub}
-              </p>
-            </div>
-            <CaretRight
-              size={14}
-              className="shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-0.5"
-            />
-          </button>
-        ))}
+    <section>
+      <h2 className="mb-4 font-display text-lg font-bold text-[var(--text-primary)]">
+        Quick Actions
+      </h2>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <QuickActionTile
+          iconBg="bg-brand-blue text-white"
+          icon={<CurrencyDollar size={22} />}
+          label="Make a Payment"
+          sub="PayNow or cash deposit"
+          onClick={onPay}
+        />
+        <QuickActionTile
+          iconBg="bg-brand-teal/20 text-[oklch(0.45_0.18_178)]"
+          icon={<FileText size={22} />}
+          label="View Loan Details"
+          sub="Repayment schedule"
+          onClick={onContracts}
+        />
+        <QuickActionTile
+          iconBg="bg-slate-100 text-slate-600"
+          icon={<Download size={22} />}
+          label="Download Statement"
+          sub="Last 12 months"
+          onClick={onStatement}
+        />
+        <QuickActionTile
+          iconBg="bg-amber-100 text-amber-600"
+          icon={<Headset size={22} />}
+          label="Contact Support"
+          sub="Mon–Fri 10am–7pm"
+          onClick={onSupport}
+        />
       </div>
-    </div>
+    </section>
   );
 }
 
