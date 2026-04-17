@@ -109,8 +109,8 @@ export function LoginScreen() {
               onClick={handleSingpass}
               disabled={singpassLoading}
               className={cn(
-                "w-full flex items-center justify-center gap-3 rounded-xl border-2 border-brand-blue bg-brand-blue px-4 py-4 text-white font-semibold text-sm transition-all duration-200",
-                "hover:bg-[oklch(0.28_0.14_260)] active:scale-[0.98]",
+                "w-full flex items-center justify-center gap-3 rounded-xl border-2 px-4 py-4 text-white font-semibold text-sm transition-all duration-200",
+                "border-[#e04645] bg-[#e04645] hover:bg-[#c73c3b] active:scale-[0.98]",
                 "disabled:opacity-60 disabled:cursor-not-allowed"
               )}
             >
@@ -121,15 +121,15 @@ export function LoginScreen() {
                 </span>
               ) : (
                 <>
+                  <span className="text-white font-semibold">Login with</span>
                   <Image
-                    src="/images/singpass_logo_fullcolours.png"
+                    src="/images/singpass_logo_white-1.png"
                     alt="Singpass"
-                    width={80}
-                    height={22}
-                    className="h-5 w-auto brightness-0 invert"
+                    width={96}
+                    height={26}
+                    className="h-[22px] w-auto translate-y-[2px]"
+                    style={{ mixBlendMode: "screen" }}
                   />
-                  <span>Login with Singpass</span>
-                  <ArrowRight size={16} weight="bold" />
                 </>
               )}
             </button>

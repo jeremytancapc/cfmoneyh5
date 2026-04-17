@@ -54,7 +54,10 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       label: "My Loans",
       icon: <FileText size={20} />,
       activeIcon: <FileText size={20} weight="fill" />,
-      onClick: () => navigate({ type: "dashboard" }),
+      onClick: () =>
+        payableLoanId
+          ? navigate({ type: "loan-detail", loanId: payableLoanId })
+          : navigate({ type: "dashboard" }),
       isActive: isLoans,
     },
     {
