@@ -9,6 +9,7 @@
   --surface-primary: oklch(0.985 0.003 260);
   --surface-secondary: oklch(0.97 0.005 260);
   --surface-elevated: oklch(1 0.002 260);
+  --surface-canvas: oklch(0.975 0.004 260);
 
   --text-primary: oklch(0.18 0.02 260);
   --text-secondary: oklch(0.42 0.015 260);
@@ -41,6 +42,7 @@
   --color-surface-primary: var(--surface-primary);
   --color-surface-secondary: var(--surface-secondary);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-canvas: var(--surface-canvas);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
