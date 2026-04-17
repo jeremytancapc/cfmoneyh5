@@ -1510,11 +1510,10 @@ function Step9_EmploymentDeclaration({
 
       </div>
 
-      {/* Card stack container — overflow:hidden prevents transformed cards from
-          expanding the Android Chrome scrollable area (phantom whitespace bug) */}
+      {/* Card stack container */}
       <div
-        className="relative w-full overflow-hidden"
-        style={{ height: `${containerHeight + 24}px`, transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)" }}
+        className="relative w-full"
+        style={{ height: `${containerHeight}px`, transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)" }}
       >
         {/* ── Card 0: Employment Status ── */}
         <div
