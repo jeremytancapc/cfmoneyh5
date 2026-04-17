@@ -30,6 +30,7 @@ import {
   Warning,
   WarningCircle,
   ArrowDown,
+  X,
 } from "@phosphor-icons/react";
 
 /** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details · 9: employment & declaration */
@@ -1750,6 +1751,263 @@ function Step9_EmploymentDeclaration({
   );
 }
 
+// ─── Legal modal ─────────────────────────────────────────────────────────────
+
+const TERMS_CONTENT = `
+**Effective as of 1 January 2019**
+
+### 1. Introduction
+
+Please peruse these Agreements carefully as they encompass important information about Crawfort Service provided to you, the Terms, future changes to these Agreements, Privacy Information, waiver, limitation of liability, Governing Law etc.
+
+In order to use Crawfort Service, you need to be (1) 18 or older, (2) have the power and capability to enter into a legally binding contract with us and not barred from doing so under any applicable laws and (3) be a resident or legally employed in Singapore.
+
+By clicking "Apply Now" or otherwise applying/engaging Crawfort Pte. Ltd. ("Crawfort", the "Company", "we", "us", "our") financial service ("Crawfort Service" or "Service" or "Loan"), including via software application or website, you are entering into a binding contract with Crawfort Pte Ltd (UEN No. 201406595W).
+
+Your agreement with us includes these Terms and Conditions ("Terms") and our Personal Data Protection Policy (the "Privacy Policy"). If you don't agree with (or cannot comply with) the agreements, then you are not eligible to use Crawfort service.
+
+### 2. Changes to the Agreements
+
+We reserve the right to modify or amend these Agreements at any time. When material changes are made to the Agreements, we will provide you with a notice by notifying you via our software application, sending you an email, or sending you a text message. We endeavour to notify you at least 14 days in advance.
+
+### 3. Intellectual Property and Copyright
+
+All Crawfort trademarks, services marks, trade names, logos, domain names, and any other features of Crawfort ("Crawfort Brand Features") may not be used in connection with any product or service without the prior written consent of Crawfort.
+
+### 4. Third Party Applications
+
+Crawfort Service is integrated with third party application, websites and services ("Third Party Application") to enable us to provide you with our Service. The Third Party Application has their own terms and conditions of use and privacy policy.
+
+### 5. Our Rights
+
+Crawfort reserves the right to remove or disable access to any user/applicant for any or no reason, including but not limited to any violation, in Crawfort's sole discretion, of these Agreements or any applicable law.
+
+### 6. User Guidelines
+
+To ensure compliance with the applicable laws of Singapore, you must strictly observe the following:
+
+- You MUST NOT provide or share your Crawfort login and account details with a third party.
+- You shall not use any automated means to collect information from or to gain unauthorised access to Crawfort systems.
+- You shall not impersonate another user, person, or entity.
+- You shall be solely responsible to ensure your account login details are kept confidential and secure.
+- You shall not interfere with or disrupt the Crawfort Service.
+
+### 7. Service Limitations and Modifications
+
+Crawfort will make reasonable efforts to keep Crawfort Service operational. However, certain technical difficulties or maintenance may, from time to time, result in temporary interruptions.
+
+### 8. Customer Support
+
+For customer support or any queries related to our Crawfort Service, kindly contact us via our Contact Us section of our website or call us at +65 6777 8080. We will attempt to respond to all customer support queries within 5 working days.
+
+### 9. Term and Termination
+
+This Agreement will continue to apply until it has been terminated by you or Crawfort. Clauses 3, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16 and 17 shall survive the termination.
+
+### 10. Warranty and Disclaimer
+
+Crawfort Service is provided "as available", without express or implied warranty or condition of any kind. You use our service at your own risk.
+
+### 11. Limitation
+
+To the fullest extent permitted by law, in no event will Crawfort, its officers, shareholders, employees, agents or directors be liable for any indirect, special, incidental, punitive, exemplary, or consequential damages.
+
+### 12. Entire Agreement
+
+These Agreements constitute all the terms and conditions agreed upon between you and Crawfort and supersede any prior agreements in relation to the subject matter of these Agreements.
+
+### 13. Governing Law and Jurisdiction
+
+These Agreements shall be governed by and construed in accordance with the law of the Republic of Singapore and the Parties agree to submit to the exclusive jurisdiction of the Singapore Courts.
+
+### 14. Contact Us
+
+If you have any questions, please contact us at dposg@crawfort.com.
+`;
+
+const PRIVACY_CONTENT = `
+### 1. Introduction
+
+Crawfort Pte Ltd (the "Company") takes our responsibilities under Singapore's Personal Data Protection Act 2012 (the "PDPA") seriously. We recognise the importance of the personal data our customers, employees and third parties have personally entrusted to us.
+
+### 2. Purpose
+
+This policy governs the collection, use and disclosure of personal data from employees, customers and third parties and explains how we collect and handle personal data of individuals in compliance with the PDPA.
+
+### 3. Responsible
+
+The Company's appointed Data Protection Officer (DPO) will update this Data Protection Policy from time to time to ensure consistency with future developments, market trends and/or any changes in technology, legal or regulatory requirements.
+
+### 4. Scope
+
+This policy covers all the activities of Crawfort Pte Ltd related to Personal Data received from employees, customers and third parties.
+
+### 5. Consent
+
+We will collect, use or disclose personal data for employment and reasonable business purposes only if there is consent or deemed consent from the individual. We may also collect, use or disclose personal data if it is required or authorised under applicable laws.
+
+### 6. Collection of Personal Data
+
+**6.1 Personal Data Collected from Customers**
+
+We only collect personal data from our customers to enable us to understand their financial needs and assess their loan application as required by law. We use personal data of customers for the following purposes:
+
+1. For submission to Moneylenders Credit Bureau (MLCB) for the purpose of producing a credit report.
+2. For submission to the Registry of Moneylenders.
+3. To conduct online searches via web portals such as DP Information Network Pte Ltd, Credit Bureau (Singapore) Pte Ltd.
+4. Understanding our customer's financial needs and to assist in customising loan packages.
+5. Assessing our customer's loan application and to comply with the laws of Singapore.
+6. For debt recovery purposes — to engage law firms, third-party debt collection agencies or approved debt collectors.
+
+**6.1.2 Type of Personal Data Collected**
+
+Full Name, Personal Identification Number (IC No., FIN No., or Passport No.), Nationality, Date of Birth, Sex, Ethnicity, Address, Contact No., Marriage Status, Email Address, Income, Employment information, Photograph, Next-of-Kin contact details.
+
+### 7. Disclosure of Personal Data
+
+We do not disclose personal data to third parties except when required by law, when we have the individual's consent, or when we have engaged third parties to assist with debt recovery or certain company activities such as accounting and auditing. Any such third parties are bound contractually to keep all information confidential.
+
+### 8. Access to and Correction of Personal Data
+
+Upon request, we will provide customers access to their personal data in accordance with the requirements of the PDPA. Customers may contact us via email at dposg@crawfort.com.
+
+### 9. Withdrawal of Consent
+
+Requests for withdrawal of consent will be processed within 5 working days. We will inform the individual of the likely consequences of withdrawing their consent.
+
+### 10. Accuracy of Personal Data
+
+We ensure that personal data collected is accurate, genuine and up-to-date by verifying the data against the original relevant document or via verified sources such as Singpass or Myinfo.
+
+### 11. Security and Protection of Personal Data
+
+We have implemented generally accepted standards of technology and operational security to protect the personal data in our possession and to prevent unauthorised access, collection, use, disclosure, copying, modification, or disposal.
+
+### 12. Retention of Personal Data
+
+The minimum retention period of information relating to the loan is 5 years after the termination of the loan. Thereafter, we will cease to retain personal data as soon as it is reasonable to assume the purpose for collection is no longer being served.
+
+### 13. Transfer of Personal Data outside of Singapore
+
+We do not transfer data overseas. Should there be any transfers, we will ensure compliance with the PDPA to maintain a comparable standard of protection.
+
+### 14. Privacy on Our Websites
+
+This Policy also applies to any personal data we collect via our websites. Cookies may be used on some pages of our websites to improve users' navigational experience.
+
+### 15. Notification
+
+We endeavour to notify our customers of any changes to this policy 14 days in advance. Communication will be made via our software application, email, or text message.
+
+### 16. Data Protection Officer
+
+If you believe that information we hold about you is incorrect, or have concerns about how we handle your personal data, you may contact our Data Protection Officer at dposg@crawfort.com.
+`;
+
+function parseLegalContent(content: string): React.ReactNode[] {
+  const lines = content.trim().split("\n");
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith("### ")) {
+      elements.push(
+        <h3 key={key++} className="mt-5 mb-2 font-display text-sm font-bold text-[var(--text-primary)] first:mt-0">
+          {trimmed.slice(4)}
+        </h3>
+      );
+    } else if (trimmed.startsWith("**") && trimmed.endsWith("**")) {
+      elements.push(
+        <p key={key++} className="mb-1 text-xs font-semibold text-[var(--text-primary)]">
+          {trimmed.slice(2, -2)}
+        </p>
+      );
+    } else if (/^\d+\./.test(trimmed)) {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed text-[var(--text-secondary)] pl-3">
+          {trimmed}
+        </p>
+      );
+    } else if (trimmed.startsWith("- ")) {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed text-[var(--text-secondary)] pl-3">
+          • {trimmed.slice(2)}
+        </p>
+      );
+    } else {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          {trimmed}
+        </p>
+      );
+    }
+  }
+  return elements;
+}
+
+function LegalModal({
+  title,
+  content,
+  onClose,
+}: {
+  title: string;
+  content: string;
+  onClose: () => void;
+}) {
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
+      style={{ background: "oklch(0.10 0.02 260 / 0.5)" }}
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-[var(--radius-xl)] bg-white sm:rounded-[var(--radius-xl)]"
+        style={{ maxHeight: "85dvh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
+          <h2 className="font-display text-base font-bold text-[var(--text-primary)]">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)] active:scale-[0.95]"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex flex-col gap-1.5">
+            {parseLegalContent(content)}
+          </div>
+          <p className="mt-6 text-[10px] text-[var(--text-tertiary)]">
+            CF Money Pte. Ltd. (UEN No. 201406595W) · dposg@crawfort.com
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 8 ───────────────────────────────────────────────────────────────────
+
 function Step8_Review({
   formData,
   monthlyRepayment,
@@ -1757,6 +2015,8 @@ function Step8_Review({
   formData: FormData;
   monthlyRepayment: number;
 }) {
+  const [openModal, setOpenModal] = useState<"terms" | "privacy" | null>(null);
+
   const authLabel =
     formData.authMethod === "singpass"
       ? "Singpass (Myinfo)"
@@ -1847,16 +2107,39 @@ function Step8_Review({
       <div className="mt-6 rounded-[var(--radius-md)] bg-brand-teal/[0.06] px-4 py-3">
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
           By submitting, you agree to Crawfort&apos;s{" "}
-          <a href="#" className="font-medium text-brand-blue underline-offset-2 hover:underline">
-            Terms & Conditions
-          </a>{" "}
+          <button
+            type="button"
+            onClick={() => setOpenModal("terms")}
+            className="font-medium text-brand-blue underline-offset-2 hover:underline"
+          >
+            Terms &amp; Conditions
+          </button>{" "}
           and{" "}
-          <a href="#" className="font-medium text-brand-blue underline-offset-2 hover:underline">
+          <button
+            type="button"
+            onClick={() => setOpenModal("privacy")}
+            className="font-medium text-brand-blue underline-offset-2 hover:underline"
+          >
             Privacy Policy
-          </a>
+          </button>
           . Your data is encrypted and protected under Singapore&apos;s PDPA.
         </p>
       </div>
+
+      {openModal === "terms" && (
+        <LegalModal
+          title="Terms & Conditions"
+          content={TERMS_CONTENT}
+          onClose={() => setOpenModal(null)}
+        />
+      )}
+      {openModal === "privacy" && (
+        <LegalModal
+          title="Privacy Policy"
+          content={PRIVACY_CONTENT}
+          onClose={() => setOpenModal(null)}
+        />
+      )}
     </div>
   );
 }
