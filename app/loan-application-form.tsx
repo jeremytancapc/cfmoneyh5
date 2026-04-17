@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
@@ -407,6 +408,7 @@ export function LoanApplicationForm() {
 
   const bottomCtaRef = useRef<HTMLDivElement>(null);
   const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
 
   useEffect(() => {
     const el = bottomCtaRef.current;
@@ -562,6 +564,7 @@ export function LoanApplicationForm() {
           <Step8_Review
             formData={formData}
             monthlyRepayment={monthlyRepayment}
+            onModalOpenChange={setIsLegalModalOpen}
           />
         )}
         {step === 8 && (
@@ -574,7 +577,7 @@ export function LoanApplicationForm() {
       </div>
 
       {/* ── Floating Continue button — outside animate-slide-in so fixed works ── */}
-      {step === 7 && !isBottomCtaVisible && (
+      {step === 7 && !isBottomCtaVisible && !isLegalModalOpen && (
         <>
           {/* Mobile: full-width pill */}
           <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-sm">
@@ -1957,38 +1960,46 @@ function LegalModal({
   content: string;
   onClose: () => void;
 }) {
-  // Close on Escape
   useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", handler);
+    };
   }, [onClose]);
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
-      style={{ background: "oklch(0.10 0.02 260 / 0.5)" }}
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      style={{ background: "oklch(0.06 0.02 260 / 0.85)" }}
       onClick={onClose}
     >
       <div
-        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-[var(--radius-xl)] bg-white sm:rounded-[var(--radius-xl)]"
-        style={{ maxHeight: "85dvh" }}
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-[var(--radius-xl)] bg-white shadow-2xl"
+        style={{ maxHeight: "80dvh" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
-          <h2 className="font-display text-base font-bold text-[var(--text-primary)]">
+        <div
+          className="flex shrink-0 items-center justify-between px-6 py-4"
+          style={{ background: "linear-gradient(135deg, #0033AA 0%, #0055CC 100%)" }}
+        >
+          <h2 className="font-display text-base font-bold text-white">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)] active:scale-[0.95]"
+            className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 hover:brightness-125 active:scale-[0.95]"
+            style={{ background: "oklch(1 0 0 / 0.25)", border: "1.5px solid oklch(1 0 0 / 0.4)" }}
           >
-            <X size={14} weight="bold" />
+            <X size={14} weight="bold" className="text-white" />
           </button>
         </div>
 
@@ -2004,6 +2015,8 @@ function LegalModal({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
 
 // ─── Step 8 ───────────────────────────────────────────────────────────────────
@@ -2011,11 +2024,23 @@ function LegalModal({
 function Step8_Review({
   formData,
   monthlyRepayment,
+  onModalOpenChange,
 }: {
   formData: FormData;
   monthlyRepayment: number;
+  onModalOpenChange?: (open: boolean) => void;
 }) {
   const [openModal, setOpenModal] = useState<"terms" | "privacy" | null>(null);
+
+  const handleOpenModal = useCallback((modal: "terms" | "privacy") => {
+    setOpenModal(modal);
+    onModalOpenChange?.(true);
+  }, [onModalOpenChange]);
+
+  const handleCloseModal = useCallback(() => {
+    setOpenModal(null);
+    onModalOpenChange?.(false);
+  }, [onModalOpenChange]);
 
   const authLabel =
     formData.authMethod === "singpass"
@@ -2109,7 +2134,7 @@ function Step8_Review({
           By submitting, you agree to Crawfort&apos;s{" "}
           <button
             type="button"
-            onClick={() => setOpenModal("terms")}
+            onClick={() => handleOpenModal("terms")}
             className="font-medium text-brand-blue underline-offset-2 hover:underline"
           >
             Terms &amp; Conditions
@@ -2117,7 +2142,7 @@ function Step8_Review({
           and{" "}
           <button
             type="button"
-            onClick={() => setOpenModal("privacy")}
+            onClick={() => handleOpenModal("privacy")}
             className="font-medium text-brand-blue underline-offset-2 hover:underline"
           >
             Privacy Policy
@@ -2130,14 +2155,14 @@ function Step8_Review({
         <LegalModal
           title="Terms & Conditions"
           content={TERMS_CONTENT}
-          onClose={() => setOpenModal(null)}
+          onClose={handleCloseModal}
         />
       )}
       {openModal === "privacy" && (
         <LegalModal
           title="Privacy Policy"
           content={PRIVACY_CONTENT}
-          onClose={() => setOpenModal(null)}
+          onClose={handleCloseModal}
         />
       )}
     </div>
