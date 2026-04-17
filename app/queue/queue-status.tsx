@@ -162,7 +162,7 @@ export function QueueStatus({
           <div className="flex flex-col items-center">
             <stageMeta.StageIcon size={30} weight="duotone" className="mb-2 text-white/60" />
 
-            <div className="rounded-[var(--radius-md)] bg-[#111111] text-white px-7 py-6 text-center shadow-2xl min-w-[160px] flex flex-col items-center justify-center">
+            <div className="rounded-[var(--radius-md)] bg-[#111111] text-white px-7 pt-6 pb-4 text-center shadow-2xl min-w-[160px] flex flex-col items-center justify-center">
 
               {/* ── waiting ── */}
               {isWaiting && (
@@ -172,6 +172,9 @@ export function QueueStatus({
                   </p>
                   <p className="font-display text-[72px] font-black leading-none mt-2 tracking-tight">
                     {queueNumber}
+                  </p>
+                  <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-white/70">
+                    Current
                   </p>
                 </>
               )}
