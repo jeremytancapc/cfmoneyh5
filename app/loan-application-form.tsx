@@ -1395,7 +1395,10 @@ function Step9_EmploymentDeclaration({
 
     if (index === exitingCard) {
       return {
-        transform: "translateX(115%) rotate(8deg)",
+        // No rotate — rotation causes the card's bounding box to extend below the
+        // container, which expands Android Chrome's scroll area and leaves a
+        // permanent white gap below the footer.
+        transform: "translateX(115%)",
         opacity: 0,
         transition: spring,
         zIndex: 11,
@@ -1416,7 +1419,7 @@ function Step9_EmploymentDeclaration({
     if (index < activeCard) {
       // Already-answered — off-screen right, no transition (instant)
       return {
-        transform: "translateX(115%) rotate(8deg)",
+        transform: "translateX(115%)",
         opacity: 0,
         transition: "none",
         zIndex: 9 - (activeCard - index),
@@ -1517,10 +1520,11 @@ function Step9_EmploymentDeclaration({
         )}
       </div>
 
-      {/* Card stack container */}
+      {/* Card stack container — overflow:hidden prevents transformed cards from
+          expanding the Android Chrome scrollable area (phantom whitespace bug) */}
       <div
-        className="relative w-full"
-        style={{ height: `${containerHeight}px`, transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)" }}
+        className="relative w-full overflow-hidden"
+        style={{ height: `${containerHeight + 24}px`, transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)" }}
       >
         {/* ── Card 0: Employment Status ── */}
         <div
@@ -1658,7 +1662,10 @@ function Step9_EmploymentDeclaration({
                   disabled={activeCard !== 3}
                   onClick={() => {
                     updateField("bankruptcyDeclaration", "clear");
-                    onBankruptcyClear?.();
+                    // Defer scroll until after React re-renders the taller card
+                    // (confirmation box) and the CSS height transition has started,
+                    // so scrollHeight is based on the updated layout.
+                    setTimeout(() => onBankruptcyClear?.(), 50);
                   }}
                   className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
