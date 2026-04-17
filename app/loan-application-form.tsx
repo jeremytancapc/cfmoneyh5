@@ -1508,16 +1508,6 @@ function Step9_EmploymentDeclaration({
           </span>
         </div>
 
-        {activeCard > 0 && (
-          <button
-            type="button"
-            onClick={goBack}
-            className="flex items-center gap-1 rounded-full border border-[var(--border-subtle)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
-          >
-            <ArrowLeft size={11} weight="bold" />
-            Back
-          </button>
-        )}
       </div>
 
       {/* Card stack container — overflow:hidden prevents transformed cards from
