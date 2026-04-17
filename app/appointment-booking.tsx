@@ -95,6 +95,7 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
   const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   const dateScrollRef = useRef<HTMLDivElement>(null);
+  const confirmBtnRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startX: number; startScroll: number; pointerId: number; dragging: boolean } | null>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
@@ -623,7 +624,17 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
                   key={slot}
                   type="button"
                   disabled={disabled}
-                  onClick={() => setSelectedTime(slot)}
+                  onClick={() => {
+                    setSelectedTime(slot);
+                    setTimeout(() => {
+                      const el = confirmBtnRef.current;
+                      if (!el) return;
+                      const rect = el.getBoundingClientRect();
+                      const gap = 24; // px of whitespace below the button
+                      const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
+                      window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+                    }, 0);
+                  }}
                   className="rounded-[var(--radius-md)] border py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.96]"
                   style={{
                     borderColor: isSelected
@@ -748,6 +759,7 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
 
       {/* ── Confirm button ─────────────────────────────────────── */}
       <div
+        ref={confirmBtnRef}
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 240ms both",
