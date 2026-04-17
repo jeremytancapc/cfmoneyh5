@@ -630,7 +630,7 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
                       const el = confirmBtnRef.current;
                       if (!el) return;
                       const rect = el.getBoundingClientRect();
-                      const gap = 24; // px of whitespace below the button
+                      const gap = 12; // px of whitespace below the button
                       const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
                       window.scrollTo({ top: targetScrollY, behavior: "smooth" });
                     }, 0);
