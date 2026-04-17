@@ -46,7 +46,7 @@ export default function HomePage() {
         />
       </aside>
 
-      <main className="flex flex-col lg:flex-1">
+      <main className="flex flex-col lg:flex-1 overflow-x-clip">
         <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
           <a href="https://crawfort.com/sg/" target="_blank" rel="noopener noreferrer">
             <Image

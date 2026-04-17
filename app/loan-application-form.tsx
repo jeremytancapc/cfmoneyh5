@@ -1510,18 +1510,10 @@ function Step9_EmploymentDeclaration({
 
       </div>
 
-      {/* Card stack container
-          overflow-x: clip prevents translated-off cards (translateX(115%)) from
-          expanding the document width on mobile Android/iOS — which otherwise
-          causes the viewport to zoom out and leaves a huge white gap below the
-          footer. `clip` (vs hidden) does not establish a new scroll container. */}
+      {/* Card stack container */}
       <div
         className="relative w-full"
-        style={{
-          height: `${containerHeight}px`,
-          transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)",
-          overflowX: "clip",
-        }}
+        style={{ height: `${containerHeight}px`, transition: "height 0.4s cubic-bezier(0.22,1,0.36,1)" }}
       >
         {/* ── Card 0: Employment Status ── */}
         <div
