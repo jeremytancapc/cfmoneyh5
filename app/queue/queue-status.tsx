@@ -135,7 +135,7 @@ export function QueueStatus({
         </div>
 
         {/* ── Cards area — 3-col grid: prev stage | big card | next stage ── */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3 px-5 pt-8 sm:px-7">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-3 pt-8 sm:gap-3 sm:px-7">
 
           {/* Left: previous (completed) stage chip */}
           <div className="flex justify-end">
@@ -164,7 +164,7 @@ export function QueueStatus({
           <div className="flex flex-col items-center">
             <stageMeta.StageIcon size={30} weight="duotone" className="mb-2 text-white/60" />
 
-            <div className="rounded-[var(--radius-md)] bg-[#111111] text-white px-7 pt-6 pb-4 text-center shadow-2xl min-w-[160px] flex flex-col items-center justify-center">
+            <div className="rounded-[var(--radius-md)] bg-[#111111] text-white px-5 pt-6 pb-4 sm:px-7 text-center shadow-2xl min-w-[140px] sm:min-w-[160px] flex flex-col items-center justify-center">
 
               {/* ── waiting ── */}
               {isWaiting && (
@@ -172,7 +172,7 @@ export function QueueStatus({
                   <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
                     You&rsquo;re Number
                   </p>
-                  <p className="font-display text-[72px] font-black leading-none mt-2 tracking-tight">
+                  <p className="font-display text-[56px] sm:text-[72px] font-black leading-none mt-2 tracking-tight">
                     {queueNumber}
                   </p>
                   <div className="mt-2 flex items-center justify-center gap-1.5">
@@ -196,7 +196,7 @@ export function QueueStatus({
                   <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
                     In Service
                   </p>
-                  <p className="font-display text-[72px] font-black leading-none mt-2 tracking-tight">
+                  <p className="font-display text-[56px] sm:text-[72px] font-black leading-none mt-2 tracking-tight">
                     {queueNumber}
                   </p>
                   {loc && (
@@ -226,12 +226,12 @@ export function QueueStatus({
                       <p className="font-display text-base font-bold uppercase tracking-[0.12em] mt-3 text-white/80">
                         {loc.text || stageMeta.label}
                       </p>
-                      <p className="font-display text-[64px] font-black leading-none mt-1 tracking-tight">
+                      <p className="font-display text-[52px] sm:text-[64px] font-black leading-none mt-1 tracking-tight">
                         {loc.num || queueNumber}
                       </p>
                     </>
                   ) : (
-                    <p className="font-display text-[72px] font-black leading-none mt-2 tracking-tight">
+                    <p className="font-display text-[56px] sm:text-[72px] font-black leading-none mt-2 tracking-tight">
                       {queueNumber}
                     </p>
                   )}
