@@ -101,8 +101,10 @@ export function QueueStatus({
   const prevStage  = currentIdx > 0                        ? STAGE_ORDER[currentIdx - 1] : null;
   const nextStage  = currentIdx < STAGE_ORDER.length - 1  ? STAGE_ORDER[currentIdx + 1] : null;
 
+  const hasLowerPanel = stage === "counter" || isMissed || (isYourTurn && !!loc);
+
   return (
-    <div className="animate-fade-up flex flex-col">
+    <div className={`animate-fade-up flex flex-col${hasLowerPanel ? "" : " -mb-8 sm:-mb-8 lg:-mb-10"}`}>
 
       {/* ═══════════════════════════════════════════════════════════════
           Blue hero
@@ -110,7 +112,7 @@ export function QueueStatus({
           lg+: contained block with rounded top corners
       ════════════════════════════════════════════════════════════════ */}
       <section
-        className="relative -mx-5 -mt-6 sm:-mx-8 sm:-mt-6 lg:mx-0 lg:mt-0 lg:rounded-t-[var(--radius-lg)] overflow-hidden"
+        className={`relative -mx-5 mt-0 sm:-mx-8 lg:mx-0 lg:mt-0 overflow-hidden${hasLowerPanel ? " lg:rounded-t-[var(--radius-lg)]" : " lg:rounded-[var(--radius-lg)]"}`}
         style={{ backgroundColor: "#0033AA" }}
       >
         {/* ── Address / meta block ─────────────────────────────────── */}
@@ -310,61 +312,66 @@ export function QueueStatus({
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          White lower panel
+          White lower panel — always shown for counter; shown for other
+          stages only when there is actionable content (missed QR or
+          your-turn location row).
       ════════════════════════════════════════════════════════════════ */}
-      <div className="-mx-5 sm:-mx-8 lg:mx-0 lg:rounded-b-[var(--radius-lg)] border-x border-b border-[var(--border-subtle)] bg-white px-5 pt-7 pb-8 sm:px-8">
+      {(stage === "counter" || isMissed || (isYourTurn && !!loc)) && (
+        <div className="-mx-5 sm:-mx-8 lg:mx-0 lg:rounded-b-[var(--radius-lg)] border-x border-b border-[var(--border-subtle)] bg-white px-5 pt-7 pb-8 sm:px-8">
 
-        {/* QR rescan block — missed status only */}
-        {isMissed && (
-          <div className="mb-7 flex flex-col items-center gap-4 text-center">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
-                Rescan to Rejoin
-              </p>
-              <p className="mt-1.5 font-display text-base font-bold text-[var(--text-primary)]">
-                Scan the QR code below
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                You&rsquo;ve missed your turn. Scan to get back in line.
-              </p>
+          {/* QR rescan block — missed status only */}
+          {isMissed && (
+            <div className="mb-7 flex flex-col items-center gap-4 text-center">
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
+                  Rescan to Rejoin
+                </p>
+                <p className="mt-1.5 font-display text-base font-bold text-[var(--text-primary)]">
+                  Scan the QR code below
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                  You&rsquo;ve missed your turn. Scan to get back in line.
+                </p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+                <img
+                  src="/images/qr-placeholder.png"
+                  alt="Check-in QR code"
+                  width={150}
+                  height={150}
+                  className="block"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              </div>
+              <div className="h-px w-full bg-[var(--border-subtle)]" />
             </div>
-            <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-              <img
-                src="/images/qr-placeholder.png"
-                alt="Check-in QR code"
-                width={150}
-                height={150}
-                className="block"
-                style={{ imageRendering: "pixelated" }}
+          )}
+
+          {/* Your-turn: location confirmation row */}
+          {isYourTurn && loc && (
+            <div className="mb-6 flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-3">
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+                  Proceed to
+                </p>
+                <p className="mt-0.5 font-display text-base font-bold text-[var(--text-primary)]">
+                  {location}
+                </p>
+              </div>
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{
+                  backgroundColor: "#06DEC0",
+                  boxShadow: "0 0 8px 2px rgba(6,222,192,0.35)",
+                }}
               />
             </div>
-            <div className="h-px w-full bg-[var(--border-subtle)]" />
-          </div>
-        )}
+          )}
 
-        {/* Your-turn: location confirmation row */}
-        {isYourTurn && loc && (
-          <div className="mb-6 flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-3">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-                Proceed to
-              </p>
-              <p className="mt-0.5 font-display text-base font-bold text-[var(--text-primary)]">
-                {location}
-              </p>
-            </div>
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: "#06DEC0",
-                boxShadow: "0 0 8px 2px rgba(6,222,192,0.35)",
-              }}
-            />
-          </div>
-        )}
-
-        <QueueUploadCard />
-      </div>
+          {/* Upload card — counter stage only */}
+          {stage === "counter" && <QueueUploadCard />}
+        </div>
+      )}
     </div>
   );
 }

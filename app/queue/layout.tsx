@@ -54,26 +54,26 @@ export default function QueueLayout({
       </aside>
 
       <main className="flex flex-1 flex-col">
-        <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
+        <div className="flex items-center justify-center px-6 pb-4 pt-6 lg:hidden" style={{ backgroundColor: "#0033AA" }}>
           <a href="/">
             <Image
-              src="/images/cf-money-full-color.png"
+              src="/images/cf-money-white-dot.png"
               alt="CF Money"
-              width={120}
-              height={36}
-              className="h-4 w-auto"
+              width={160}
+              height={48}
+              className="h-6 w-auto"
               priority
             />
           </a>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
+        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-8 pt-0 sm:px-8 sm:pt-0 sm:pb-8 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
             {children}
           </div>
         </div>
 
-        <footer className="lg:hidden bg-brand-blue px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
+        <footer className="lg:hidden bg-black px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
           <Image
             src="/images/cf-money-white.png"
             alt="CF Money"
