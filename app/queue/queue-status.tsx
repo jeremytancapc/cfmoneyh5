@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import {
   NumberCircleOne,
@@ -40,6 +41,12 @@ function splitLocation(loc: string): { text: string; num: string } {
   const match = /^(.*?)(\d+)\s*$/.exec(loc.trim());
   if (match) return { text: match[1].trim(), num: match[2] };
   return { text: loc, num: "" };
+}
+
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
 }
 
 // ─── Singpass modal ───────────────────────────────────────────────────────────
@@ -94,6 +101,27 @@ export function QueueStatus({
   const isWaiting = status === "waiting";
   const loc = location ? splitLocation(location) : null;
 
+  const [qrState, setQrState] = useState<"idle" | "active" | "expired">("idle");
+  const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+
+  useEffect(() => {
+    if (qrExpiresAt === null) return;
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((qrExpiresAt - Date.now()) / 1000));
+      setRemainingSeconds(secs);
+      if (secs === 0) setQrState("expired");
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [qrExpiresAt]);
+
+  const handleGenerateQr = useCallback(() => {
+    setQrExpiresAt(Date.now() + 15 * 1000);
+    setQrState("active");
+  }, []);
+
   const STAGE_ORDER: Stage[] = ["counter", "room", "cash"];
   const STAGE_SHORT: Record<Stage, string> = { counter: "Counter", room: "Room", cash: "Cash" };
   const STAGE_NUM: Record<Stage, string>   = { counter: "01",      room: "02",   cash: "03"   };
@@ -101,7 +129,7 @@ export function QueueStatus({
   const prevStage  = currentIdx > 0                        ? STAGE_ORDER[currentIdx - 1] : null;
   const nextStage  = currentIdx < STAGE_ORDER.length - 1  ? STAGE_ORDER[currentIdx + 1] : null;
 
-  const hasLowerPanel = stage === "counter" || isMissed || (isYourTurn && !!loc);
+  const hasLowerPanel = stage === "counter" || isMissed || (isYourTurn && !!loc && stage !== "cash");
 
   return (
     <div className={`animate-fade-up flex flex-col${hasLowerPanel ? "" : " -mb-8 sm:-mb-8 lg:-mb-10"}`}>
@@ -301,7 +329,7 @@ export function QueueStatus({
             {isWaiting && "Thank you for waiting · We will notify you"}
             {isInProgress && "Service in progress · Thank you for your patience"}
             {isYourTurn && "Please proceed to your assigned location"}
-            {isMissed && "You've missed your turn · Rescan below to rejoin"}
+            {isMissed && "You've missed your turn!"}
           </p>
         </div>
 
@@ -325,12 +353,12 @@ export function QueueStatus({
           stages only when there is actionable content (missed QR or
           your-turn location row).
       ════════════════════════════════════════════════════════════════ */}
-      {(stage === "counter" || isMissed || (isYourTurn && !!loc)) && (
-        <div className="-mx-5 sm:-mx-8 lg:mx-0 lg:rounded-b-[var(--radius-lg)] border-x border-b border-[var(--border-subtle)] bg-white px-5 pt-7 pb-8 sm:px-8">
+      {(stage === "counter" || isMissed || (isYourTurn && !!loc && stage !== "cash")) && (
+        <div className={`-mx-5 sm:-mx-8 lg:mx-0 lg:rounded-b-[var(--radius-lg)] border-x border-[var(--border-subtle)] bg-white px-5 pt-7 pb-8 sm:px-8${isMissed ? "" : " border-b"}`}>
 
           {/* QR rescan block — missed status only */}
           {isMissed && (
-            <div className="mb-7 flex flex-col items-center gap-4 text-center">
+            <div className="flex flex-col items-center gap-4 text-center">
               <div>
                 <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
                   Rescan to Rejoin
@@ -338,21 +366,106 @@ export function QueueStatus({
                 <p className="mt-1.5 font-display text-base font-bold text-[var(--text-primary)]">
                   Scan the QR code below
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  You&rsquo;ve missed your turn. Scan to get back in line.
-                </p>
+                {qrState === "idle" && (
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {"Only click "}
+                    <strong className="font-semibold text-[var(--text-primary)]">Rejoin Queue</strong>
+                    {" below once you're ready to get back in line."}
+                  </p>
+                )}
+                {qrState === "active" && (
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    <strong className="font-semibold text-[var(--text-primary)]">Scan this QR Code</strong> at the entrance scanner to rejoin the queue.
+                  </p>
+                )}
+                {qrState === "expired" && (
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {"Your QR code has expired. Generate a new one when you're ready."}
+                  </p>
+                )}
               </div>
-              <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+
+              {/* QR image — blurred until active */}
+              <div className="relative rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
                 <img
                   src="/images/qr-placeholder.png"
-                  alt="Check-in QR code"
+                  alt="Rejoin queue QR code"
                   width={150}
                   height={150}
-                  className="block"
-                  style={{ imageRendering: "pixelated" }}
+                  className="block transition-all duration-300"
+                  style={{
+                    imageRendering: "pixelated",
+                    filter: qrState === "active" ? "none" : "blur(6px) grayscale(0.4)",
+                  }}
                 />
+
+                {qrState === "idle" && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+                    <button
+                      type="button"
+                      onClick={handleGenerateQr}
+                      className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+                    >
+                      Rejoin Queue
+                    </button>
+                  </div>
+                )}
+
+                {qrState === "expired" && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+                    <span
+                      className="select-none font-display text-2xl font-black uppercase tracking-widest"
+                      style={{
+                        color: "oklch(0.50 0.22 25)",
+                        border: "3px solid oklch(0.50 0.22 25)",
+                        padding: "4px 10px",
+                        borderRadius: 4,
+                        opacity: 0.85,
+                        transform: "rotate(-12deg)",
+                        letterSpacing: "0.15em",
+                      }}
+                    >
+                      EXPIRED
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="h-px w-full bg-[var(--border-subtle)]" />
+
+              {/* Countdown while active */}
+              {qrState === "active" && (
+                <div
+                  className="flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-4 py-2.5 transition-colors duration-500"
+                  style={{
+                    borderColor: remainingSeconds <= 5 ? "oklch(0.75 0.15 55)" : "var(--border-subtle)",
+                    background: remainingSeconds <= 5 ? "oklch(0.98 0.04 75)" : "transparent",
+                  }}
+                >
+                  <span
+                    className="font-display text-2xl font-bold tabular-nums tracking-tight transition-colors duration-500"
+                    style={{ color: remainingSeconds <= 5 ? "oklch(0.55 0.18 45)" : "var(--text-primary)" }}
+                  >
+                    {formatCountdown(remainingSeconds)}
+                  </span>
+                  <span
+                    className="text-xs font-medium transition-colors duration-500"
+                    style={{ color: remainingSeconds <= 5 ? "oklch(0.60 0.16 45)" : "var(--text-tertiary)" }}
+                  >
+                    {remainingSeconds <= 5 ? "Expiring soon" : "Time remaining"}
+                  </span>
+                </div>
+              )}
+
+              {/* Re-generate button when expired */}
+              {qrState === "expired" && (
+                <button
+                  type="button"
+                  onClick={handleGenerateQr}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                >
+                  Rejoin Queue
+                </button>
+              )}
+
             </div>
           )}
 
