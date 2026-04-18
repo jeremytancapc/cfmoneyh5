@@ -34,7 +34,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 
-/** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details · 9: employment & declaration */
+/** 1–2: loan + income · 3: Singpass vs manual · 4–6: personal details · 7: bankruptcy declaration · 8: review & submit */
 const TOTAL_STEPS = 8;
 
 const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
@@ -380,15 +380,12 @@ export function LoanApplicationForm() {
       case 6:
         return true;
       case 7:
-        return true;
-      case 8:
         return (
-          formData.employmentStatus !== "" &&
-          formData.position !== "" &&
-          formData.employmentDuration !== "" &&
           formData.bankruptcyDeclaration !== "" &&
           formData.bankruptcyDeclaration !== "active"
         );
+      case 8:
+        return true;
       default:
         return false;
     }
@@ -528,7 +525,7 @@ export function LoanApplicationForm() {
           <Step3_SingpassGate
             onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
             onSingpass={() => {
-              // Simulate Singpass Myinfo prefill — jump straight to review
+              // Simulate Singpass Myinfo prefill — jump to bankruptcy declaration (step 7)
               setFormData((prev) => ({
                 ...prev,
                 authMethod: "singpass",
@@ -561,23 +558,23 @@ export function LoanApplicationForm() {
           <Step7_Additional formData={formData} updateField={updateField} />
         )}
         {step === 7 && (
+          <Step7_BankruptcyDeclaration
+            formData={formData}
+            updateField={updateField}
+            onClear={scrollToBottomCta}
+          />
+        )}
+        {step === 8 && (
           <Step8_Review
             formData={formData}
             monthlyRepayment={monthlyRepayment}
             onModalOpenChange={setIsLegalModalOpen}
           />
         )}
-        {step === 8 && (
-          <Step9_EmploymentDeclaration
-            formData={formData}
-            updateField={updateField}
-            onBankruptcyClear={scrollToBottomCta}
-          />
-        )}
       </div>
 
       {/* ── Floating Continue button — outside animate-slide-in so fixed works ── */}
-      {step === 7 && !isBottomCtaVisible && !isLegalModalOpen && (
+      {step === 8 && !isBottomCtaVisible && !isLegalModalOpen && (
         <>
           {/* Mobile: full-width pill */}
           <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-sm">
@@ -625,7 +622,7 @@ export function LoanApplicationForm() {
               disabled={mounted && !canProceed}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
-              {step === 8 ? "Confirm" : "Continue"}
+              Continue
               <ArrowRight size={16} weight="bold" />
             </button>
           ) : (
@@ -2021,6 +2018,141 @@ function LegalModal({
 
 // ─── Step 8 ───────────────────────────────────────────────────────────────────
 
+function Step7_BankruptcyDeclaration({
+  formData,
+  updateField,
+  onClear,
+}: {
+  formData: FormData;
+  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+  onClear?: () => void;
+}) {
+  const isClear      = formData.bankruptcyDeclaration === "clear";
+  const isDischarged = formData.bankruptcyDeclaration === "discharged_lt5";
+  const isActive     = formData.bankruptcyDeclaration === "active";
+
+  const cardShadow = [
+    "0 2px 4px oklch(0.18 0.16 260 / 0.18)",
+    "0 8px 16px oklch(0.22 0.16 260 / 0.28)",
+    "0 20px 40px oklch(0.26 0.14 260 / 0.36)",
+    "0 40px 64px oklch(0.18 0.12 260 / 0.22)",
+    "inset 0 1px 0 oklch(1 0 0 / 0.12)",
+  ].join(", ");
+
+  return (
+    <div>
+      <StepHeader
+        icon={ShieldCheck}
+        title="Bankruptcy / DRS Status"
+        subtitle="We're required to verify your bankruptcy and debt repayment status before proceeding."
+      />
+
+      <div
+        className="rounded-[var(--radius-lg)] px-5 py-5"
+        style={{ background: "var(--brand-blue-hex)", boxShadow: cardShadow }}
+      >
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-base font-bold text-white">What is your current status?</span>
+          <span className="text-xs text-white/60">Select one</span>
+        </div>
+        <p className="mb-3 text-sm text-white/70">
+          Select the option that applies to you as of today.
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              updateField("bankruptcyDeclaration", "clear");
+              setTimeout(() => onClear?.(), 50);
+            }}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+            style={{
+              borderColor: isClear ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.25)",
+              background:  isClear ? "oklch(0.50 0.15 145 / 0.30)" : "rgba(255,255,255,0.1)",
+            }}
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+              style={{
+                borderColor: isClear ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.5)",
+                background:  isClear ? "oklch(0.55 0.18 145)" : "transparent",
+              }}
+            >
+              {isClear && <CheckCircle size={14} weight="fill" color="white" />}
+            </span>
+            <span className="text-sm font-semibold" style={{ color: isClear ? "oklch(0.95 0.06 145)" : "white" }}>
+              I am NOT bankrupt, under DRS or self-exclusion as of this application.
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
+            style={{
+              borderColor: isDischarged ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.25)",
+              background:  isDischarged ? "oklch(0.50 0.15 145 / 0.30)" : "rgba(255,255,255,0.08)",
+            }}
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+              style={{
+                borderColor: isDischarged ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.5)",
+                background:  isDischarged ? "oklch(0.55 0.18 145)" : "transparent",
+              }}
+            >
+              {isDischarged && <CheckCircle size={14} weight="fill" color="white" />}
+            </span>
+            <span className="text-sm" style={{ color: isDischarged ? "oklch(0.95 0.06 145)" : "rgba(255,255,255,0.85)" }}>
+              I am a discharged bankrupt (less than 5 years ago)
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => updateField("bankruptcyDeclaration", "active")}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
+            style={{
+              borderColor: isActive ? "oklch(0.85 0.15 25)" : "rgba(255,255,255,0.25)",
+              background:  isActive ? "oklch(0.55 0.20 25 / 0.25)" : "rgba(255,255,255,0.08)",
+            }}
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+              style={{
+                borderColor: isActive ? "oklch(0.85 0.15 25)" : "rgba(255,255,255,0.5)",
+                background:  isActive ? "oklch(0.55 0.20 25)" : "transparent",
+              }}
+            >
+              {isActive && <CheckCircle size={14} weight="fill" color="white" />}
+            </span>
+            <span className="text-sm" style={{ color: isActive ? "oklch(0.95 0.10 25)" : "rgba(255,255,255,0.85)" }}>
+              I am currently under bankruptcy / DRS status
+            </span>
+          </button>
+        </div>
+
+        {isDischarged && (
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.75_0.17_145_/_0.4)] bg-[oklch(0.50_0.15_145_/_0.2)] px-4 py-3">
+            <p className="text-xs leading-relaxed text-[oklch(0.95_0.06_145)]">
+              Please bring along your bankruptcy/DRS discharge letter to the appointment.
+            </p>
+          </div>
+        )}
+
+        {isActive && (
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.85_0.15_25_/_0.4)] bg-[oklch(0.55_0.20_25_/_0.2)] px-4 py-3">
+            <p className="text-xs leading-relaxed text-[oklch(0.95_0.10_25)]">
+              We are currently not able to issue loans if you are not discharged from bankruptcy or DRS status.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Step8_Review({
   formData,
   monthlyRepayment,
@@ -2087,6 +2219,23 @@ function Step8_Review({
         { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
         ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
         ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
+      ],
+    },
+    {
+      icon: ShieldCheck,
+      title: "Declaration",
+      rows: [
+        {
+          label: "Bankruptcy / DRS",
+          value:
+            formData.bankruptcyDeclaration === "clear"
+              ? "Not bankrupt / DRS"
+              : formData.bankruptcyDeclaration === "discharged_lt5"
+                ? "Discharged (< 5 yrs)"
+                : formData.bankruptcyDeclaration === "active"
+                  ? "Currently bankrupt / DRS"
+                  : "—",
+        },
       ],
     },
   ];
