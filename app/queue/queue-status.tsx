@@ -175,9 +175,18 @@ export function QueueStatus({
                   <p className="font-display text-[72px] font-black leading-none mt-2 tracking-tight">
                     {queueNumber}
                   </p>
-                  <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-white/70">
-                    Current
-                  </p>
+                  <div className="mt-2 flex items-center justify-center gap-1.5">
+                    <span
+                      className="h-2 w-2 rounded-full animate-pulse"
+                      style={{
+                        backgroundColor: "#FCD34D",
+                        boxShadow: "0 0 8px 2px rgba(252,211,77,0.5)",
+                      }}
+                    />
+                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">
+                      Waiting
+                    </span>
+                  </div>
                 </>
               )}
 
