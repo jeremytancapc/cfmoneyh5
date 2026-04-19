@@ -34,6 +34,13 @@ const STAGE_META: Record<Stage, { label: string; queueLabel: string; number: num
   cash:    { label: "Cash",    queueLabel: "Cash Queue",    number: 3, Icon: NumberCircleThree,  StageIcon: CurrencyDollar },
 };
 
+const STATUS_GLOW: Partial<Record<QueueStatusVariant, string>> = {
+  waiting:       "#FCD34D",
+  "in-progress": "#16a34a",
+  "your-turn":   "#06DEC0",
+  missed:        "oklch(0.78 0.18 55)",
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Split "Room 1" → { text: "Room", num: "1" }, graceful fallback */
@@ -171,7 +178,7 @@ export function QueueStatus({
               const SI = STAGE_META[prevStage].StageIcon;
               return (
                 <div className="flex flex-col items-center">
-                  <SI size={24} weight="duotone" className="mb-1.5 text-white/35" />
+                  <SI size={24} weight="duotone" className="relative z-10 mb-1.5 text-white/35" />
                   <div className="rounded-[var(--radius-sm)] bg-white px-3 py-2.5 text-center shadow-lg min-w-[52px]">
                     <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
                       {STAGE_NUM[prevStage]}
@@ -190,9 +197,12 @@ export function QueueStatus({
 
           {/* Center: large black number card */}
           <div className="flex flex-col items-center">
-            <stageMeta.StageIcon size={30} weight="duotone" className="mb-2 text-white/60" />
+            <stageMeta.StageIcon size={42} weight="duotone" className="relative z-10 mb-2 text-white" />
 
-            <div className="rounded-[var(--radius-md)] bg-[#111111] text-white px-5 pt-6 pb-4 sm:px-7 text-center shadow-2xl min-w-[140px] sm:min-w-[160px] flex flex-col items-center justify-center">
+            <div
+              className={`relative rounded-[var(--radius-md)] bg-[#111111] text-white px-5 pt-6 pb-4 sm:px-7 text-center shadow-2xl min-w-[140px] sm:min-w-[160px] flex flex-col items-center justify-center${STATUS_GLOW[status] ? " queue-card-glow" : ""}`}
+              style={STATUS_GLOW[status] ? ({ ["--glow-color" as string]: STATUS_GLOW[status] }) : undefined}
+            >
 
               {/* ── waiting ── */}
               {isWaiting && (
@@ -305,7 +315,7 @@ export function QueueStatus({
               const SI = STAGE_META[nextStage].StageIcon;
               return (
                 <div className="flex flex-col items-center">
-                  <SI size={24} weight="duotone" className="mb-1.5 text-white/25" />
+                  <SI size={24} weight="duotone" className="relative z-10 mb-1.5 text-white/25" />
                   <div className="rounded-[var(--radius-sm)] bg-white/70 px-3 py-2.5 text-center shadow-lg min-w-[52px]">
                     <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
                       {STAGE_NUM[nextStage]}
@@ -324,8 +334,8 @@ export function QueueStatus({
         </div>
 
         {/* ── Status footer inside hero ───────────────────────────── */}
-        <div className="mt-5 px-6 pb-4 text-center sm:px-8">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/50">
+        <div className="relative z-20 mt-8 px-6 pb-4 text-center sm:px-8">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white">
             {isWaiting && "Thank you for waiting · We will notify you"}
             {isInProgress && "Service in progress · Thank you for your patience"}
             {isYourTurn && "Please proceed to your assigned location"}

@@ -276,3 +276,29 @@ input[type="range"]::-moz-range-thumb {
 .animate-status {
   animation: status-fade 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ─── Queue card stage glow ──────────────────────────────────────── */
+
+@keyframes queue-card-border-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1.5px var(--glow-color),
+      0 0 14px 2px var(--glow-color),
+      0 0 32px 6px color-mix(in oklch, var(--glow-color) 60%, transparent),
+      0 0 64px 12px color-mix(in oklch, var(--glow-color) 35%, transparent),
+      0 20px 40px -10px rgba(0, 0, 0, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px var(--glow-color),
+      0 0 24px 4px var(--glow-color),
+      0 0 52px 10px color-mix(in oklch, var(--glow-color) 75%, transparent),
+      0 0 96px 20px color-mix(in oklch, var(--glow-color) 45%, transparent),
+      0 20px 40px -10px rgba(0, 0, 0, 0.6);
+  }
+}
+
+.queue-card-glow {
+  animation: queue-card-border-glow 2.4s ease-in-out infinite;
+  will-change: box-shadow;
+}
