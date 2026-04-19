@@ -337,8 +337,8 @@ export function QueueStatus({
         <div className="relative z-20 mt-8 px-6 pb-4 text-center sm:px-8">
           <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white">
             {isWaiting && "Thank you for waiting · We will notify you"}
-            {isInProgress && "Service in progress · Thank you for your patience"}
-            {isYourTurn && "Please proceed to your assigned location"}
+            {isInProgress && "Service in progress"}
+            {isYourTurn && `Please proceed to your assigned ${stage === "room" ? "room" : "counter"}`}
             {isMissed && "You've missed your turn!"}
           </p>
         </div>
