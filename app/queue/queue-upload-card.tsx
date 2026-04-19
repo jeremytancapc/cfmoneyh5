@@ -72,15 +72,19 @@ export function QueueUploadCard() {
     <div className="flex flex-col gap-5">
       {/* Eyebrow + heading */}
       <div>
-        <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
-          While you wait
-        </p>
-        <h3 className="mt-1 font-display text-[17px] font-bold tracking-tight text-[var(--text-primary)]">
-          Increase Your Loan Limit
+        <h3 className="font-display text-[17px] font-bold tracking-tight text-[var(--text-primary)]">
+          Upload Documents
         </h3>
-        <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-          Submit income documents so we can assess and offer you a higher loan amount.
-        </p>
+        <ul className="mt-2 flex flex-col gap-1">
+          <li className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+            Income proof documents
+          </li>
+          <li className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+            Proof of residence documents
+          </li>
+        </ul>
       </div>
 
       {/* Drop zone */}
