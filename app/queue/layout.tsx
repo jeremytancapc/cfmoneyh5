@@ -67,7 +67,7 @@ export default function QueueLayout({
           </a>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-start bg-[#0033AA] px-5 pb-8 pt-0 sm:px-8 sm:pt-0 sm:pb-8 lg:justify-center lg:bg-[var(--surface-primary)] lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
+        <div className="flex flex-1 flex-col items-center justify-start bg-[#0033AA] px-5 pb-0 pt-0 sm:px-8 sm:pt-0 sm:pb-0 lg:justify-center lg:bg-[var(--surface-primary)] lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
             {children}
           </div>

@@ -163,7 +163,7 @@ export function QueueStatus({
             <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/50">
               Stage {String(stageMeta.number).padStart(2, "0")} / 03
             </p>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/85">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white">
               {stageMeta.queueLabel}
             </p>
           </div>

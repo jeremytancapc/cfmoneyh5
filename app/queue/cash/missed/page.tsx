@@ -7,7 +7,7 @@ export default function Page() {
     <QueueStatus
       stage="cash"
       status="missed"
-      customerName="DA DONG BAI"
+      customerName="MUHAMMAD SYAFIQ BIN MOHAMED NOOR"
       queueNumber="1001"
     />
   );

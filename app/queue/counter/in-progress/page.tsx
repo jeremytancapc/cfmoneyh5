@@ -7,7 +7,7 @@ export default function Page() {
     <QueueStatus
       stage="counter"
       status="in-progress"
-      customerName="DA DONG BAI"
+      customerName="MUHAMMAD SYAFIQ BIN MOHAMED NOOR"
       queueNumber="1001"
       location="Counter 6"
     />
