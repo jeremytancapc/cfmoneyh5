@@ -73,7 +73,7 @@ export default function QueueLayout({
           </div>
         </div>
 
-        <footer className="lg:hidden bg-black px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
+        <footer className="lg:hidden bg-black px-5 pb-10 pt-16 text-[var(--text-on-brand)]">
           <Image
             src="/images/cf-money-white.png"
             alt="CF Money"

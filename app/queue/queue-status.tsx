@@ -136,7 +136,7 @@ export function QueueStatus({
   const prevStage  = currentIdx > 0                        ? STAGE_ORDER[currentIdx - 1] : null;
   const nextStage  = currentIdx < STAGE_ORDER.length - 1  ? STAGE_ORDER[currentIdx + 1] : null;
 
-  const hasLowerPanel = stage === "counter" || isMissed || (isYourTurn && !!loc && stage !== "cash");
+  const hasLowerPanel = stage === "counter" || isMissed;
 
   return (
     <div className={`animate-fade-up flex flex-col${hasLowerPanel ? "" : " -mb-8 sm:-mb-8 lg:-mb-10"}`}>
@@ -363,17 +363,14 @@ export function QueueStatus({
           stages only when there is actionable content (missed QR or
           your-turn location row).
       ════════════════════════════════════════════════════════════════ */}
-      {(stage === "counter" || isMissed || (isYourTurn && !!loc && stage !== "cash")) && (
+      {(stage === "counter" || isMissed) && (
         <div className={`-mx-5 sm:-mx-8 lg:mx-0 lg:rounded-b-[var(--radius-lg)] border-x border-[var(--border-subtle)] bg-white px-5 pt-7 pb-8 sm:px-8${isMissed ? "" : " border-b"}`}>
 
           {/* QR rescan block — missed status only */}
           {isMissed && (
             <div className="flex flex-col items-center gap-4 text-center">
               <div>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
-                  Rescan to Rejoin
-                </p>
-                <p className="mt-1.5 font-display text-base font-bold text-[var(--text-primary)]">
+                <p className="font-display text-base font-bold text-[var(--text-primary)]">
                   Scan the QR code below
                 </p>
                 {qrState === "idle" && (
@@ -479,29 +476,9 @@ export function QueueStatus({
             </div>
           )}
 
-          {/* Your-turn: location confirmation row */}
-          {isYourTurn && loc && (
-            <div className="mb-6 flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-3">
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-                  Proceed to
-                </p>
-                <p className="mt-0.5 font-display text-base font-bold text-[var(--text-primary)]">
-                  {location}
-                </p>
-              </div>
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{
-                  backgroundColor: "#06DEC0",
-                  boxShadow: "0 0 8px 2px rgba(6,222,192,0.35)",
-                }}
-              />
-            </div>
-          )}
 
-          {/* Upload card — counter stage only */}
-          {stage === "counter" && <QueueUploadCard />}
+          {/* Upload card — counter stage only, not when missed */}
+          {stage === "counter" && !isMissed && <QueueUploadCard />}
         </div>
       )}
     </div>
