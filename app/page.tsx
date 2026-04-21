@@ -4,7 +4,7 @@ import { SidebarTrustFeatures } from "./sidebar-trust-features";
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col lg:flex-row lg:min-h-[100dvh]">
+    <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
           <div className="mb-16">
@@ -46,7 +46,7 @@ export default function HomePage() {
         />
       </aside>
 
-      <main className="flex flex-col lg:flex-1 overflow-x-clip">
+      <main className="flex flex-col flex-1 overflow-x-clip">
         <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
           <a href="/">
             <Image
@@ -60,7 +60,7 @@ export default function HomePage() {
           </a>
         </div>
 
-        <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 lg:flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
+        <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
             <LoanApplicationForm />
           </div>
