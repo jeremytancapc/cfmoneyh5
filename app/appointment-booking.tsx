@@ -255,7 +255,7 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
             className="flex flex-col gap-4 rounded-[var(--radius-lg)] px-5 py-5"
             style={{ background: "var(--brand-blue-hex)" }}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
+            <p className="text-xs font-bold uppercase tracking-wider text-white">
               Things to bring
             </p>
             <ul className="flex flex-col gap-4">
@@ -267,7 +267,7 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                   >
                     <span className="text-xs font-bold text-white">{i + 1}</span>
                   </div>
-                  <p className="text-sm leading-relaxed text-white/85">{item}</p>
+                  <p className="text-sm leading-relaxed text-white">{item}</p>
                 </li>
               ))}
             </ul>
