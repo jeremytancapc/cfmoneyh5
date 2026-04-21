@@ -227,13 +227,13 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
         {/* ── On the day instructions ─────────────────────────────── */}
         <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-            On the day
+            When you arrive
           </p>
           <ol className="flex flex-col gap-4">
             {[
               {
                 icon: UserCircle,
-                text: "When you arrive at our office, sign in via Singpass at our counter — our staff will generate a unique QR code for you.",
+                text: "Sign in via Singpass at our counter — our staff will generate a unique QR code for you.",
               },
               {
                 icon: QrCode,
