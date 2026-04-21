@@ -2,6 +2,10 @@ import Image from "next/image";
 import { LoanApplicationForm } from "../loan-application-form";
 import { SidebarTrustFeatures } from "../sidebar-trust-features";
 
+const VCSA_SG_THINGS_TO_BRING = [
+  "Income proof documents (e.g. PHV monthly statements, bank statements, or any other relevant income proof documents).",
+];
+
 export default function VCSASGPage() {
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
@@ -66,6 +70,7 @@ export default function VCSASGPage() {
               reminderItems={[
                 "I understand I need to bring my income proof documents (e.g. PHV monthly statements, bank statements, or any other relevant income proof documents) to the appointment.",
               ]}
+              thingsToBring={VCSA_SG_THINGS_TO_BRING}
             />
           </div>
         </div>
