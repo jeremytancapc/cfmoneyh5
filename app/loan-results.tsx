@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   X,
   TrendUp,
+  CheckCircle,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
@@ -80,6 +81,7 @@ interface LoanResultsProps {
   formData: FormData;
   monthlyRepayment: number;
   onAccept: () => void;
+  showIncomeProofReminder?: boolean;
 }
 
 /* ── Reconsider Modal ─────────────────────────────────────────────── */
@@ -197,8 +199,10 @@ export function LoanResults({
   formData,
   monthlyRepayment,
   onAccept,
+  showIncomeProofReminder = false,
 }: LoanResultsProps) {
   const [showModal, setShowModal] = useState(false);
+  const [incomeProofChecked, setIncomeProofChecked] = useState(false);
   // 0 = hero only  1 = amount  2 = tenure row  3 = badge  4 = notice + CTA
   const [revealStage, setRevealStage] = useState(0);
 
@@ -337,6 +341,55 @@ export function LoanResults({
           </motion.p>
         </motion.div>
 
+        {/* ── Stage 4: Income proof reminder (VCSA-SG only) ───────── */}
+        {showIncomeProofReminder && (
+          <motion.div
+            initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
+            animate={
+              revealStage >= 4
+                ? { opacity: 1, filter: "blur(0px)", y: 0 }
+                : { opacity: 0, filter: "blur(8px)", y: 8 }
+            }
+            transition={{ duration: 0.45, ease: EASE, delay: revealStage >= 4 ? 0.28 : 0 }}
+            style={{ pointerEvents: revealStage >= 4 ? "auto" : "none" }}
+          >
+            <button
+              type="button"
+              onClick={() => setIncomeProofChecked((v) => !v)}
+              className="flex w-full items-start gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+              style={{
+                borderColor: incomeProofChecked ? "var(--brand-blue-hex)" : "var(--border-subtle)",
+                background: incomeProofChecked ? "oklch(0.32 0.14 260 / 0.06)" : "var(--surface-elevated)",
+              }}
+            >
+              <span
+                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: incomeProofChecked ? "var(--brand-blue-hex)" : "var(--border-medium)",
+                  background: incomeProofChecked ? "var(--brand-blue-hex)" : "transparent",
+                }}
+              >
+                {incomeProofChecked && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm leading-relaxed"
+                style={{ color: incomeProofChecked ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
+              >
+                I understand I need to bring my{" "}
+                <strong className="font-semibold" style={{ color: incomeProofChecked ? "var(--brand-blue-hex)" : "var(--text-primary)" }}>
+                  income proof documents
+                </strong>{" "}
+                (e.g. PHV monthly statements, bank statements, or any other relevant income proof documents) to the appointment.
+              </span>
+            </button>
+            {!incomeProofChecked && (
+              <p className="mt-2 text-center text-xs text-[var(--text-primary)]">
+                Please acknowledge the income documents reminder above to proceed.
+              </p>
+            )}
+          </motion.div>
+        )}
+
         {/* ── Stage 4: CTA ────────────────────────────────────────── */}
         <motion.div
           className="flex flex-col gap-3"
@@ -352,12 +405,12 @@ export function LoanResults({
           <button
             type="button"
             onClick={onAccept}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            disabled={showIncomeProofReminder && !incomeProofChecked}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
           >
             Accept &amp; Book Appointment
             <ArrowRight size={16} weight="bold" />
           </button>
-
           <button
             type="button"
             onClick={() => setShowModal(true)}
