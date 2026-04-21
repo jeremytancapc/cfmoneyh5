@@ -2,7 +2,12 @@ import Image from "next/image";
 import { LoanApplicationForm } from "../loan-application-form";
 import { SidebarTrustFeatures } from "../sidebar-trust-features";
 
-export default function VCSASGPage() {
+const FOREIGNER_REMINDERS = [
+  "I understand I need to bring my latest 3 months payslip and proof of residence letter which shows my name and local residential address (e.g. bank statement / utility bill).",
+  "I understand that my work pass needs to have more than 3 months validity remaining.",
+];
+
+export default function ForeignerPage() {
   return (
     <div className="flex flex-col lg:flex-row lg:min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
@@ -62,11 +67,7 @@ export default function VCSASGPage() {
 
         <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 lg:flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
-            <LoanApplicationForm
-              reminderItems={[
-                "I understand I need to bring my income proof documents (e.g. PHV monthly statements, bank statements, or any other relevant income proof documents) to the appointment.",
-              ]}
-            />
+            <LoanApplicationForm reminderItems={FOREIGNER_REMINDERS} />
           </div>
         </div>
 

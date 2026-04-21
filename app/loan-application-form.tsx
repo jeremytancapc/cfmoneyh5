@@ -331,7 +331,7 @@ function SelectableChip({
 
 type PostSubmitPhase = "form" | "loading" | "results" | "booking";
 
-export function LoanApplicationForm({ showIncomeProofReminder = false }: { showIncomeProofReminder?: boolean }) {
+export function LoanApplicationForm({ reminderItems = [] }: { reminderItems?: string[] }) {
   // Navigation history stack — Back always pops, so non-linear jumps (e.g.
   // Singpass skipping steps 4-7) are correctly unwound on Back.
   const [history, setHistory] = useState<number[]>([1]);
@@ -505,7 +505,7 @@ export function LoanApplicationForm({ showIncomeProofReminder = false }: { showI
         formData={formData}
         monthlyRepayment={monthlyRepayment}
         onAccept={handleAcceptOffer}
-        showIncomeProofReminder={showIncomeProofReminder}
+        reminderItems={reminderItems}
       />
     );
   }
