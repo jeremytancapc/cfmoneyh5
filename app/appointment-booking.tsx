@@ -233,7 +233,7 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
             {[
               {
                 icon: UserCircle,
-                text: "Sign in via Singpass at our counter — our staff will generate a unique QR code for you.",
+                text: "Sign in via Singpass at our counter, a QR code will be generated on your phone.",
               },
               {
                 icon: QrCode,
