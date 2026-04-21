@@ -11,6 +11,9 @@ import {
   ArrowLeft,
   Train,
   Car,
+  UserCircle,
+  QrCode,
+  ListNumbers,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD)
@@ -90,9 +93,6 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [qrState, setQrState] = useState<"idle" | "active" | "expired">("idle");
-  const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const confirmBtnRef = useRef<HTMLDivElement>(null);
@@ -114,31 +114,6 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
     el.addEventListener("scroll", updateFades, { passive: true });
     return () => el.removeEventListener("scroll", updateFades);
   }, [updateFades]);
-
-  useEffect(() => {
-    if (qrExpiresAt === null) return;
-    const tick = () => {
-      const secs = Math.max(0, Math.ceil((qrExpiresAt - Date.now()) / 1000));
-      setRemainingSeconds(secs);
-      if (secs === 0) {
-        setQrState("expired");
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [qrExpiresAt]);
-
-  const handleGenerateQr = useCallback(() => {
-    setQrExpiresAt(Date.now() + 15 * 1000);
-    setQrState("active");
-  }, []);
-
-  const formatCountdown = (seconds: number): string => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
 
   const scrollDates = useCallback((direction: "left" | "right") => {
     const el = dateScrollRef.current;
@@ -249,110 +224,40 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
           </div>
         </div>
 
-        {/* ── QR Check-in Code ───────────────────────────────────── */}
-        <div className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-white px-6 py-6 text-center">
-          <div>
-            <p className="font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
-              Check-in QR Code
-            </p>
-            {qrState === "idle" && (
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Only click on <strong className="font-semibold text-[var(--text-primary)]">Show QR Code</strong> below once you have arrived at our office.
-              </p>
-            )}
-            {qrState === "active" && (
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                <strong className="font-semibold text-[var(--text-primary)]">Scan this QR Code</strong> at our entrance scanner to generate your queue number.
-              </p>
-            )}
-            {qrState === "expired" && (
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Your QR code has expired. Generate a new one when you&rsquo;re ready to check in.
-              </p>
-            )}
-          </div>
-
-          {/* QR image — always rendered; blurred+overlaid in idle/expired, clear when active */}
-          <div className="relative rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-            <img
-              src="/images/qr-placeholder.png"
-              alt="Your appointment check-in QR code"
-              width={160}
-              height={160}
-              className="block sm:h-[180px] sm:w-[180px] transition-all duration-300"
-              style={{
-                imageRendering: "pixelated",
-                filter: qrState === "active" ? "none" : "blur(6px) grayscale(0.4)",
-              }}
-            />
-
-            {/* Idle overlay — "Show QR Code" button centred on the blurred QR */}
-            {qrState === "idle" && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
-                <button
-                  type="button"
-                  onClick={handleGenerateQr}
-                  className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
-                >
-                  Show QR Code
-                </button>
-              </div>
-            )}
-
-            {/* Expired overlay — bold red "EXPIRED" stamp */}
-            {qrState === "expired" && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
-                <span
-                  className="select-none font-display text-2xl font-black uppercase tracking-widest"
+        {/* ── On the day instructions ─────────────────────────────── */}
+        <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+            On the day
+          </p>
+          <ol className="flex flex-col gap-4">
+            {[
+              {
+                icon: UserCircle,
+                text: "When you arrive at our office, sign in via Singpass at our counter — our staff will generate a unique QR code for you.",
+              },
+              {
+                icon: QrCode,
+                text: "Scan the QR code against our scanner at the main door to receive your queue number.",
+              },
+              {
+                icon: ListNumbers,
+                text: "Take a seat and wait for your queue number to be called.",
+              },
+            ].map(({ icon: Icon, text }, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <div
+                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                   style={{
-                    color: "oklch(0.50 0.22 25)",
-                    border: "3px solid oklch(0.50 0.22 25)",
-                    padding: "4px 10px",
-                    borderRadius: 4,
-                    opacity: 0.85,
-                    transform: "rotate(-12deg)",
-                    letterSpacing: "0.15em",
+                    background: "oklch(0.32 0.14 260 / 0.08)",
+                    color: "var(--brand-blue-hex)",
                   }}
                 >
-                  EXPIRED
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Below-QR area: countdown while active, "Show QR Code" button when expired */}
-          {qrState === "active" && (
-            <div
-              className="flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-4 py-2.5 transition-colors duration-500"
-              style={{
-                borderColor: remainingSeconds <= 5 ? "oklch(0.75 0.15 55)" : "var(--border-subtle)",
-                background: remainingSeconds <= 5 ? "oklch(0.98 0.04 75)" : "transparent",
-              }}
-            >
-              <span
-                className="font-display text-2xl font-bold tabular-nums tracking-tight transition-colors duration-500"
-                style={{ color: remainingSeconds <= 5 ? "oklch(0.55 0.18 45)" : "var(--text-primary)" }}
-              >
-                {formatCountdown(remainingSeconds)}
-              </span>
-              <span
-                className="text-xs font-medium transition-colors duration-500"
-                style={{ color: remainingSeconds <= 5 ? "oklch(0.60 0.16 45)" : "var(--text-tertiary)" }}
-              >
-                {remainingSeconds <= 5 ? "Expiring soon" : "Time remaining"}
-              </span>
-            </div>
-          )}
-
-          {qrState === "expired" && (
-            <button
-              type="button"
-              onClick={handleGenerateQr}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-            >
-              Show QR Code
-            </button>
-          )}
+                  <Icon size={15} weight="duotone" />
+                </div>
+                <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{text}</p>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Office details */}
