@@ -331,7 +331,13 @@ function SelectableChip({
 
 type PostSubmitPhase = "form" | "loading" | "results" | "booking";
 
-export function LoanApplicationForm({ reminderItems = [] }: { reminderItems?: string[] }) {
+export function LoanApplicationForm({
+  reminderItems = [],
+  thingsToBring = [],
+}: {
+  reminderItems?: string[];
+  thingsToBring?: string[];
+}) {
   // Navigation history stack — Back always pops, so non-linear jumps (e.g.
   // Singpass skipping steps 4-7) are correctly unwound on Back.
   const [history, setHistory] = useState<number[]>([1]);
@@ -511,7 +517,7 @@ export function LoanApplicationForm({ reminderItems = [] }: { reminderItems?: st
   }
 
   if (postSubmitPhase === "booking") {
-    return <AppointmentBooking formData={formData} onBack={() => { setPostSubmitPhase("results"); scrollToTop(); }} />;
+    return <AppointmentBooking formData={formData} onBack={() => { setPostSubmitPhase("results"); scrollToTop(); }} thingsToBring={thingsToBring} />;
   }
 
   return (

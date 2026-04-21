@@ -7,6 +7,11 @@ const FOREIGNER_REMINDERS = [
   "I understand my work pass has more than 3 months validity remaining, or I will bring my pass renewal IPA letter.",
 ];
 
+const FOREIGNER_THINGS_TO_BRING = [
+  "Latest 3 months payslip and proof of residence letter showing your name and local residential address (e.g. bank statement / utility bill).",
+  "Work pass with more than 3 months validity remaining, or your pass renewal IPA letter.",
+];
+
 export default function ForeignerPage() {
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
@@ -67,7 +72,7 @@ export default function ForeignerPage() {
 
         <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
-            <LoanApplicationForm reminderItems={FOREIGNER_REMINDERS} />
+            <LoanApplicationForm reminderItems={FOREIGNER_REMINDERS} thingsToBring={FOREIGNER_THINGS_TO_BRING} />
           </div>
         </div>
 

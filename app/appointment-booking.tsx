@@ -87,9 +87,10 @@ interface FormData {
 interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
+  thingsToBring?: string[];
 }
 
-export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps) {
+export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: AppointmentBookingProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -258,6 +259,31 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
               </li>
             ))}
           </ol>
+
+          {thingsToBring.length > 0 && (
+            <>
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                Things to bring
+              </p>
+              <ul className="flex flex-col gap-3">
+                {thingsToBring.map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <div
+                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                      style={{
+                        background: "oklch(0.32 0.14 260 / 0.08)",
+                        color: "var(--brand-blue-hex)",
+                      }}
+                    >
+                      <span className="text-xs font-bold">{i + 1}</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{item}</p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
 
         {/* Office details */}
