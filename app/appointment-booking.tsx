@@ -248,31 +248,31 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
             ))}
           </ol>
 
-          {thingsToBring.length > 0 && (
-            <>
-              <div className="h-px bg-[var(--border-subtle)]" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                Things to bring
-              </p>
-              <ul className="flex flex-col gap-3">
-                {thingsToBring.map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <div
-                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                      style={{
-                        background: "oklch(0.32 0.14 260 / 0.08)",
-                        color: "var(--brand-blue-hex)",
-                      }}
-                    >
-                      <span className="text-xs font-bold">{i + 1}</span>
-                    </div>
-                    <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{item}</p>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
         </div>
+
+        {thingsToBring.length > 0 && (
+          <div
+            className="flex flex-col gap-4 rounded-[var(--radius-lg)] px-5 py-5"
+            style={{ background: "var(--brand-blue-hex)" }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
+              Things to bring
+            </p>
+            <ul className="flex flex-col gap-4">
+              {thingsToBring.map((item, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <div
+                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: "oklch(1 0 0 / 0.15)" }}
+                  >
+                    <span className="text-xs font-bold text-white">{i + 1}</span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-white/85">{item}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Office details */}
         <div className="flex flex-col gap-4 text-left">
