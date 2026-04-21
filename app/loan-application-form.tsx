@@ -33,6 +33,8 @@ import {
   ArrowDown,
   X,
   WhatsappLogo,
+  PencilSimple,
+  Check,
 } from "@phosphor-icons/react";
 
 /** 1–2: loan + income · 3: Singpass vs manual · 4–6: personal details · 7: bankruptcy declaration · 8: review & submit */
@@ -150,6 +152,8 @@ interface FormData {
   mailingAddress: string;
   secondaryMobile: string;
   bankruptcyDeclaration: "" | "clear" | "discharged_lt5" | "active";
+  maritalStatus: string;
+  email: string;
 }
 
 const initialFormData: FormData = {
@@ -173,6 +177,8 @@ const initialFormData: FormData = {
   mailingAddress: "",
   secondaryMobile: "",
   bankruptcyDeclaration: "",
+  maritalStatus: "Single",
+  email: "tanweiliang@gmail.com",
 };
 
 function StepIndicator({
@@ -574,6 +580,7 @@ export function LoanApplicationForm() {
         {step === 8 && (
           <Step8_Review
             formData={formData}
+            updateField={updateField}
             monthlyRepayment={monthlyRepayment}
             onModalOpenChange={setIsLegalModalOpen}
           />
@@ -2185,12 +2192,81 @@ function Step7_BankruptcyDeclaration({
   );
 }
 
+function EditableReviewRow({
+  label,
+  value,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const commit = useCallback(() => {
+    const trimmed = draft.trim();
+    if (trimmed) onSave(trimmed);
+    else setDraft(value);
+    setEditing(false);
+  }, [draft, onSave, value]);
+
+  React.useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 text-sm">
+      <span className="text-[var(--text-tertiary)]">{label}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        {editing ? (
+          <>
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+              className="w-36 sm:w-44 rounded-[var(--radius-sm)] border border-brand-blue bg-[var(--surface-elevated)] px-2 py-1 text-right text-sm font-medium text-[var(--text-primary)] outline-none ring-2 ring-brand-blue/10"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commit(); }}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-blue transition-all hover:brightness-110"
+              aria-label="Save"
+            >
+              <Check size={12} weight="bold" className="text-white" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="font-medium text-[var(--text-primary)] text-right max-w-[180px] truncate">
+              {value || "—"}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setDraft(value); setEditing(true); }}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface-secondary)] text-[var(--text-tertiary)] transition-all duration-150 hover:border-[var(--border-medium)] hover:text-brand-blue active:scale-95"
+              aria-label={`Edit ${label}`}
+            >
+              <PencilSimple size={12} weight="bold" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Step8_Review({
   formData,
+  updateField,
   monthlyRepayment,
   onModalOpenChange,
 }: {
   formData: FormData;
+  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
   monthlyRepayment: number;
   onModalOpenChange?: (open: boolean) => void;
 }) {
@@ -2213,62 +2289,35 @@ function Step8_Review({
         ? "Manual form"
         : "—";
 
-  const sections = [
+  const loanRows = [
+    { label: "Amount", value: formatCurrency(formData.amount) },
+    { label: "Tenure", value: `${formData.tenure} months` },
+    { label: "Monthly instalment", value: formatCurrency(monthlyRepayment) },
+    { label: "Urgency", value: URGENCY_OPTIONS.find((o) => o.value === formData.urgency)?.label ?? "—" },
+    { label: "Monthly income", value: formData.monthlyIncome ? formatCurrency(parseInt(formData.monthlyIncome, 10) || 0) : "—" },
+    { label: "Verification", value: authLabel },
+  ];
+
+  const personalStaticRows = [
+    { label: "ID Type", value: ID_TYPE_OPTIONS.find((o) => o.value === formData.idType)?.label ?? "—" },
+    { label: "Name", value: formData.fullName || "—" },
+    { label: "NRIC / FIN", value: formData.nric ? `${formData.nric.slice(0, 1)}****${formData.nric.slice(-1)}` : "—" },
+    { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
+    ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
+    ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
+  ];
+
+  const declarationRows = [
     {
-      icon: CurrencyDollar,
-      title: "Loan & income",
-      rows: [
-        { label: "Amount", value: formatCurrency(formData.amount) },
-        { label: "Tenure", value: `${formData.tenure} months` },
-        { label: "Monthly instalment", value: formatCurrency(monthlyRepayment) },
-        {
-          label: "Urgency",
-          value:
-            URGENCY_OPTIONS.find((o) => o.value === formData.urgency)?.label ??
-            "—",
-        },
-        {
-          label: "Monthly income",
-          value: formData.monthlyIncome
-            ? formatCurrency(parseInt(formData.monthlyIncome, 10) || 0)
-            : "—",
-        },
-        { label: "Verification", value: authLabel },
-      ],
-    },
-    {
-      icon: User,
-      title: "Personal Info",
-      rows: [
-        {
-          label: "ID Type",
-          value:
-            ID_TYPE_OPTIONS.find((o) => o.value === formData.idType)?.label ??
-            "—",
-        },
-        { label: "Name", value: formData.fullName || "—" },
-        { label: "NRIC / FIN", value: formData.nric ? `${formData.nric.slice(0, 1)}****${formData.nric.slice(-1)}` : "—" },
-        { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
-        ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
-        ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
-      ],
-    },
-    {
-      icon: ShieldCheck,
-      title: "Declaration",
-      rows: [
-        {
-          label: "Bankruptcy / DRS",
-          value:
-            formData.bankruptcyDeclaration === "clear"
-              ? "Not bankrupt / DRS"
-              : formData.bankruptcyDeclaration === "discharged_lt5"
-                ? "Discharged (< 5 yrs)"
-                : formData.bankruptcyDeclaration === "active"
-                  ? "Currently bankrupt / DRS"
-                  : "—",
-        },
-      ],
+      label: "Bankruptcy / DRS",
+      value:
+        formData.bankruptcyDeclaration === "clear"
+          ? "Not bankrupt / DRS"
+          : formData.bankruptcyDeclaration === "discharged_lt5"
+            ? "Discharged (< 5 yrs)"
+            : formData.bankruptcyDeclaration === "active"
+              ? "Currently bankrupt / DRS"
+              : "—",
     },
   ];
 
@@ -2281,33 +2330,63 @@ function Step8_Review({
       />
 
       <div className="flex flex-col gap-5">
-        {sections.map(({ icon: SectionIcon, title, rows }) => (
-          <div key={title}>
-            <div className="mb-2 flex items-center gap-2">
-              <SectionIcon
-                size={16}
-                weight="duotone"
-                className="text-brand-blue"
-              />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                {title}
-              </span>
-            </div>
-            <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-              {rows.map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between px-4 py-3 text-sm"
-                >
-                  <span className="text-[var(--text-tertiary)]">{label}</span>
-                  <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {/* Loan & income */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <CurrencyDollar size={16} weight="duotone" className="text-brand-blue" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Loan &amp; income</span>
           </div>
-        ))}
+          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            {loanRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Personal Info — with editable Marital Status + Email */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <User size={16} weight="duotone" className="text-brand-blue" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Personal Info</span>
+          </div>
+          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            {personalStaticRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
+              </div>
+            ))}
+            <EditableReviewRow
+              label="Marital Status"
+              value={formData.maritalStatus}
+              onSave={(v) => updateField("maritalStatus", v)}
+            />
+            <EditableReviewRow
+              label="Email"
+              value={formData.email}
+              onSave={(v) => updateField("email", v)}
+            />
+          </div>
+        </div>
+
+        {/* Declaration */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <ShieldCheck size={16} weight="duotone" className="text-brand-blue" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Declaration</span>
+          </div>
+          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            {declarationRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-[var(--radius-md)] bg-brand-teal/[0.06] px-4 py-3">
