@@ -224,7 +224,7 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
 
         {/* ── On the day instructions ─────────────────────────────── */}
         <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
             When you arrive
           </p>
           <ol className="flex flex-col gap-4">
