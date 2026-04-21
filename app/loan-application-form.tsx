@@ -464,12 +464,6 @@ export function LoanApplicationForm({
         return;
       }
     }
-    // Singpass flow: skip step 6 (additional details) after contact step
-    if (step === 5 && formData.authMethod === "singpass") {
-      navigateTo(7);
-      scrollToTop();
-      return;
-    }
     if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
   }, [step, formData.monthlyIncome, formData.authMethod, incomeHighWarningShown, navigateTo, scrollToTop]);
 
@@ -545,7 +539,7 @@ export function LoanApplicationForm({
           <Step3_SingpassGate
             onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
             onSingpass={() => {
-              // Simulate Singpass Myinfo prefill — go to contact step (5) before bankruptcy (7)
+              // Singpass Myinfo prefill — jump straight to Review (step 8)
               setFormData((prev) => ({
                 ...prev,
                 authMethod: "singpass",
@@ -557,8 +551,9 @@ export function LoanApplicationForm({
                 loanPurpose: "personal",
                 postalCode: "179094",
                 address: "1 North Bridge Road #08-01",
+                bankruptcyDeclaration: "clear",
               }));
-              navigateTo(5);
+              navigateTo(8);
               scrollToTop();
             }}
             onManual={() => {
@@ -654,7 +649,7 @@ export function LoanApplicationForm({
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
               <ShieldCheck size={18} weight="bold" />
-              Submit Application
+              Yes, I confirm
             </button>
           )}
         </div>
@@ -2333,7 +2328,7 @@ function Step8_Review({
       <StepHeader
         icon={ShieldCheck}
         title="Review your application"
-        subtitle="Please make sure everything looks correct before submitting."
+        subtitle="Please confirm everything is correct before submitting."
       />
 
       <div className="flex flex-col gap-5">
