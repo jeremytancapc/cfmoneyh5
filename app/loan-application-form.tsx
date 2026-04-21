@@ -32,6 +32,7 @@ import {
   WarningCircle,
   ArrowDown,
   X,
+  WhatsappLogo,
 } from "@phosphor-icons/react";
 
 /** 1–2: loan + income · 3: Singpass vs manual · 4–6: personal details · 7: bankruptcy declaration · 8: review & submit */
@@ -451,8 +452,14 @@ export function LoanApplicationForm() {
         return;
       }
     }
+    // Singpass flow: skip step 6 (additional details) after contact step
+    if (step === 5 && formData.authMethod === "singpass") {
+      navigateTo(7);
+      scrollToTop();
+      return;
+    }
     if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
-  }, [step, formData.monthlyIncome, incomeHighWarningShown, navigateTo, scrollToTop]);
+  }, [step, formData.monthlyIncome, formData.authMethod, incomeHighWarningShown, navigateTo, scrollToTop]);
 
   const handleBack = useCallback(() => {
     // Pop the history stack so Back always returns to where the user actually
@@ -525,7 +532,7 @@ export function LoanApplicationForm() {
           <Step3_SingpassGate
             onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
             onSingpass={() => {
-              // Simulate Singpass Myinfo prefill — jump to bankruptcy declaration (step 7)
+              // Simulate Singpass Myinfo prefill — go to contact step (5) before bankruptcy (7)
               setFormData((prev) => ({
                 ...prev,
                 authMethod: "singpass",
@@ -533,12 +540,12 @@ export function LoanApplicationForm() {
                 fullName: "Tan Wei Liang",
                 nric: "S8912345D",
                 monthlyIncome: prev.monthlyIncome || "5500",
-                mobile: "91234567",
+                mobile: "",
                 loanPurpose: "personal",
                 postalCode: "179094",
                 address: "1 North Bridge Road #08-01",
               }));
-              navigateTo(7);
+              navigateTo(5);
               scrollToTop();
             }}
             onManual={() => {
@@ -1132,11 +1139,29 @@ function Step6_Contact({
 }) {
   return (
     <div>
-      <StepHeader
-        icon={Phone}
-        title="How can we reach you?"
-        subtitle="We'll contact you regarding your loan status and details"
-      />
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 sm:block">
+          <div className="flex items-center gap-2 sm:mb-3">
+            <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06]">
+              <Phone size={18} weight="duotone" className="text-brand-blue sm:hidden" />
+              <Phone size={22} weight="duotone" className="text-brand-blue hidden sm:block" />
+            </div>
+            <div
+              className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)]"
+              style={{ background: "oklch(0.72 0.19 145 / 0.10)" }}
+            >
+              <WhatsappLogo size={18} weight="duotone" className="sm:hidden" style={{ color: "#25D366" }} />
+              <WhatsappLogo size={22} weight="duotone" className="hidden sm:block" style={{ color: "#25D366" }} />
+            </div>
+          </div>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+            How can we reach you?
+          </h2>
+        </div>
+        <p className="mt-3 text-base leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
+          We&apos;ll contact you regarding your loan status and details
+        </p>
+      </div>
 
       <div className="flex flex-col gap-5">
         <InputField
@@ -2031,14 +2056,6 @@ function Step7_BankruptcyDeclaration({
   const isDischarged = formData.bankruptcyDeclaration === "discharged_lt5";
   const isActive     = formData.bankruptcyDeclaration === "active";
 
-  const cardShadow = [
-    "0 2px 4px oklch(0.18 0.16 260 / 0.18)",
-    "0 8px 16px oklch(0.22 0.16 260 / 0.28)",
-    "0 20px 40px oklch(0.26 0.14 260 / 0.36)",
-    "0 40px 64px oklch(0.18 0.12 260 / 0.22)",
-    "inset 0 1px 0 oklch(1 0 0 / 0.12)",
-  ].join(", ");
-
   return (
     <div>
       <StepHeader
@@ -2047,103 +2064,118 @@ function Step7_BankruptcyDeclaration({
         subtitle="We're required to verify your bankruptcy and debt repayment status before proceeding."
       />
 
-      <div
-        className="rounded-[var(--radius-lg)] px-5 py-5"
-        style={{ background: "var(--brand-blue-hex)", boxShadow: cardShadow }}
-      >
-        <div className="mb-1 flex items-center justify-between">
-          <span className="text-base font-bold text-white">What is your current status?</span>
-          <span className="text-xs text-white/60">Select one</span>
-        </div>
-        <p className="mb-3 text-sm text-white/70">
-          Select the option that applies to you as of today.
-        </p>
+      <div className="flex flex-col gap-5">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-base font-medium text-[var(--text-primary)]">
+              What is your current status?
+            </label>
+            <span className="text-xs text-[var(--text-tertiary)]">Select one</span>
+          </div>
+          <p className="mb-3 text-sm text-[var(--text-secondary)]">
+            Select the option that applies to you as of today.
+          </p>
 
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              updateField("bankruptcyDeclaration", "clear");
-              setTimeout(() => onClear?.(), 50);
-            }}
-            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
-            style={{
-              borderColor: isClear ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.25)",
-              background:  isClear ? "oklch(0.50 0.15 145 / 0.30)" : "rgba(255,255,255,0.1)",
-            }}
-          >
-            <span
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+          <div className="flex flex-col gap-2.5">
+            {/* Not bankrupt option — green when selected */}
+            <button
+              type="button"
+              onClick={() => {
+                updateField("bankruptcyDeclaration", "clear");
+                setTimeout(() => onClear?.(), 50);
+              }}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
               style={{
-                borderColor: isClear ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.5)",
-                background:  isClear ? "oklch(0.55 0.18 145)" : "transparent",
+                borderColor: isClear ? "oklch(0.55 0.15 145)" : "var(--border-subtle)",
+                background:  isClear ? "oklch(0.55 0.15 145 / 0.06)" : "var(--surface-elevated)",
               }}
             >
-              {isClear && <CheckCircle size={14} weight="fill" color="white" />}
-            </span>
-            <span className="text-sm font-semibold" style={{ color: isClear ? "oklch(0.95 0.06 145)" : "white" }}>
-              I am NOT bankrupt, under DRS or self-exclusion as of this application.
-            </span>
-          </button>
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: isClear ? "oklch(0.55 0.15 145)" : "var(--border-medium)",
+                  background:  isClear ? "oklch(0.55 0.15 145)" : "transparent",
+                }}
+              >
+                {isClear && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: isClear ? "oklch(0.40 0.12 145)" : "var(--text-primary)" }}
+              >
+                I am NOT bankrupt, under DRS or self-exclusion as of this application.
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
-            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
-            style={{
-              borderColor: isDischarged ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.25)",
-              background:  isDischarged ? "oklch(0.50 0.15 145 / 0.30)" : "rgba(255,255,255,0.08)",
-            }}
-          >
-            <span
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+            {/* Discharged bankrupt option — blue when selected */}
+            <button
+              type="button"
+              onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
               style={{
-                borderColor: isDischarged ? "oklch(0.75 0.17 145)" : "rgba(255,255,255,0.5)",
-                background:  isDischarged ? "oklch(0.55 0.18 145)" : "transparent",
+                borderColor: isDischarged ? "var(--brand-blue-hex)" : "var(--border-subtle)",
+                background:  isDischarged ? "oklch(0.32 0.14 260 / 0.06)" : "var(--surface-elevated)",
               }}
             >
-              {isDischarged && <CheckCircle size={14} weight="fill" color="white" />}
-            </span>
-            <span className="text-sm" style={{ color: isDischarged ? "oklch(0.95 0.06 145)" : "rgba(255,255,255,0.85)" }}>
-              I am a discharged bankrupt (less than 5 years ago)
-            </span>
-          </button>
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: isDischarged ? "var(--brand-blue-hex)" : "var(--border-medium)",
+                  background:  isDischarged ? "var(--brand-blue-hex)" : "transparent",
+                }}
+              >
+                {isDischarged && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm"
+                style={{ color: isDischarged ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
+              >
+                I am a discharged bankrupt (less than 5 years ago)
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => updateField("bankruptcyDeclaration", "active")}
-            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
-            style={{
-              borderColor: isActive ? "oklch(0.85 0.15 25)" : "rgba(255,255,255,0.25)",
-              background:  isActive ? "oklch(0.55 0.20 25 / 0.25)" : "rgba(255,255,255,0.08)",
-            }}
-          >
-            <span
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+            {/* Active bankruptcy / DRS option */}
+            <button
+              type="button"
+              onClick={() => updateField("bankruptcyDeclaration", "active")}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
               style={{
-                borderColor: isActive ? "oklch(0.85 0.15 25)" : "rgba(255,255,255,0.5)",
-                background:  isActive ? "oklch(0.55 0.20 25)" : "transparent",
+                borderColor: isActive ? "oklch(0.65 0.18 25)" : "var(--border-subtle)",
+                background:  isActive ? "oklch(0.65 0.18 25 / 0.06)" : "var(--surface-elevated)",
               }}
             >
-              {isActive && <CheckCircle size={14} weight="fill" color="white" />}
-            </span>
-            <span className="text-sm" style={{ color: isActive ? "oklch(0.95 0.10 25)" : "rgba(255,255,255,0.85)" }}>
-              I am currently under bankruptcy / DRS status
-            </span>
-          </button>
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: isActive ? "oklch(0.65 0.18 25)" : "var(--border-medium)",
+                  background:  isActive ? "oklch(0.65 0.18 25)" : "transparent",
+                }}
+              >
+                {isActive && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm"
+                style={{ color: isActive ? "oklch(0.40 0.15 25)" : "var(--text-secondary)" }}
+              >
+                I am currently under bankruptcy / DRS status
+              </span>
+            </button>
+          </div>
         </div>
 
         {isDischarged && (
-          <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.75_0.17_145_/_0.4)] bg-[oklch(0.50_0.15_145_/_0.2)] px-4 py-3">
-            <p className="text-xs leading-relaxed text-[oklch(0.95_0.06_145)]">
+          <div className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-blue-200 bg-blue-50 px-4 py-3">
+            <Warning size={16} weight="fill" className="mt-0.5 shrink-0 text-brand-blue" />
+            <p className="text-sm text-brand-blue leading-snug">
               Please bring along your bankruptcy/DRS discharge letter to the appointment.
             </p>
           </div>
         )}
 
         {isActive && (
-          <div className="mt-3 rounded-[var(--radius-md)] border border-[oklch(0.85_0.15_25_/_0.4)] bg-[oklch(0.55_0.20_25_/_0.2)] px-4 py-3">
-            <p className="text-xs leading-relaxed text-[oklch(0.95_0.10_25)]">
+          <div className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3">
+            <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-red-500" />
+            <p className="text-sm text-red-700 leading-snug">
               We are currently not able to issue loans if you are not discharged from bankruptcy or DRS status.
             </p>
           </div>
