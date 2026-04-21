@@ -4,7 +4,7 @@ import { SidebarTrustFeatures } from "../sidebar-trust-features";
 
 const FOREIGNER_REMINDERS = [
   "I understand I need to bring my latest 3 months payslip and proof of residence letter which shows my name and local residential address (e.g. bank statement / utility bill).",
-  "I understand that my work pass needs to have more than 3 months validity remaining.",
+  "I understand my work pass has more than 3 months validity remaining, or I will bring my pass renewal IPA letter.",
 ];
 
 export default function ForeignerPage() {
