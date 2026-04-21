@@ -371,14 +371,14 @@ export function LoanResults({
                   key={index}
                   type="button"
                   onClick={() => toggleItem(index)}
-                  className="flex w-full items-start gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
                   style={{
                     borderColor: checked ? "var(--brand-blue-hex)" : "var(--border-subtle)",
                     background: checked ? "oklch(0.32 0.14 260 / 0.06)" : "var(--surface-elevated)",
                   }}
                 >
                   <span
-                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
                     style={{
                       borderColor: checked ? "var(--brand-blue-hex)" : "var(--border-medium)",
                       background: checked ? "var(--brand-blue-hex)" : "transparent",
