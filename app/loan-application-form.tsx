@@ -464,8 +464,25 @@ export function LoanApplicationForm({
         return;
       }
     }
+    // After identity (step 4), jump straight to review
+    if (step === 4) {
+      navigateTo(8);
+      scrollToTop();
+      return;
+    }
+    // Post-review: contact → bankruptcy
+    if (step === 5 && history.includes(8)) {
+      navigateTo(7);
+      scrollToTop();
+      return;
+    }
+    // Post-review: bankruptcy → submit
+    if (step === 7 && history.includes(8)) {
+      handleSubmit();
+      return;
+    }
     if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
-  }, [step, formData.monthlyIncome, formData.authMethod, incomeHighWarningShown, navigateTo, scrollToTop]);
+  }, [step, formData.monthlyIncome, incomeHighWarningShown, history, navigateTo, scrollToTop, handleSubmit]);
 
   const handleBack = useCallback(() => {
     // Pop the history stack so Back always returns to where the user actually
@@ -631,7 +648,29 @@ export function LoanApplicationForm({
             </button>
           )}
 
-          {step < TOTAL_STEPS ? (
+          {step === TOTAL_STEPS ? (
+            // Review page — "Yes, I confirm" leads into contact → bankruptcy → submit
+            <button
+              type="button"
+              onClick={() => { navigateTo(5); scrollToTop(); }}
+              disabled={mounted && !canProceed}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ShieldCheck size={18} weight="bold" />
+              Yes, I confirm
+            </button>
+          ) : step === 7 && history.includes(8) ? (
+            // Post-review bankruptcy step — final submit
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={mounted && !canProceed}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ShieldCheck size={18} weight="bold" />
+              Submit Application
+            </button>
+          ) : (
             <button
               type="button"
               onClick={handleNext}
@@ -640,16 +679,6 @@ export function LoanApplicationForm({
             >
               Continue
               <ArrowRight size={16} weight="bold" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={mounted && !canProceed}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <ShieldCheck size={18} weight="bold" />
-              Yes, I confirm
             </button>
           )}
         </div>
