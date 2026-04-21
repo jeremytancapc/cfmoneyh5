@@ -11,9 +11,6 @@ import {
   ArrowLeft,
   Train,
   Car,
-  UserCircle,
-  QrCode,
-  ListNumbers,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD)
@@ -232,28 +229,19 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
           </p>
           <ol className="flex flex-col gap-4">
             {[
-              {
-                icon: UserCircle,
-                text: "Sign in via Singpass at our counter, a QR code will be generated on your phone.",
-              },
-              {
-                icon: QrCode,
-                text: "Scan the QR code against our scanner at the main door to receive your queue number.",
-              },
-              {
-                icon: ListNumbers,
-                text: "Take a seat and wait for your queue number to be called.",
-              },
-            ].map(({ icon: Icon, text }, i) => (
+              "Sign in via Singpass at our counter, a QR code will be generated on your phone.",
+              "Scan the QR code against our scanner at the main door to receive your queue number.",
+              "Take a seat and wait for your queue number to be called.",
+            ].map((text, i) => (
               <li key={i} className="flex items-start gap-3">
                 <div
-                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                   style={{
                     background: "oklch(0.32 0.14 260 / 0.08)",
                     color: "var(--brand-blue-hex)",
                   }}
                 >
-                  <Icon size={15} weight="duotone" />
+                  <span className="text-xs font-bold">{i + 1}</span>
                 </div>
                 <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{text}</p>
               </li>
