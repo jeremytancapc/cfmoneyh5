@@ -456,6 +456,11 @@ export function LoanApplicationForm({
     requestAnimationFrame(tick);
   }, []);
 
+  const handleSubmit = useCallback(() => {
+    setPostSubmitPhase("loading");
+    scrollToTop();
+  }, [scrollToTop]);
+
   const handleNext = useCallback(() => {
     if (step === 2) {
       const incomeNum = parseInt(formData.monthlyIncome, 10);
@@ -492,11 +497,6 @@ export function LoanApplicationForm({
       scrollToTop();
     }
   }, [history, scrollToTop]);
-
-  const handleSubmit = useCallback(() => {
-    setPostSubmitPhase("loading");
-    scrollToTop();
-  }, [scrollToTop]);
 
   const handleLoadingComplete = useCallback(() => {
     setPostSubmitPhase("results");
