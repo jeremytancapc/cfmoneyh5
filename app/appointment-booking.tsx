@@ -233,9 +233,9 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
               "Scan the QR code against our scanner at the main door to receive your queue number.",
               "Take a seat and wait for your queue number to be called.",
             ].map((text, i) => (
-              <li key={i} className="flex items-start gap-3">
+              <li key={i} className="flex items-center gap-3">
                 <div
-                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                   style={{
                     background: "oklch(0.32 0.14 260 / 0.08)",
                     color: "var(--brand-blue-hex)",
@@ -252,7 +252,7 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
 
         {thingsToBring.length > 0 && (
           <div
-            className="flex flex-col gap-4 rounded-[var(--radius-lg)] px-5 py-5"
+            className="flex flex-col gap-4 rounded-[var(--radius-lg)] px-5 py-5 text-left"
             style={{ background: "var(--brand-blue-hex)" }}
           >
             <p className="text-xs font-bold uppercase tracking-wider text-white">
@@ -260,9 +260,9 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
             </p>
             <ul className="flex flex-col gap-4">
               {thingsToBring.map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
+                <li key={i} className="flex items-center gap-3">
                   <div
-                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                     style={{ background: "oklch(1 0 0 / 0.15)" }}
                   >
                     <span className="text-xs font-bold text-white">{i + 1}</span>
