@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   },
   description:
     "Apply for a personal loan in minutes. Get approved by a licensed money lender in Singapore.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({
