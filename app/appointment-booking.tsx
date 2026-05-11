@@ -52,6 +52,20 @@ function toISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Deterministic urgency indicator — same result for the same date+slot combo. */
+function slotUrgency(date: string, slot: string): "available" | "limited" {
+  const str = date + slot;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
+  }
+  const hour = parseInt(slot.split(":")[0], 10);
+  // Peak hours (11:00–14:00) have higher "limited" rate
+  const isPeak = hour >= 11 && hour <= 14;
+  const threshold = isPeak ? 45 : 22;
+  return (Math.abs(hash) % 100) < threshold ? "limited" : "available";
+}
+
 function isDisabledDate(date: Date): boolean {
   const dayOfWeek = date.getDay();
   if (dayOfWeek === 0) return true; // Sunday
@@ -537,16 +551,21 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
 
       {/* ── Time slots ─────────────────────────────────────────── */}
       {selectedDate && (
-        <div
-          className="animate-slide-in flex flex-col gap-3"
-        >
+        <div className="animate-slide-in flex flex-col gap-3">
           <p className="text-sm font-medium text-[var(--text-primary)]">
             Select a time
           </p>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {/* Scrollable confined list — outer div clips corners, inner scrolls */}
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
+          <div
+            className="overflow-y-auto"
+            style={{ maxHeight: 280 }}
+          >
             {TIME_SLOTS.map((slot, i) => {
               const disabled = isSlotDisabled(slot);
               const isSelected = selectedTime === slot;
+              const urgency = slotUrgency(selectedDate, slot);
+              const isLimited = !disabled && urgency === "limited";
 
               return (
                 <button
@@ -559,32 +578,67 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                       const el = confirmBtnRef.current;
                       if (!el) return;
                       const rect = el.getBoundingClientRect();
-                      const gap = 12; // px of whitespace below the button
+                      const gap = 12;
                       const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
                       window.scrollTo({ top: targetScrollY, behavior: "smooth" });
                     }, 0);
                   }}
-                  className="rounded-[var(--radius-md)] border py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.96]"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors duration-150 active:scale-[0.99]"
                   style={{
-                    borderColor: isSelected
-                      ? "var(--brand-blue-hex)"
-                      : "var(--border-subtle)",
                     background: isSelected
                       ? "var(--brand-blue-hex)"
-                      : "transparent",
-                    color: isSelected
-                      ? "#ffffff"
-                      : "var(--text-secondary)",
-                    opacity: disabled ? 0.3 : 1,
+                      : "var(--surface-elevated)",
+                    opacity: disabled ? 0.35 : 1,
                     pointerEvents: disabled ? "none" : "auto",
-                    animationDelay: `${i * 30}ms`,
+                    borderBottom: i < TIME_SLOTS.length - 1
+                      ? "1px solid var(--border-subtle)"
+                      : "none",
                   }}
                 >
-                  {formatDisplayTime(slot)}
+                  {/* Availability dot */}
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{
+                      background: isSelected
+                        ? "rgba(255,255,255,0.6)"
+                        : disabled
+                          ? "var(--border-medium)"
+                          : isLimited
+                            ? "#e07b4a"
+                            : "#4caf7d",
+                    }}
+                  />
+                  {/* Time label */}
+                  <span
+                    className="flex-1 text-left"
+                    style={{
+                      color: isSelected ? "#ffffff" : "var(--text-primary)",
+                    }}
+                  >
+                    {formatDisplayTime(slot)}
+                  </span>
+                  {/* Urgency badge */}
+                  {isLimited && !isSelected && (
+                    <span
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{
+                        background: "oklch(0.65 0.13 40 / 0.10)",
+                        color: "#c45c1a",
+                      }}
+                    >
+                      Limited
+                    </span>
+                  )}
+                  {isSelected && (
+                    <span className="shrink-0 text-xs font-semibold text-white/70">
+                      Selected
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+          </div>{/* end outer clip wrapper */}
         </div>
       )}
 
