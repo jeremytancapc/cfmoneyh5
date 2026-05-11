@@ -1,26 +1,17 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
-  Clock,
-  Headphones,
-  Bell,
-  Warning,
   NumberCircleOne,
   NumberCircleTwo,
   NumberCircleThree,
+  Ticket,
+  Door,
+  CurrencyDollar,
   type Icon,
 } from "@phosphor-icons/react";
 import { QueueUploadCard } from "./queue-upload-card";
-
-type QrState = "idle" | "active" | "expired";
-
-function formatCountdown(seconds: number): string {
-  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
-  const s = (seconds % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}
 
 export type Stage = "counter" | "room" | "cash";
 export type QueueStatusVariant = "waiting" | "in-progress" | "your-turn" | "missed";
@@ -37,54 +28,35 @@ export interface QueueStatusProps {
 
 // ─── Stage metadata ──────────────────────────────────────────────────────────
 
-const STAGE_META: Record<Stage, { label: string; number: number; Icon: Icon }> = {
-  counter: { label: "Counter", number: 1, Icon: NumberCircleOne },
-  room: { label: "Room", number: 2, Icon: NumberCircleTwo },
-  cash: { label: "Cash Disbursement", number: 3, Icon: NumberCircleThree },
+const STAGE_META: Record<Stage, { label: string; queueLabel: string; number: number; Icon: Icon; StageIcon: Icon }> = {
+  counter: { label: "Counter", queueLabel: "Counter Queue", number: 1, Icon: NumberCircleOne,   StageIcon: Ticket         },
+  room:    { label: "Room",    queueLabel: "Room Queue",    number: 2, Icon: NumberCircleTwo,    StageIcon: Door           },
+  cash:    { label: "Cash",    queueLabel: "Cash Queue",    number: 3, Icon: NumberCircleThree,  StageIcon: CurrencyDollar },
 };
 
-// ─── Status color tokens (oklch) ─────────────────────────────────────────────
-
-const STATUS_TOKENS = {
-  "waiting": {
-    chipBg: "oklch(0.94 0.04 260)",
-    chipText: "#0033AA",
-    pillBg: "oklch(0.94 0.04 260)",
-    pillText: "#0033AA",
-    footerText: "#0033AA",
-    boxBorder: "oklch(0.88 0.04 260)",
-    boxBg: "oklch(0.97 0.015 260)",
-  },
-  "in-progress": {
-    chipBg: "oklch(0.96 0.07 75)",
-    chipText: "oklch(0.45 0.18 55)",
-    pillBg: "oklch(0.55 0.18 55)",
-    pillText: "#ffffff",
-    footerText: "oklch(0.45 0.18 55)",
-    boxBorder: "oklch(0.85 0.09 75)",
-    boxBg: "oklch(0.98 0.04 75)",
-  },
-  "your-turn": {
-    chipBg: "oklch(0.94 0.08 155)",
-    chipText: "oklch(0.32 0.14 155)",
-    pillBg: "oklch(0.38 0.16 155)",
-    pillText: "#ffffff",
-    footerText: "oklch(0.38 0.16 155)",
-    boxBorder: "oklch(0.82 0.10 155)",
-    boxBg: "oklch(0.97 0.04 155)",
-  },
-  "missed": {
-    chipBg: "transparent",
-    chipText: "transparent",
-    pillBg: "oklch(0.95 0.04 20)",
-    pillText: "oklch(0.48 0.22 25)",
-    footerText: "oklch(0.48 0.22 25)",
-    boxBorder: "oklch(0.88 0.06 20)",
-    boxBg: "oklch(0.98 0.02 20)",
-  },
+const STATUS_GLOW: Partial<Record<QueueStatusVariant, string>> = {
+  waiting:       "#FCD34D",
+  "in-progress": "#16a34a",
+  "your-turn":   "#06DEC0",
+  missed:        "oklch(0.78 0.18 55)",
 };
 
-// ─── Singpass Modal ───────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Split "Room 1" → { text: "Room", num: "1" }, graceful fallback */
+function splitLocation(loc: string): { text: string; num: string } {
+  const match = /^(.*?)(\d+)\s*$/.exec(loc.trim());
+  if (match) return { text: match[1].trim(), num: match[2] };
+  return { text: loc, num: "" };
+}
+
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+// ─── Singpass modal ───────────────────────────────────────────────────────────
 
 function SingpassModal() {
   return (
@@ -100,7 +72,6 @@ function SingpassModal() {
           </strong>{" "}
           to complete the signing process.
         </p>
-
         <button
           type="button"
           className="flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] px-5 text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
@@ -130,19 +101,16 @@ export function QueueStatus({
   location,
   showSingpassModal = false,
 }: QueueStatusProps) {
-  const tokens = STATUS_TOKENS[status];
   const stageMeta = STAGE_META[stage];
-  const StageIcon = stageMeta.Icon;
-  const isMissed = status === "missed";
+  const isMissed  = status === "missed";
+  const isYourTurn = status === "your-turn";
+  const isInProgress = status === "in-progress";
+  const isWaiting = status === "waiting";
+  const loc = location ? splitLocation(location) : null;
 
-  const [qrState, setQrState] = useState<QrState>("idle");
+  const [qrState, setQrState] = useState<"idle" | "active" | "expired">("idle");
   const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-
-  const handleGenerateQr = useCallback(() => {
-    setQrExpiresAt(Date.now() + 15 * 1000);
-    setQrState("active");
-  }, []);
 
   useEffect(() => {
     if (qrExpiresAt === null) return;
@@ -156,291 +124,363 @@ export function QueueStatus({
     return () => clearInterval(id);
   }, [qrExpiresAt]);
 
+  const handleGenerateQr = useCallback(() => {
+    setQrExpiresAt(Date.now() + 15 * 1000);
+    setQrState("active");
+  }, []);
+
+  const STAGE_ORDER: Stage[] = ["counter", "room", "cash"];
+  const STAGE_SHORT: Record<Stage, string> = { counter: "Counter", room: "Room", cash: "Cash" };
+  const STAGE_NUM: Record<Stage, string>   = { counter: "01",      room: "02",   cash: "03"   };
+  const currentIdx = STAGE_ORDER.indexOf(stage);
+  const prevStage  = currentIdx > 0                        ? STAGE_ORDER[currentIdx - 1] : null;
+  const nextStage  = currentIdx < STAGE_ORDER.length - 1  ? STAGE_ORDER[currentIdx + 1] : null;
+
+  const hasLowerPanel = stage === "counter" || isMissed;
+
   return (
-    <div className="animate-fade-up flex flex-col gap-8 text-center sm:text-left">
-      {/* ── Customer name + stage pill ───────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <div>
-          <p className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-            Hello, {customerName}
+    <div className={`animate-fade-up flex flex-col${hasLowerPanel ? "" : " -mb-8 sm:-mb-8 lg:-mb-10"}`}>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          Blue hero
+          Mobile: bleeds to viewport edges via negative margins
+          lg+: contained block with rounded top corners
+      ════════════════════════════════════════════════════════════════ */}
+      <section
+        className={`relative -mx-5 mt-0 sm:-mx-8 lg:mx-0 lg:mt-0 overflow-hidden${hasLowerPanel ? " lg:rounded-t-[var(--radius-lg)]" : " lg:rounded-[var(--radius-lg)]"}`}
+        style={{ backgroundColor: "#0033AA" }}
+      >
+        {/* ── Address / meta block ─────────────────────────────────── */}
+        <div className="px-6 pt-7 sm:px-8 sm:pt-8">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/50">
+            Welcome
           </p>
-          {/* Stage pill */}
-          <div className="mt-2 flex justify-center sm:justify-start">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-              style={{
-                background: "oklch(0.32 0.14 260 / 0.07)",
-                color: "#0033AA",
-              }}
-            >
-              <StageIcon size={14} weight="bold" />
-              Stage {stageMeta.number} of 3 &middot; {stageMeta.label}
-            </span>
+          <p className="mt-0.5 font-display text-[15px] font-bold uppercase tracking-[0.08em] text-white leading-tight">
+            {customerName}
+          </p>
+
+          <div className="mt-4 flex flex-col gap-0.5">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/50">
+              Stage {String(stageMeta.number).padStart(2, "0")} / 03
+            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white">
+              {stageMeta.queueLabel}
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* ── Queue status card ──────────────────────────────────────────── */}
-      <div className="relative flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-white">
-        {/* Card header — blue gradient */}
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{
-            background: "linear-gradient(135deg, #0033AA 0%, #0055CC 100%)",
-          }}
-        >
-          {/* Green status dot — hidden on missed */}
-          <div
-            className="h-3 w-3 rounded-full transition-opacity duration-300"
-            style={{
-              background: isMissed ? "transparent" : "#22c55e",
-              boxShadow: isMissed
-                ? "none"
-                : "0 0 0 3px oklch(0.60 0.20 145 / 0.35)",
-            }}
-          />
-          <p className="font-display text-base font-bold text-white">
-            Queue Status
-          </p>
-          <div
-            className="h-3 w-3 rounded-full transition-opacity duration-300"
-            style={{
-              background: isMissed ? "transparent" : "#22c55e",
-              boxShadow: isMissed
-                ? "none"
-                : "0 0 0 3px oklch(0.60 0.20 145 / 0.35)",
-            }}
-          />
-        </div>
+        {/* ── Cards area — 3-col grid: prev stage | big card | next stage ── */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-3 pt-8 sm:gap-3 sm:px-7">
 
-        {/* Card body */}
-        <div className="flex flex-col items-center gap-5 px-5 py-7 text-center">
-          {/* QR code section */}
-          <div className="flex flex-col items-center gap-3 w-full">
-            <div>
-              <p className="font-display text-base font-bold tracking-tight text-[var(--text-primary)]">
-                {isMissed ? "Rescan QR Code" : "Check-in QR Code"}
-              </p>
-              {!isMissed && (
-                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {qrState === "idle" && (
-                    <>Only click <strong className="font-semibold text-[var(--text-primary)]">Show QR Code</strong> once you have arrived at our office.</>
-                  )}
-                  {qrState === "active" && (
-                    <><strong className="font-semibold text-[var(--text-primary)]">Scan this QR Code</strong> at our entrance scanner to generate your queue number.</>
-                  )}
-                  {qrState === "expired" && "Your QR code has expired. Generate a new one when you\u2019re ready to check in."}
-                </p>
+          {/* Left: previous (completed) stage chip */}
+          <div className="flex justify-end">
+            {prevStage ? (() => {
+              const SI = STAGE_META[prevStage].StageIcon;
+              return (
+                <div className="flex flex-col items-center">
+                  <SI size={24} weight="duotone" className="relative z-10 mb-1.5 text-white/35" />
+                  <div className="rounded-[var(--radius-sm)] bg-white px-3 py-2.5 text-center shadow-lg min-w-[52px]">
+                    <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                      {STAGE_NUM[prevStage]}
+                    </p>
+                    <p className="font-display text-[13px] font-black leading-none text-[var(--text-primary)] mt-0.5">
+                      {STAGE_SHORT[prevStage]}
+                    </p>
+                    <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.15em]" style={{ color: "oklch(0.52 0.18 155)" }}>
+                      Done
+                    </p>
+                  </div>
+                </div>
+              );
+            })() : <div />}
+          </div>
+
+          {/* Center: large black number card */}
+          <div className="flex flex-col items-center">
+            <stageMeta.StageIcon size={42} weight="duotone" className="relative z-10 mb-2 text-white" />
+
+            <div
+              className={`relative rounded-[var(--radius-md)] bg-[#111111] text-white px-5 pt-6 pb-4 sm:px-7 text-center shadow-2xl min-w-[140px] sm:min-w-[160px] flex flex-col items-center justify-center${STATUS_GLOW[status] ? " queue-card-glow" : ""}`}
+              style={STATUS_GLOW[status] ? ({ ["--glow-color" as string]: STATUS_GLOW[status] }) : undefined}
+            >
+
+              {/* ── waiting ── */}
+              {isWaiting && (
+                <>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
+                    You&rsquo;re Number
+                  </p>
+                  <p className="font-display text-[56px] sm:text-[72px] font-black leading-none mt-2 tracking-tight">
+                    {queueNumber}
+                  </p>
+                  <div className="mt-2 flex items-center justify-center gap-1.5">
+                    <span
+                      className="h-2 w-2 rounded-full animate-pulse"
+                      style={{
+                        backgroundColor: "#FCD34D",
+                        boxShadow: "0 0 8px 2px rgba(252,211,77,0.5)",
+                      }}
+                    />
+                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">
+                      Waiting
+                    </span>
+                  </div>
+                </>
               )}
+
+              {/* ── in-progress ── */}
+              {isInProgress && (
+                <>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
+                    In Service
+                  </p>
+                  <p className="font-display text-[56px] sm:text-[72px] font-black leading-none mt-2 tracking-tight">
+                    {queueNumber}
+                  </p>
+                  {loc && (
+                    <>
+                      <div className="mt-4 h-px w-8 mx-auto bg-white/20" />
+                      <p className="mt-3.5 text-[9px] font-semibold uppercase tracking-[0.24em] text-white/50">
+                        {loc.text || stageMeta.label}
+                      </p>
+                      {loc.num && (
+                        <p className="font-display text-xl font-bold mt-0.5 text-white/85">
+                          {loc.num}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* ── your-turn ── */}
+              {isYourTurn && (
+                <>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
+                    Your Number Is Up!
+                  </p>
+                  {loc ? (
+                    <>
+                      <p className="font-display text-base font-bold uppercase tracking-[0.12em] mt-3 text-white/80">
+                        {loc.text || stageMeta.label}
+                      </p>
+                      <p className="font-display text-[52px] sm:text-[64px] font-black leading-none mt-1 tracking-tight">
+                        {loc.num || queueNumber}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="font-display text-[56px] sm:text-[72px] font-black leading-none mt-2 tracking-tight">
+                      {queueNumber}
+                    </p>
+                  )}
+                  {/* Teal pulse dot */}
+                  <div className="mt-4 flex items-center justify-center gap-1.5">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{
+                        backgroundColor: "#06DEC0",
+                        boxShadow: "0 0 8px 2px rgba(6,222,192,0.45)",
+                      }}
+                    />
+                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">
+                      Ready
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* ── missed ── */}
               {isMissed && (
-                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                  Rescan to rejoin the queue.
-                </p>
+                <>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
+                    Queue Status
+                  </p>
+                  <p
+                    className="font-display text-4xl font-black leading-none mt-3 tracking-tight"
+                    style={{ color: "oklch(0.78 0.18 55)" }}
+                  >
+                    Missed
+                  </p>
+                  <p className="mt-3 text-[9px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                    Rescan to rejoin
+                  </p>
+                </>
               )}
             </div>
+          </div>
 
-            {/* QR image */}
-            <div className="relative rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-              <img
-                src="/images/qr-placeholder.png"
-                alt="Check-in QR code"
-                width={150}
-                height={150}
-                className="block transition-all duration-300"
-                style={{
-                  imageRendering: "pixelated",
-                  filter: (isMissed || qrState === "active") ? "none" : "blur(6px) grayscale(0.4)",
-                }}
-              />
-
-              {/* Idle overlay — "Show QR Code" button */}
-              {!isMissed && qrState === "idle" && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
-                  <button
-                    type="button"
-                    onClick={handleGenerateQr}
-                    className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
-                  >
-                    Show QR Code
-                  </button>
+          {/* Right: next (upcoming) stage chip */}
+          <div className="flex justify-start">
+            {nextStage ? (() => {
+              const SI = STAGE_META[nextStage].StageIcon;
+              return (
+                <div className="flex flex-col items-center">
+                  <SI size={24} weight="duotone" className="relative z-10 mb-1.5 text-white/25" />
+                  <div className="rounded-[var(--radius-sm)] bg-white/70 px-3 py-2.5 text-center shadow-lg min-w-[52px]">
+                    <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                      {STAGE_NUM[nextStage]}
+                    </p>
+                    <p className="font-display text-[13px] font-black leading-none text-[var(--text-secondary)] mt-0.5">
+                      {STAGE_SHORT[nextStage]}
+                    </p>
+                    <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                      Next
+                    </p>
+                  </div>
                 </div>
-              )}
+              );
+            })() : <div />}
+          </div>
+        </div>
 
-              {/* Expired overlay — EXPIRED stamp */}
-              {!isMissed && qrState === "expired" && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+        {/* ── Status footer inside hero ───────────────────────────── */}
+        <div className="relative z-20 mt-8 px-6 pb-4 text-center sm:px-8">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white">
+            {isWaiting && "Thank you for waiting · We will notify you"}
+            {isInProgress && "Service in progress"}
+            {isYourTurn && `Please proceed to your assigned ${stage === "room" ? "room" : "counter"}`}
+            {isMissed && "You've missed your turn!"}
+          </p>
+        </div>
+
+        {/* ── Tick ruler decoration ────────────────────────────────── */}
+        <div
+          aria-hidden
+          className="h-5"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to right, rgba(255,255,255,0.3) 0 1px, transparent 1px 10px)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
+            maskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
+          }}
+        />
+
+        {showSingpassModal && <SingpassModal />}
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          White lower panel — always shown for counter; shown for other
+          stages only when there is actionable content (missed QR or
+          your-turn location row).
+      ════════════════════════════════════════════════════════════════ */}
+      {(stage === "counter" || isMissed) && (
+        <div className={`-mx-5 sm:-mx-8 lg:mx-0 lg:rounded-b-[var(--radius-lg)] border-x border-[var(--border-subtle)] bg-white px-5 pt-7 pb-8 sm:px-8${isMissed ? "" : " border-b"}`}>
+
+          {/* QR rescan block — missed status only */}
+          {isMissed && (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div>
+                <p className="font-display text-base font-bold text-[var(--text-primary)]">
+                  Scan the QR code below
+                </p>
+                {qrState === "idle" && (
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {"Only click "}
+                    <strong className="font-semibold text-[var(--text-primary)]">Rejoin Queue</strong>
+                    {" below once you're ready to get back in line."}
+                  </p>
+                )}
+                {qrState === "active" && (
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    <strong className="font-semibold text-[var(--text-primary)]">Scan this QR Code</strong> at the entrance scanner to rejoin the queue.
+                  </p>
+                )}
+                {qrState === "expired" && (
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {"Your QR code has expired. Generate a new one when you're ready."}
+                  </p>
+                )}
+              </div>
+
+              {/* QR image — blurred until active */}
+              <div className="relative rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+                <img
+                  src="/images/qr-placeholder.png"
+                  alt="Rejoin queue QR code"
+                  width={150}
+                  height={150}
+                  className="block transition-all duration-300"
+                  style={{
+                    imageRendering: "pixelated",
+                    filter: qrState === "active" ? "none" : "blur(6px) grayscale(0.4)",
+                  }}
+                />
+
+                {qrState === "idle" && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+                    <button
+                      type="button"
+                      onClick={handleGenerateQr}
+                      className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+                    >
+                      Rejoin Queue
+                    </button>
+                  </div>
+                )}
+
+                {qrState === "expired" && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
+                    <span
+                      className="select-none font-display text-2xl font-black uppercase tracking-widest"
+                      style={{
+                        color: "oklch(0.50 0.22 25)",
+                        border: "3px solid oklch(0.50 0.22 25)",
+                        padding: "4px 10px",
+                        borderRadius: 4,
+                        opacity: 0.85,
+                        transform: "rotate(-12deg)",
+                        letterSpacing: "0.15em",
+                      }}
+                    >
+                      EXPIRED
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Countdown while active */}
+              {qrState === "active" && (
+                <div
+                  className="flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-4 py-2.5 transition-colors duration-500"
+                  style={{
+                    borderColor: remainingSeconds <= 5 ? "oklch(0.75 0.15 55)" : "var(--border-subtle)",
+                    background: remainingSeconds <= 5 ? "oklch(0.98 0.04 75)" : "transparent",
+                  }}
+                >
                   <span
-                    className="select-none font-display text-2xl font-black uppercase tracking-widest"
-                    style={{
-                      color: "oklch(0.50 0.22 25)",
-                      border: "3px solid oklch(0.50 0.22 25)",
-                      padding: "4px 10px",
-                      borderRadius: 4,
-                      opacity: 0.85,
-                      transform: "rotate(-12deg)",
-                      letterSpacing: "0.15em",
-                    }}
+                    className="font-display text-2xl font-bold tabular-nums tracking-tight transition-colors duration-500"
+                    style={{ color: remainingSeconds <= 5 ? "oklch(0.55 0.18 45)" : "var(--text-primary)" }}
                   >
-                    EXPIRED
+                    {formatCountdown(remainingSeconds)}
+                  </span>
+                  <span
+                    className="text-xs font-medium transition-colors duration-500"
+                    style={{ color: remainingSeconds <= 5 ? "oklch(0.60 0.16 45)" : "var(--text-tertiary)" }}
+                  >
+                    {remainingSeconds <= 5 ? "Expiring soon" : "Time remaining"}
                   </span>
                 </div>
               )}
-            </div>
 
-            {/* Countdown timer when active */}
-            {!isMissed && qrState === "active" && (
-              <div
-                className="flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-4 py-2.5 transition-colors duration-500"
-                style={{
-                  borderColor: remainingSeconds <= 5 ? "oklch(0.75 0.15 55)" : "var(--border-subtle)",
-                  background: remainingSeconds <= 5 ? "oklch(0.98 0.04 75)" : "transparent",
-                }}
-              >
-                <span
-                  className="font-display text-2xl font-bold tabular-nums tracking-tight transition-colors duration-500"
-                  style={{ color: remainingSeconds <= 5 ? "oklch(0.55 0.18 45)" : "var(--text-primary)" }}
+              {/* Re-generate button when expired */}
+              {qrState === "expired" && (
+                <button
+                  type="button"
+                  onClick={handleGenerateQr}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
                 >
-                  {formatCountdown(remainingSeconds)}
-                </span>
-                <span
-                  className="text-xs font-medium transition-colors duration-500"
-                  style={{ color: remainingSeconds <= 5 ? "oklch(0.60 0.16 45)" : "var(--text-tertiary)" }}
-                >
-                  {remainingSeconds <= 5 ? "Expiring soon" : "Time remaining"}
-                </span>
-              </div>
-            )}
+                  Rejoin Queue
+                </button>
+              )}
 
-            {/* Regenerate button when expired */}
-            {!isMissed && qrState === "expired" && (
-              <button
-                type="button"
-                onClick={handleGenerateQr}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-              >
-                Show QR Code
-              </button>
-            )}
-
-          </div>
-
-          {/* Status action box */}
-          {status === "waiting" && (
-            <div className="flex w-full flex-col gap-4">
-              <div
-                className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] py-3.5"
-                style={{
-                  background: tokens.pillBg,
-                  border: `1px solid ${tokens.boxBorder}`,
-                }}
-              >
-                <Clock size={16} weight="duotone" style={{ color: tokens.pillText }} />
-                <span className="text-sm font-semibold" style={{ color: tokens.pillText }}>
-                  Waiting
-                </span>
-              </div>
-
-              <div
-                className="h-px w-full"
-                style={{ background: "var(--border-subtle)" }}
-              />
-
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Queue Position
-                </p>
-                <p
-                  className="font-display text-xl font-bold"
-                  style={{ color: tokens.chipText }}
-                >
-                  Next in Line
-                </p>
-              </div>
             </div>
           )}
 
-          {(status === "in-progress" || status === "your-turn") && location && (
-            <div
-              className="flex w-full flex-col items-center gap-2 rounded-[var(--radius-md)] border px-5 py-4"
-              style={{
-                background: tokens.boxBg,
-                borderColor: tokens.boxBorder,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                {status === "in-progress" ? (
-                  <Headphones size={15} weight="duotone" style={{ color: tokens.footerText }} />
-                ) : (
-                  <Bell size={15} weight="duotone" style={{ color: tokens.footerText }} />
-                )}
-                <span
-                  className="text-sm font-bold"
-                  style={{ color: tokens.footerText }}
-                >
-                  {status === "in-progress" ? "In Progress" : "Your Turn"}
-                </span>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)]">
-                {status === "in-progress" ? "Currently at" : "Kindly proceed to"}
-              </p>
-              <span
-                className="rounded-full px-5 py-1.5 text-sm font-bold"
-                style={{
-                  background: tokens.pillBg,
-                  color: tokens.pillText,
-                }}
-              >
-                {location}
-              </span>
-            </div>
-          )}
 
-          {isMissed && (
-            <div
-              className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] py-3.5"
-              style={{
-                background: tokens.pillBg,
-                border: `1px solid ${tokens.boxBorder}`,
-              }}
-            >
-              <Warning size={16} weight="duotone" style={{ color: tokens.pillText }} />
-              <span className="text-sm font-semibold" style={{ color: tokens.pillText }}>
-                Missed
-              </span>
-            </div>
-          )}
+          {/* Upload card — counter stage only, not when missed */}
+          {stage === "counter" && !isMissed && <QueueUploadCard />}
         </div>
-
-        {/* Footer message */}
-        <div
-          className="px-5 py-3.5 text-center text-xs font-medium leading-relaxed"
-          style={{
-            background: (() => {
-              if (status === "waiting") return "oklch(0.96 0.02 260)";
-              if (status === "in-progress") return "oklch(0.98 0.04 75)";
-              if (status === "your-turn") return "oklch(0.96 0.04 155)";
-              return "oklch(0.98 0.02 20)";
-            })(),
-            color: tokens.footerText,
-            borderTop: `1px solid ${tokens.boxBorder}`,
-          }}
-        >
-          {status === "waiting" &&
-            "Thank you for waiting. We will notify you when it\u2019s your turn."}
-          {status === "in-progress" && "Service in progress. Thank you for your patience"}
-          {status === "your-turn" && "Please proceed to your assigned location."}
-          {isMissed &&
-            "You\u2019ve missed your turn. Kindly rescan the QR code above to get back in line."}
-        </div>
-
-        {/* Singpass modal overlay */}
-        {showSingpassModal && <SingpassModal />}
-      </div>
-
-      {/* ── Document upload card ───────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-white px-6 py-6">
-        <QueueUploadCard />
-      </div>
+      )}
     </div>
   );
 }

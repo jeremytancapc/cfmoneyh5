@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
@@ -30,10 +31,14 @@ import {
   Warning,
   WarningCircle,
   ArrowDown,
+  X,
+  WhatsappLogo,
+  PencilSimple,
+  Check,
 } from "@phosphor-icons/react";
 
-/** 1–2: loan + income only · 3: Singpass vs manual · 4–8: personal details · 9: employment & declaration */
-const TOTAL_STEPS = 8;
+/** 1–2: loan + income · 3: Singpass vs manual · 4: identity · 8: review · 5: contact · 7: bankruptcy · 9: moneylender loans */
+const TOTAL_STEPS = 8; // review is still at internal step 8
 
 const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
 
@@ -106,6 +111,12 @@ const EMPLOYMENT_DURATION_OPTIONS = [
   { value: "10y_plus", label: "10 years and above" },
 ] as const;
 
+const PAYMENT_HISTORY_OPTIONS = [
+  { value: "bad_debt", label: "Bad Debt", emoji: "😰" },
+  { value: "average", label: "Average", emoji: "😐" },
+  { value: "on_time", label: "On-time", emoji: "😁" },
+] as const;
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-SG", {
     style: "currency",
@@ -147,6 +158,12 @@ interface FormData {
   mailingAddress: string;
   secondaryMobile: string;
   bankruptcyDeclaration: "" | "clear" | "discharged_lt5" | "active";
+  maritalStatus: string;
+  email: string;
+  // Step 9 — moneylender loans
+  moneylenderLoanAmount: string;
+  moneylenderNoLoans: boolean;
+  moneylenderPaymentHistory: string;
 }
 
 const initialFormData: FormData = {
@@ -170,6 +187,11 @@ const initialFormData: FormData = {
   mailingAddress: "",
   secondaryMobile: "",
   bankruptcyDeclaration: "",
+  maritalStatus: "Single",
+  email: "tanweiliang@gmail.com",
+  moneylenderLoanAmount: "",
+  moneylenderNoLoans: false,
+  moneylenderPaymentHistory: "",
 };
 
 function StepIndicator({
@@ -322,7 +344,13 @@ function SelectableChip({
 
 type PostSubmitPhase = "form" | "loading" | "results" | "booking";
 
-export function LoanApplicationForm() {
+export function LoanApplicationForm({
+  reminderItems = [],
+  thingsToBring = [],
+}: {
+  reminderItems?: string[];
+  thingsToBring?: string[];
+}) {
   // Navigation history stack — Back always pops, so non-linear jumps (e.g.
   // Singpass skipping steps 4-7) are correctly unwound on Back.
   const [history, setHistory] = useState<number[]>([1]);
@@ -378,15 +406,22 @@ export function LoanApplicationForm() {
       case 6:
         return true;
       case 7:
-        return true;
-      case 8:
         return (
-          formData.employmentStatus !== "" &&
-          formData.position !== "" &&
-          formData.employmentDuration !== "" &&
           formData.bankruptcyDeclaration !== "" &&
           formData.bankruptcyDeclaration !== "active"
         );
+      case 8:
+        return true;
+      case 9: {
+        const rawAmount = formData.moneylenderLoanAmount ?? "";
+        const hasAmount =
+          rawAmount.trim() !== "" &&
+          !Number.isNaN(parseInt(rawAmount, 10));
+        return (
+          formData.moneylenderNoLoans === true ||
+          (hasAmount && (formData.moneylenderPaymentHistory ?? "") !== "")
+        );
+      }
       default:
         return false;
     }
@@ -406,6 +441,7 @@ export function LoanApplicationForm() {
 
   const bottomCtaRef = useRef<HTMLDivElement>(null);
   const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
 
   useEffect(() => {
     const el = bottomCtaRef.current;
@@ -443,6 +479,11 @@ export function LoanApplicationForm() {
     requestAnimationFrame(tick);
   }, []);
 
+  const handleSubmit = useCallback(() => {
+    setPostSubmitPhase("loading");
+    scrollToTop();
+  }, [scrollToTop]);
+
   const handleNext = useCallback(() => {
     if (step === 2) {
       const incomeNum = parseInt(formData.monthlyIncome, 10);
@@ -451,8 +492,31 @@ export function LoanApplicationForm() {
         return;
       }
     }
+    // After identity (step 4), jump straight to review
+    if (step === 4) {
+      navigateTo(8);
+      scrollToTop();
+      return;
+    }
+    // Post-review: contact → bankruptcy
+    if (step === 5 && history.includes(8)) {
+      navigateTo(7);
+      scrollToTop();
+      return;
+    }
+    // Post-review: bankruptcy → moneylender loans
+    if (step === 7 && history.includes(8)) {
+      navigateTo(9);
+      scrollToTop();
+      return;
+    }
+    // Moneylender loans → submit
+    if (step === 9) {
+      handleSubmit();
+      return;
+    }
     if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
-  }, [step, formData.monthlyIncome, incomeHighWarningShown, navigateTo, scrollToTop]);
+  }, [step, formData.monthlyIncome, incomeHighWarningShown, history, navigateTo, scrollToTop, handleSubmit]);
 
   const handleBack = useCallback(() => {
     // Pop the history stack so Back always returns to where the user actually
@@ -463,11 +527,6 @@ export function LoanApplicationForm() {
     }
   }, [history, scrollToTop]);
 
-  const handleSubmit = useCallback(() => {
-    setPostSubmitPhase("loading");
-    scrollToTop();
-  }, [scrollToTop]);
-
   const handleLoadingComplete = useCallback(() => {
     setPostSubmitPhase("results");
     scrollToTop();
@@ -477,6 +536,15 @@ export function LoanApplicationForm() {
     setPostSubmitPhase("booking");
     scrollToTop();
   }, [scrollToTop]);
+
+  // Display step = position in the journey (history length), not the internal step number.
+  // Singpass path: 1→2→3→review→contact→bankruptcy→moneylender = 7 steps
+  // Manual path:   1→2→3→identity→review→contact→bankruptcy→moneylender = 8 steps
+  const displayStep = history.length;
+  const displayTotal = useMemo(() => {
+    if (formData.authMethod === "singpass") return 7;
+    return 8; // manual or not yet chosen
+  }, [formData.authMethod]);
 
   const sliderPercentage = useMemo(() => {
     return ((formData.amount - 500) / (30000 - 500)) * 100;
@@ -492,17 +560,18 @@ export function LoanApplicationForm() {
         formData={formData}
         monthlyRepayment={monthlyRepayment}
         onAccept={handleAcceptOffer}
+        reminderItems={reminderItems}
       />
     );
   }
 
   if (postSubmitPhase === "booking") {
-    return <AppointmentBooking formData={formData} onBack={() => { setPostSubmitPhase("results"); scrollToTop(); }} />;
+    return <AppointmentBooking formData={formData} onBack={() => { setPostSubmitPhase("results"); scrollToTop(); }} thingsToBring={thingsToBring} />;
   }
 
   return (
     <div>
-      <StepIndicator current={step} total={TOTAL_STEPS} />
+      <StepIndicator current={displayStep} total={displayTotal} />
 
       <div key={step} className="animate-slide-in">
         {step === 1 && (
@@ -525,7 +594,7 @@ export function LoanApplicationForm() {
           <Step3_SingpassGate
             onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
             onSingpass={() => {
-              // Simulate Singpass Myinfo prefill — jump straight to review
+              // Singpass Myinfo prefill — jump straight to Review (step 8)
               setFormData((prev) => ({
                 ...prev,
                 authMethod: "singpass",
@@ -533,12 +602,13 @@ export function LoanApplicationForm() {
                 fullName: "Tan Wei Liang",
                 nric: "S8912345D",
                 monthlyIncome: prev.monthlyIncome || "5500",
-                mobile: "91234567",
+                mobile: "",
                 loanPurpose: "personal",
                 postalCode: "179094",
                 address: "1 North Bridge Road #08-01",
+                bankruptcyDeclaration: "clear",
               }));
-              navigateTo(7);
+              navigateTo(8);
               scrollToTop();
             }}
             onManual={() => {
@@ -558,22 +628,30 @@ export function LoanApplicationForm() {
           <Step7_Additional formData={formData} updateField={updateField} />
         )}
         {step === 7 && (
-          <Step8_Review
+          <Step7_BankruptcyDeclaration
             formData={formData}
-            monthlyRepayment={monthlyRepayment}
+            updateField={updateField}
+            onClear={scrollToBottomCta}
           />
         )}
         {step === 8 && (
-          <Step9_EmploymentDeclaration
+          <Step8_Review
             formData={formData}
             updateField={updateField}
-            onBankruptcyClear={scrollToBottomCta}
+            monthlyRepayment={monthlyRepayment}
+            onModalOpenChange={setIsLegalModalOpen}
+          />
+        )}
+        {step === 9 && (
+          <Step9_MoneylenderLoans
+            formData={formData}
+            updateField={updateField}
           />
         )}
       </div>
 
       {/* ── Floating Continue button — outside animate-slide-in so fixed works ── */}
-      {step === 7 && !isBottomCtaVisible && (
+      {step === 8 && !isBottomCtaVisible && !isLegalModalOpen && (
         <>
           {/* Mobile: full-width pill */}
           <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-sm">
@@ -614,25 +692,48 @@ export function LoanApplicationForm() {
             </button>
           )}
 
-          {step < TOTAL_STEPS ? (
+          {step === TOTAL_STEPS ? (
+            // Review page — "Yes, I confirm" leads into contact → bankruptcy → moneylender → submit
+            <button
+              type="button"
+              onClick={() => { navigateTo(5); scrollToTop(); }}
+              disabled={mounted && !canProceed}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ShieldCheck size={18} weight="bold" />
+              Yes, I confirm
+            </button>
+          ) : step === 9 ? (
+            // Moneylender loans — final submit
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={mounted && !canProceed}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ShieldCheck size={18} weight="bold" />
+              Submit Application
+            </button>
+          ) : step === 7 && history.includes(8) ? (
+            // Post-review bankruptcy step — next (goes to moneylender loans)
             <button
               type="button"
               onClick={handleNext}
               disabled={mounted && !canProceed}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
-              {step === 8 ? "Confirm" : "Continue"}
+              Next
               <ArrowRight size={16} weight="bold" />
             </button>
           ) : (
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={handleNext}
               disabled={mounted && !canProceed}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
-              <ShieldCheck size={18} weight="bold" />
-              Submit Application
+              Continue
+              <ArrowRight size={16} weight="bold" />
             </button>
           )}
         </div>
@@ -1131,11 +1232,29 @@ function Step6_Contact({
 }) {
   return (
     <div>
-      <StepHeader
-        icon={Phone}
-        title="How can we reach you?"
-        subtitle="We'll contact you regarding your loan status and details"
-      />
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 sm:block">
+          <div className="flex items-center gap-2 sm:mb-3">
+            <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06]">
+              <Phone size={18} weight="duotone" className="text-brand-blue sm:hidden" />
+              <Phone size={22} weight="duotone" className="text-brand-blue hidden sm:block" />
+            </div>
+            <div
+              className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)]"
+              style={{ background: "oklch(0.72 0.19 145 / 0.10)" }}
+            >
+              <WhatsappLogo size={18} weight="duotone" className="sm:hidden" style={{ color: "#25D366" }} />
+              <WhatsappLogo size={22} weight="duotone" className="hidden sm:block" style={{ color: "#25D366" }} />
+            </div>
+          </div>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+            How can we reach you?
+          </h2>
+        </div>
+        <p className="mt-3 text-base leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
+          We&apos;ll contact you regarding your loan status and details
+        </p>
+      </div>
 
       <div className="flex flex-col gap-5">
         <InputField
@@ -1750,13 +1869,660 @@ function Step9_EmploymentDeclaration({
   );
 }
 
-function Step8_Review({
+// ─── Step 9: Moneylender Loans ────────────────────────────────────────────────
+
+function Step9_MoneylenderLoans({
   formData,
-  monthlyRepayment,
+  updateField,
 }: {
   formData: FormData;
-  monthlyRepayment: number;
+  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
 }) {
+  const rawAmount = formData.moneylenderLoanAmount ?? "";
+  const hasAmount =
+    rawAmount.trim() !== "" &&
+    !Number.isNaN(parseInt(rawAmount, 10));
+
+  return (
+    <div>
+      <StepHeader
+        icon={ChartLineUp}
+        title="Any moneylender loans?"
+        subtitle="Include any outstanding licensed moneylender balances."
+      />
+
+      <div className="flex flex-col gap-4">
+        {/* Amount input — always visible */}
+        <div className="flex flex-col gap-2">
+          <label className="text-base font-medium text-[var(--text-primary)]">
+            Total outstanding amount
+          </label>
+          <div
+            className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
+            style={{
+              borderColor: formData.moneylenderNoLoans
+                ? "var(--border-subtle)"
+                : "var(--border-subtle)",
+              opacity: formData.moneylenderNoLoans ? 0.45 : 1,
+            }}
+          >
+            <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">$</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="e.g. 5,000"
+              value={formData.moneylenderLoanAmount}
+              onFocus={() => {
+                if (formData.moneylenderNoLoans) {
+                  updateField("moneylenderNoLoans", false);
+                }
+              }}
+              onChange={(e) => {
+                updateField("moneylenderLoanAmount", e.target.value);
+                if (e.target.value.trim() !== "") {
+                  updateField("moneylenderNoLoans", false);
+                }
+              }}
+              className="min-w-0 flex-1 border-0 bg-transparent py-2 sm:py-3 pl-0 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+            />
+          </div>
+        </div>
+
+        {/* Payment history — revealed directly below the amount input */}
+        {hasAmount && !formData.moneylenderNoLoans && (
+          <div className="animate-slide-in" key="payment-history">
+            <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
+              How is your payment history?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {PAYMENT_HISTORY_OPTIONS.map(({ value, label, emoji }) => {
+                const isSelected = formData.moneylenderPaymentHistory === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      updateField("moneylenderPaymentHistory", value)
+                    }
+                    className="flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border py-3 transition-all duration-200 active:scale-[0.96]"
+                    style={{
+                      borderColor: isSelected
+                        ? "var(--brand-blue-hex)"
+                        : "var(--border-subtle)",
+                      background: isSelected
+                        ? "oklch(0.32 0.14 260 / 0.06)"
+                        : "transparent",
+                    }}
+                  >
+                    <span className="text-xl leading-none">{emoji}</span>
+                    <span
+                      className="text-[11px] font-medium text-center leading-tight"
+                      style={{
+                        color: isSelected
+                          ? "var(--brand-blue-hex)"
+                          : "var(--text-secondary)",
+                      }}
+                    >
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* "No loans to declare" — prominent, easy-to-tap */}
+        <button
+          type="button"
+          onClick={() => {
+            const next = !formData.moneylenderNoLoans;
+            updateField("moneylenderNoLoans", next);
+            if (next) {
+              updateField("moneylenderLoanAmount", "");
+              updateField("moneylenderPaymentHistory", "");
+            }
+          }}
+          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+          style={{
+            borderColor: formData.moneylenderNoLoans
+              ? "var(--brand-blue-hex)"
+              : "var(--border-subtle)",
+            background: formData.moneylenderNoLoans
+              ? "oklch(0.32 0.14 260 / 0.06)"
+              : "var(--surface-elevated)",
+          }}
+        >
+          <span
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150"
+            style={{
+              borderColor: formData.moneylenderNoLoans
+                ? "var(--brand-blue-hex)"
+                : "var(--border-medium)",
+              background: formData.moneylenderNoLoans
+                ? "var(--brand-blue-hex)"
+                : "transparent",
+            }}
+          >
+            {formData.moneylenderNoLoans && (
+              <div className="h-2 w-2 rounded-full bg-white" />
+            )}
+          </span>
+          <span
+            className="text-sm font-medium"
+            style={{
+              color: formData.moneylenderNoLoans
+                ? "var(--brand-blue-hex)"
+                : "var(--text-secondary)",
+            }}
+          >
+            No moneylender loans to declare
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Legal modal ─────────────────────────────────────────────────────────────
+
+const TERMS_CONTENT = `
+**Effective as of 1 January 2019**
+
+### 1. Introduction
+
+Please peruse these Agreements carefully as they encompass important information about Crawfort Service provided to you, the Terms, future changes to these Agreements, Privacy Information, waiver, limitation of liability, Governing Law etc.
+
+In order to use Crawfort Service, you need to be (1) 18 or older, (2) have the power and capability to enter into a legally binding contract with us and not barred from doing so under any applicable laws and (3) be a resident or legally employed in Singapore.
+
+By clicking "Apply Now" or otherwise applying/engaging Crawfort Pte. Ltd. ("Crawfort", the "Company", "we", "us", "our") financial service ("Crawfort Service" or "Service" or "Loan"), including via software application or website, you are entering into a binding contract with Crawfort Pte Ltd (UEN No. 201406595W).
+
+Your agreement with us includes these Terms and Conditions ("Terms") and our Personal Data Protection Policy (the "Privacy Policy"). If you don't agree with (or cannot comply with) the agreements, then you are not eligible to use Crawfort service.
+
+### 2. Changes to the Agreements
+
+We reserve the right to modify or amend these Agreements at any time. When material changes are made to the Agreements, we will provide you with a notice by notifying you via our software application, sending you an email, or sending you a text message. We endeavour to notify you at least 14 days in advance.
+
+### 3. Intellectual Property and Copyright
+
+All Crawfort trademarks, services marks, trade names, logos, domain names, and any other features of Crawfort ("Crawfort Brand Features") may not be used in connection with any product or service without the prior written consent of Crawfort.
+
+### 4. Third Party Applications
+
+Crawfort Service is integrated with third party application, websites and services ("Third Party Application") to enable us to provide you with our Service. The Third Party Application has their own terms and conditions of use and privacy policy.
+
+### 5. Our Rights
+
+Crawfort reserves the right to remove or disable access to any user/applicant for any or no reason, including but not limited to any violation, in Crawfort's sole discretion, of these Agreements or any applicable law.
+
+### 6. User Guidelines
+
+To ensure compliance with the applicable laws of Singapore, you must strictly observe the following:
+
+- You MUST NOT provide or share your Crawfort login and account details with a third party.
+- You shall not use any automated means to collect information from or to gain unauthorised access to Crawfort systems.
+- You shall not impersonate another user, person, or entity.
+- You shall be solely responsible to ensure your account login details are kept confidential and secure.
+- You shall not interfere with or disrupt the Crawfort Service.
+
+### 7. Service Limitations and Modifications
+
+Crawfort will make reasonable efforts to keep Crawfort Service operational. However, certain technical difficulties or maintenance may, from time to time, result in temporary interruptions.
+
+### 8. Customer Support
+
+For customer support or any queries related to our Crawfort Service, kindly contact us via our Contact Us section of our website or call us at +65 6777 8080. We will attempt to respond to all customer support queries within 5 working days.
+
+### 9. Term and Termination
+
+This Agreement will continue to apply until it has been terminated by you or Crawfort. Clauses 3, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16 and 17 shall survive the termination.
+
+### 10. Warranty and Disclaimer
+
+Crawfort Service is provided "as available", without express or implied warranty or condition of any kind. You use our service at your own risk.
+
+### 11. Limitation
+
+To the fullest extent permitted by law, in no event will Crawfort, its officers, shareholders, employees, agents or directors be liable for any indirect, special, incidental, punitive, exemplary, or consequential damages.
+
+### 12. Entire Agreement
+
+These Agreements constitute all the terms and conditions agreed upon between you and Crawfort and supersede any prior agreements in relation to the subject matter of these Agreements.
+
+### 13. Governing Law and Jurisdiction
+
+These Agreements shall be governed by and construed in accordance with the law of the Republic of Singapore and the Parties agree to submit to the exclusive jurisdiction of the Singapore Courts.
+
+### 14. Contact Us
+
+If you have any questions, please contact us at dposg@crawfort.com.
+`;
+
+const PRIVACY_CONTENT = `
+### 1. Introduction
+
+Crawfort Pte Ltd (the "Company") takes our responsibilities under Singapore's Personal Data Protection Act 2012 (the "PDPA") seriously. We recognise the importance of the personal data our customers, employees and third parties have personally entrusted to us.
+
+### 2. Purpose
+
+This policy governs the collection, use and disclosure of personal data from employees, customers and third parties and explains how we collect and handle personal data of individuals in compliance with the PDPA.
+
+### 3. Responsible
+
+The Company's appointed Data Protection Officer (DPO) will update this Data Protection Policy from time to time to ensure consistency with future developments, market trends and/or any changes in technology, legal or regulatory requirements.
+
+### 4. Scope
+
+This policy covers all the activities of Crawfort Pte Ltd related to Personal Data received from employees, customers and third parties.
+
+### 5. Consent
+
+We will collect, use or disclose personal data for employment and reasonable business purposes only if there is consent or deemed consent from the individual. We may also collect, use or disclose personal data if it is required or authorised under applicable laws.
+
+### 6. Collection of Personal Data
+
+**6.1 Personal Data Collected from Customers**
+
+We only collect personal data from our customers to enable us to understand their financial needs and assess their loan application as required by law. We use personal data of customers for the following purposes:
+
+1. For submission to Moneylenders Credit Bureau (MLCB) for the purpose of producing a credit report.
+2. For submission to the Registry of Moneylenders.
+3. To conduct online searches via web portals such as DP Information Network Pte Ltd, Credit Bureau (Singapore) Pte Ltd.
+4. Understanding our customer's financial needs and to assist in customising loan packages.
+5. Assessing our customer's loan application and to comply with the laws of Singapore.
+6. For debt recovery purposes — to engage law firms, third-party debt collection agencies or approved debt collectors.
+
+**6.1.2 Type of Personal Data Collected**
+
+Full Name, Personal Identification Number (IC No., FIN No., or Passport No.), Nationality, Date of Birth, Sex, Ethnicity, Address, Contact No., Marriage Status, Email Address, Income, Employment information, Photograph, Next-of-Kin contact details.
+
+### 7. Disclosure of Personal Data
+
+We do not disclose personal data to third parties except when required by law, when we have the individual's consent, or when we have engaged third parties to assist with debt recovery or certain company activities such as accounting and auditing. Any such third parties are bound contractually to keep all information confidential.
+
+### 8. Access to and Correction of Personal Data
+
+Upon request, we will provide customers access to their personal data in accordance with the requirements of the PDPA. Customers may contact us via email at dposg@crawfort.com.
+
+### 9. Withdrawal of Consent
+
+Requests for withdrawal of consent will be processed within 5 working days. We will inform the individual of the likely consequences of withdrawing their consent.
+
+### 10. Accuracy of Personal Data
+
+We ensure that personal data collected is accurate, genuine and up-to-date by verifying the data against the original relevant document or via verified sources such as Singpass or Myinfo.
+
+### 11. Security and Protection of Personal Data
+
+We have implemented generally accepted standards of technology and operational security to protect the personal data in our possession and to prevent unauthorised access, collection, use, disclosure, copying, modification, or disposal.
+
+### 12. Retention of Personal Data
+
+The minimum retention period of information relating to the loan is 5 years after the termination of the loan. Thereafter, we will cease to retain personal data as soon as it is reasonable to assume the purpose for collection is no longer being served.
+
+### 13. Transfer of Personal Data outside of Singapore
+
+We do not transfer data overseas. Should there be any transfers, we will ensure compliance with the PDPA to maintain a comparable standard of protection.
+
+### 14. Privacy on Our Websites
+
+This Policy also applies to any personal data we collect via our websites. Cookies may be used on some pages of our websites to improve users' navigational experience.
+
+### 15. Notification
+
+We endeavour to notify our customers of any changes to this policy 14 days in advance. Communication will be made via our software application, email, or text message.
+
+### 16. Data Protection Officer
+
+If you believe that information we hold about you is incorrect, or have concerns about how we handle your personal data, you may contact our Data Protection Officer at dposg@crawfort.com.
+`;
+
+function parseLegalContent(content: string): React.ReactNode[] {
+  const lines = content.trim().split("\n");
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith("### ")) {
+      elements.push(
+        <h3 key={key++} className="mt-5 mb-2 font-display text-sm font-bold text-[var(--text-primary)] first:mt-0">
+          {trimmed.slice(4)}
+        </h3>
+      );
+    } else if (trimmed.startsWith("**") && trimmed.endsWith("**")) {
+      elements.push(
+        <p key={key++} className="mb-1 text-xs font-semibold text-[var(--text-primary)]">
+          {trimmed.slice(2, -2)}
+        </p>
+      );
+    } else if (/^\d+\./.test(trimmed)) {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed text-[var(--text-secondary)] pl-3">
+          {trimmed}
+        </p>
+      );
+    } else if (trimmed.startsWith("- ")) {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed text-[var(--text-secondary)] pl-3">
+          • {trimmed.slice(2)}
+        </p>
+      );
+    } else {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          {trimmed}
+        </p>
+      );
+    }
+  }
+  return elements;
+}
+
+function LegalModal({
+  title,
+  content,
+  onClose,
+}: {
+  title: string;
+  content: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", handler);
+    };
+  }, [onClose]);
+
+  const modal = (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      style={{ background: "oklch(0.06 0.02 260 / 0.85)" }}
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-[var(--radius-xl)] bg-white shadow-2xl"
+        style={{ maxHeight: "80dvh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div
+          className="flex shrink-0 items-center justify-between px-6 py-4"
+          style={{ background: "linear-gradient(135deg, #0033AA 0%, #0055CC 100%)" }}
+        >
+          <h2 className="font-display text-base font-bold text-white">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 hover:brightness-125 active:scale-[0.95]"
+            style={{ background: "oklch(1 0 0 / 0.25)", border: "1.5px solid oklch(1 0 0 / 0.4)" }}
+          >
+            <X size={14} weight="bold" className="text-white" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex flex-col gap-1.5">
+            {parseLegalContent(content)}
+          </div>
+          <p className="mt-6 text-[10px] text-[var(--text-tertiary)]">
+            CF Money Pte. Ltd. (UEN No. 201406595W) · dposg@crawfort.com
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(modal, document.body);
+}
+
+// ─── Step 8 ───────────────────────────────────────────────────────────────────
+
+function Step7_BankruptcyDeclaration({
+  formData,
+  updateField,
+  onClear,
+}: {
+  formData: FormData;
+  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+  onClear?: () => void;
+}) {
+  const isClear      = formData.bankruptcyDeclaration === "clear";
+  const isDischarged = formData.bankruptcyDeclaration === "discharged_lt5";
+  const isActive     = formData.bankruptcyDeclaration === "active";
+
+  return (
+    <div>
+      <StepHeader
+        icon={ShieldCheck}
+        title="Bankruptcy / DRS Status"
+        subtitle="We're required to verify your bankruptcy and debt repayment status before proceeding."
+      />
+
+      <div className="flex flex-col gap-5">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-base font-medium text-[var(--text-primary)]">
+              What is your current status?
+            </label>
+            <span className="text-xs text-[var(--text-tertiary)]">Select one</span>
+          </div>
+          <p className="mb-3 text-sm text-[var(--text-secondary)]">
+            Select the option that applies to you as of today.
+          </p>
+
+          <div className="flex flex-col gap-2.5">
+            {/* Not bankrupt option — green when selected */}
+            <button
+              type="button"
+              onClick={() => {
+                updateField("bankruptcyDeclaration", "clear");
+                setTimeout(() => onClear?.(), 50);
+              }}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+              style={{
+                borderColor: isClear ? "oklch(0.55 0.15 145)" : "var(--border-subtle)",
+                background:  isClear ? "oklch(0.55 0.15 145 / 0.06)" : "var(--surface-elevated)",
+              }}
+            >
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: isClear ? "oklch(0.55 0.15 145)" : "var(--border-medium)",
+                  background:  isClear ? "oklch(0.55 0.15 145)" : "transparent",
+                }}
+              >
+                {isClear && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: isClear ? "oklch(0.40 0.12 145)" : "var(--text-primary)" }}
+              >
+                I am NOT bankrupt, under DRS or self-exclusion as of this application.
+              </span>
+            </button>
+
+            {/* Discharged bankrupt option — blue when selected */}
+            <button
+              type="button"
+              onClick={() => updateField("bankruptcyDeclaration", "discharged_lt5")}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
+              style={{
+                borderColor: isDischarged ? "var(--brand-blue-hex)" : "var(--border-subtle)",
+                background:  isDischarged ? "oklch(0.32 0.14 260 / 0.06)" : "var(--surface-elevated)",
+              }}
+            >
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: isDischarged ? "var(--brand-blue-hex)" : "var(--border-medium)",
+                  background:  isDischarged ? "var(--brand-blue-hex)" : "transparent",
+                }}
+              >
+                {isDischarged && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm"
+                style={{ color: isDischarged ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
+              >
+                I am a discharged bankrupt (less than 5 years ago)
+              </span>
+            </button>
+
+            {/* Active bankruptcy / DRS option */}
+            <button
+              type="button"
+              onClick={() => updateField("bankruptcyDeclaration", "active")}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]"
+              style={{
+                borderColor: isActive ? "oklch(0.65 0.18 25)" : "var(--border-subtle)",
+                background:  isActive ? "oklch(0.65 0.18 25 / 0.06)" : "var(--surface-elevated)",
+              }}
+            >
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                style={{
+                  borderColor: isActive ? "oklch(0.65 0.18 25)" : "var(--border-medium)",
+                  background:  isActive ? "oklch(0.65 0.18 25)" : "transparent",
+                }}
+              >
+                {isActive && <CheckCircle size={14} weight="fill" color="white" />}
+              </span>
+              <span
+                className="text-sm"
+                style={{ color: isActive ? "oklch(0.40 0.15 25)" : "var(--text-secondary)" }}
+              >
+                I am currently under bankruptcy / DRS status
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {isDischarged && (
+          <div className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-blue-200 bg-blue-50 px-4 py-3">
+            <Warning size={16} weight="fill" className="mt-0.5 shrink-0 text-brand-blue" />
+            <p className="text-sm text-brand-blue leading-snug">
+              Please bring along your bankruptcy/DRS discharge letter to the appointment.
+            </p>
+          </div>
+        )}
+
+        {isActive && (
+          <div className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3">
+            <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-red-500" />
+            <p className="text-sm text-red-700 leading-snug">
+              We are currently not able to issue loans if you are not discharged from bankruptcy or DRS status.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EditableReviewRow({
+  label,
+  value,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const commit = useCallback(() => {
+    const trimmed = draft.trim();
+    if (trimmed) onSave(trimmed);
+    else setDraft(value);
+    setEditing(false);
+  }, [draft, onSave, value]);
+
+  React.useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 text-sm">
+      <span className="text-[var(--text-tertiary)]">{label}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        {editing ? (
+          <>
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+              className="w-36 sm:w-44 rounded-[var(--radius-sm)] border border-brand-blue bg-[var(--surface-elevated)] px-2 py-1 text-right text-sm font-medium text-[var(--text-primary)] outline-none ring-2 ring-brand-blue/10"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commit(); }}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-blue transition-all hover:brightness-110"
+              aria-label="Save"
+            >
+              <Check size={12} weight="bold" className="text-white" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="font-medium text-[var(--text-primary)] text-right max-w-[180px] truncate">
+              {value || "—"}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setDraft(value); setEditing(true); }}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface-secondary)] text-[var(--text-tertiary)] transition-all duration-150 hover:border-[var(--border-medium)] hover:text-brand-blue active:scale-95"
+              aria-label={`Edit ${label}`}
+            >
+              <PencilSimple size={12} weight="bold" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Step8_Review({
+  formData,
+  updateField,
+  monthlyRepayment,
+  onModalOpenChange,
+}: {
+  formData: FormData;
+  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+  monthlyRepayment: number;
+  onModalOpenChange?: (open: boolean) => void;
+}) {
+  const [openModal, setOpenModal] = useState<"terms" | "privacy" | null>(null);
+
+  const handleOpenModal = useCallback((modal: "terms" | "privacy") => {
+    setOpenModal(modal);
+    onModalOpenChange?.(true);
+  }, [onModalOpenChange]);
+
+  const handleCloseModal = useCallback(() => {
+    setOpenModal(null);
+    onModalOpenChange?.(false);
+  }, [onModalOpenChange]);
+
   const authLabel =
     formData.authMethod === "singpass"
       ? "Singpass (Myinfo)"
@@ -1764,45 +2530,35 @@ function Step8_Review({
         ? "Manual form"
         : "—";
 
-  const sections = [
+  const loanRows = [
+    { label: "Amount", value: formatCurrency(formData.amount) },
+    { label: "Tenure", value: `${formData.tenure} months` },
+    { label: "Monthly instalment", value: formatCurrency(monthlyRepayment) },
+    { label: "Urgency", value: URGENCY_OPTIONS.find((o) => o.value === formData.urgency)?.label ?? "—" },
+    { label: "Monthly income", value: formData.monthlyIncome ? formatCurrency(parseInt(formData.monthlyIncome, 10) || 0) : "—" },
+    { label: "Verification", value: authLabel },
+  ];
+
+  const personalStaticRows = [
+    { label: "ID Type", value: ID_TYPE_OPTIONS.find((o) => o.value === formData.idType)?.label ?? "—" },
+    { label: "Name", value: formData.fullName || "—" },
+    { label: "NRIC / FIN", value: formData.nric ? `${formData.nric.slice(0, 1)}****${formData.nric.slice(-1)}` : "—" },
+    { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
+    ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
+    ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
+  ];
+
+  const declarationRows = [
     {
-      icon: CurrencyDollar,
-      title: "Loan & income",
-      rows: [
-        { label: "Amount", value: formatCurrency(formData.amount) },
-        { label: "Tenure", value: `${formData.tenure} months` },
-        { label: "Monthly instalment", value: formatCurrency(monthlyRepayment) },
-        {
-          label: "Urgency",
-          value:
-            URGENCY_OPTIONS.find((o) => o.value === formData.urgency)?.label ??
-            "—",
-        },
-        {
-          label: "Monthly income",
-          value: formData.monthlyIncome
-            ? formatCurrency(parseInt(formData.monthlyIncome, 10) || 0)
-            : "—",
-        },
-        { label: "Verification", value: authLabel },
-      ],
-    },
-    {
-      icon: User,
-      title: "Personal Info",
-      rows: [
-        {
-          label: "ID Type",
-          value:
-            ID_TYPE_OPTIONS.find((o) => o.value === formData.idType)?.label ??
-            "—",
-        },
-        { label: "Name", value: formData.fullName || "—" },
-        { label: "NRIC / FIN", value: formData.nric ? `${formData.nric.slice(0, 1)}****${formData.nric.slice(-1)}` : "—" },
-        { label: "Mobile", value: formData.mobile ? `+65 ${formData.mobile}` : "—" },
-        ...(formData.address ? [{ label: "Address", value: formData.address }] : []),
-        ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
-      ],
+      label: "Bankruptcy / DRS",
+      value:
+        formData.bankruptcyDeclaration === "clear"
+          ? "Not bankrupt / DRS"
+          : formData.bankruptcyDeclaration === "discharged_lt5"
+            ? "Discharged (< 5 yrs)"
+            : formData.bankruptcyDeclaration === "active"
+              ? "Currently bankrupt / DRS"
+              : "—",
     },
   ];
 
@@ -1811,52 +2567,105 @@ function Step8_Review({
       <StepHeader
         icon={ShieldCheck}
         title="Review your application"
-        subtitle="Please make sure everything looks correct before submitting."
+        subtitle="Please confirm everything is correct before submitting."
       />
 
       <div className="flex flex-col gap-5">
-        {sections.map(({ icon: SectionIcon, title, rows }) => (
-          <div key={title}>
-            <div className="mb-2 flex items-center gap-2">
-              <SectionIcon
-                size={16}
-                weight="duotone"
-                className="text-brand-blue"
-              />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                {title}
-              </span>
-            </div>
-            <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-              {rows.map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between px-4 py-3 text-sm"
-                >
-                  <span className="text-[var(--text-tertiary)]">{label}</span>
-                  <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {/* Loan & income */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <CurrencyDollar size={16} weight="duotone" className="text-brand-blue" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Loan &amp; income</span>
           </div>
-        ))}
+          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            {loanRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Personal Info — with editable Marital Status + Email */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <User size={16} weight="duotone" className="text-brand-blue" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Personal Info</span>
+          </div>
+          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            {personalStaticRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
+              </div>
+            ))}
+            <EditableReviewRow
+              label="Marital Status"
+              value={formData.maritalStatus}
+              onSave={(v) => updateField("maritalStatus", v)}
+            />
+            <EditableReviewRow
+              label="Email"
+              value={formData.email}
+              onSave={(v) => updateField("email", v)}
+            />
+          </div>
+        </div>
+
+        {/* Declaration */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <ShieldCheck size={16} weight="duotone" className="text-brand-blue" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Declaration</span>
+          </div>
+          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            {declarationRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-[var(--radius-md)] bg-brand-teal/[0.06] px-4 py-3">
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
           By submitting, you agree to Crawfort&apos;s{" "}
-          <a href="#" className="font-medium text-brand-blue underline-offset-2 hover:underline">
-            Terms & Conditions
-          </a>{" "}
+          <button
+            type="button"
+            onClick={() => handleOpenModal("terms")}
+            className="font-medium text-brand-blue underline-offset-2 hover:underline"
+          >
+            Terms &amp; Conditions
+          </button>{" "}
           and{" "}
-          <a href="#" className="font-medium text-brand-blue underline-offset-2 hover:underline">
+          <button
+            type="button"
+            onClick={() => handleOpenModal("privacy")}
+            className="font-medium text-brand-blue underline-offset-2 hover:underline"
+          >
             Privacy Policy
-          </a>
+          </button>
           . Your data is encrypted and protected under Singapore&apos;s PDPA.
         </p>
       </div>
+
+      {openModal === "terms" && (
+        <LegalModal
+          title="Terms & Conditions"
+          content={TERMS_CONTENT}
+          onClose={handleCloseModal}
+        />
+      )}
+      {openModal === "privacy" && (
+        <LegalModal
+          title="Privacy Policy"
+          content={PRIVACY_CONTENT}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

@@ -1,14 +1,20 @@
 import Image from "next/image";
-import { PendingResult } from "./pending-result";
+import { LoanApplicationForm } from "../loan-application-form";
 import { SidebarTrustFeatures } from "../sidebar-trust-features";
 
-export const metadata = {
-  title: "Application Pending",
-};
+const FOREIGNER_REMINDERS = [
+  "I understand I need to bring my latest 3 months payslip and proof of residence letter which shows my name and local residential address (e.g. bank statement / utility bill).",
+  "I understand my work pass has more than 3 months validity remaining, or I will bring my pass renewal IPA letter.",
+];
 
-export default function PendingPage() {
+const FOREIGNER_THINGS_TO_BRING = [
+  "Latest 3 months payslip and proof of residence letter showing your name and local residential address (e.g. bank statement / utility bill).",
+  "Work pass with more than 3 months validity remaining, or your pass renewal IPA letter.",
+];
+
+export default function ForeignerPage() {
   return (
-    <div className="flex min-h-[100dvh] flex-col lg:flex-row">
+    <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
           <div className="mb-16">
@@ -50,7 +56,7 @@ export default function PendingPage() {
         />
       </aside>
 
-      <main className="flex flex-1 flex-col">
+      <main className="flex flex-col flex-1 overflow-x-clip">
         <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
           <a href="/">
             <Image
@@ -64,12 +70,13 @@ export default function PendingPage() {
           </a>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
+        <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
-            <PendingResult />
+            <LoanApplicationForm reminderItems={FOREIGNER_REMINDERS} thingsToBring={FOREIGNER_THINGS_TO_BRING} />
           </div>
         </div>
 
+        {/* Mobile-only footer */}
         <footer className="lg:hidden bg-brand-blue px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
           <Image
             src="/images/cf-money-white.png"

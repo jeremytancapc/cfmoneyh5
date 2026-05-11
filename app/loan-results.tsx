@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   X,
   TrendUp,
+  CheckCircle,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
@@ -80,6 +81,9 @@ interface LoanResultsProps {
   formData: FormData;
   monthlyRepayment: number;
   onAccept: () => void;
+  /** Optional list of acknowledgement statements rendered as blue checkboxes.
+   *  All must be ticked before the CTA becomes active. */
+  reminderItems?: string[];
 }
 
 /* ── Reconsider Modal ─────────────────────────────────────────────── */
@@ -197,8 +201,18 @@ export function LoanResults({
   formData,
   monthlyRepayment,
   onAccept,
+  reminderItems = [],
 }: LoanResultsProps) {
   const [showModal, setShowModal] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<boolean[]>(() =>
+    reminderItems.map(() => false)
+  );
+  const allRemindersChecked = reminderItems.length === 0 || checkedItems.every(Boolean);
+
+  function toggleItem(index: number) {
+    setCheckedItems((prev) => prev.map((v, i) => (i === index ? !v : v)));
+  }
+
   // 0 = hero only  1 = amount  2 = tenure row  3 = badge  4 = notice + CTA
   const [revealStage, setRevealStage] = useState(0);
 
@@ -337,6 +351,58 @@ export function LoanResults({
           </motion.p>
         </motion.div>
 
+        {/* ── Stage 4: Reminder checkboxes (route-specific) ────────── */}
+        {reminderItems.length > 0 && (
+          <motion.div
+            className="flex flex-col gap-2.5"
+            initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
+            animate={
+              revealStage >= 4
+                ? { opacity: 1, filter: "blur(0px)", y: 0 }
+                : { opacity: 0, filter: "blur(8px)", y: 8 }
+            }
+            transition={{ duration: 0.45, ease: EASE, delay: revealStage >= 4 ? 0.28 : 0 }}
+            style={{ pointerEvents: revealStage >= 4 ? "auto" : "none" }}
+          >
+            {reminderItems.map((text, index) => {
+              const checked = checkedItems[index];
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => toggleItem(index)}
+                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+                  style={{
+                    borderColor: checked ? "var(--brand-blue-hex)" : "var(--border-subtle)",
+                    background: checked ? "oklch(0.32 0.14 260 / 0.06)" : "var(--surface-elevated)",
+                  }}
+                >
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+                    style={{
+                      borderColor: checked ? "var(--brand-blue-hex)" : "var(--border-medium)",
+                      background: checked ? "var(--brand-blue-hex)" : "transparent",
+                    }}
+                  >
+                    {checked && <CheckCircle size={14} weight="fill" color="white" />}
+                  </span>
+                  <span
+                    className="text-sm leading-relaxed"
+                    style={{ color: checked ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
+                  >
+                    {text}
+                  </span>
+                </button>
+              );
+            })}
+            {!allRemindersChecked && (
+              <p className="mt-1 text-center text-xs text-[var(--text-primary)]">
+                Please acknowledge all reminders above to proceed.
+              </p>
+            )}
+          </motion.div>
+        )}
+
         {/* ── Stage 4: CTA ────────────────────────────────────────── */}
         <motion.div
           className="flex flex-col gap-3"
@@ -352,12 +418,12 @@ export function LoanResults({
           <button
             type="button"
             onClick={onAccept}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            disabled={!allRemindersChecked}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
           >
             Accept &amp; Book Appointment
             <ArrowRight size={16} weight="bold" />
           </button>
-
           <button
             type="button"
             onClick={() => setShowModal(true)}

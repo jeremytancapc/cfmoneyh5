@@ -69,15 +69,22 @@ export function QueueUploadCard() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      {/* Eyebrow + heading */}
       <div>
-        <h3 className="font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
-          Increase Your Loan Limit
+        <h3 className="font-display text-[17px] font-bold tracking-tight text-[var(--text-primary)]">
+          Upload Documents
         </h3>
-        <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-          Submit more income documents so we can assess and offer you a higher
-          loan amount.
-        </p>
+        <ul className="mt-2 flex flex-col gap-1">
+          <li className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+            Income proof documents
+          </li>
+          <li className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+            Proof of residence documents
+          </li>
+        </ul>
       </div>
 
       {/* Drop zone */}
@@ -91,14 +98,10 @@ export function QueueUploadCard() {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className="group flex flex-col items-center gap-3 rounded-[var(--radius-md)] border-2 border-dashed px-6 py-7 transition-all duration-200"
+        className="group flex flex-col items-center gap-3 rounded-[var(--radius-md)] border px-6 py-6 transition-all duration-200"
         style={{
-          borderColor: isDragOver
-            ? "var(--brand-blue-hex)"
-            : "var(--border-subtle)",
-          background: isDragOver
-            ? "oklch(0.32 0.14 260 / 0.04)"
-            : "transparent",
+          borderColor: isDragOver ? "#0033AA" : "var(--border-medium)",
+          background: isDragOver ? "oklch(0.32 0.14 260 / 0.03)" : "transparent",
         }}
       >
         <input
@@ -112,22 +115,18 @@ export function QueueUploadCard() {
         />
 
         <div
-          className="flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-200 group-hover:scale-105"
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-200 group-hover:scale-105"
           style={{ background: "oklch(0.32 0.14 260 / 0.07)" }}
         >
-          <FileArrowUp
-            size={22}
-            weight="duotone"
-            className="text-brand-blue"
-          />
+          <FileArrowUp size={18} weight="duotone" className="text-brand-blue" />
         </div>
 
         <div className="flex flex-col items-center gap-0.5">
-          <p className="text-sm font-semibold text-brand-blue">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
             Click to upload files
           </p>
           <p className="text-xs text-[var(--text-tertiary)]">
-            Supported: PDF, JPG, PNG (max 10mb)
+            PDF, JPG, PNG &mdash; max 10 MB
           </p>
         </div>
       </div>
@@ -138,27 +137,18 @@ export function QueueUploadCard() {
           {files.map((f) => (
             <div
               key={f.id}
-              className="flex items-center gap-3 rounded-[var(--radius-sm)] px-4 py-3"
-              style={{
-                background: "var(--surface-secondary)",
-                border: "1px solid var(--border-subtle)",
-              }}
+              className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-4 py-3"
+              style={{ background: "var(--surface-secondary)" }}
             >
-              <File
-                size={18}
-                weight="duotone"
-                className="shrink-0 text-[var(--text-tertiary)]"
-              />
+              <File size={16} weight="duotone" className="shrink-0 text-[var(--text-tertiary)]" />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium text-[var(--text-primary)]">
                   {f.name}
                 </span>
-                <span className="text-xs text-[var(--text-tertiary)]">
-                  {f.size}
-                </span>
+                <span className="text-xs text-[var(--text-tertiary)]">{f.size}</span>
               </div>
               <CheckCircle
-                size={16}
+                size={15}
                 weight="fill"
                 style={{ color: "oklch(0.55 0.18 155)" }}
                 className="shrink-0"
@@ -172,12 +162,22 @@ export function QueueUploadCard() {
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--border-subtle)]"
                 aria-label={`Remove ${f.name}`}
               >
-                <X size={12} weight="bold" className="text-[var(--text-tertiary)]" />
+                <X size={11} weight="bold" className="text-[var(--text-tertiary)]" />
               </button>
             </div>
           ))}
         </div>
       )}
+
+      {/* CTA */}
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[#111111] px-5 text-[13px] font-semibold tracking-wide text-white transition-all duration-150 hover:bg-black active:scale-[0.98]"
+      >
+        <FileArrowUp size={15} weight="bold" />
+        Upload documents
+      </button>
     </div>
   );
 }

@@ -52,7 +52,7 @@ export default function RejectedPage() {
 
       <main className="flex flex-1 flex-col">
         <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
-          <a href="https://crawfort.com/sg/" target="_blank" rel="noopener noreferrer">
+          <a href="/">
             <Image
               src="/images/cf-money-full-color.png"
               alt="CF Money"

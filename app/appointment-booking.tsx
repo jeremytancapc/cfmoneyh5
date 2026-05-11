@@ -13,18 +13,20 @@ import {
   Car,
 } from "@phosphor-icons/react";
 
-// Singapore 2026 public holidays (YYYY-MM-DD)
+// Singapore 2026 public holidays (YYYY-MM-DD, local dates)
 const SG_PUBLIC_HOLIDAYS_2026 = new Set([
   "2026-01-01", // New Year's Day
-  "2026-01-29", // Chinese New Year
-  "2026-01-30", // Chinese New Year (2nd day)
+  "2026-02-17", // Chinese New Year
+  "2026-02-18", // Chinese New Year (2nd day)
+  "2026-03-21", // Hari Raya Puasa (Saturday)
   "2026-04-03", // Good Friday
   "2026-05-01", // Labour Day
-  "2026-05-12", // Vesak Day
-  "2026-06-17", // Hari Raya Haji
-  "2026-08-09", // National Day
-  "2026-10-20", // Deepavali
+  "2026-05-27", // Hari Raya Haji
+  "2026-06-01", // Vesak Day in-lieu (31 May falls on Sunday)
+  "2026-08-10", // National Day in-lieu (9 Aug falls on Sunday)
+  "2026-11-09", // Deepavali in-lieu (8 Nov falls on Sunday)
   "2026-12-25", // Christmas Day
+  "2027-01-01", // New Year's Day 2027
 ]);
 
 // 30-min slots from 10:30 to 19:00 (last appointment at 19:00, ends 19:30)
@@ -44,7 +46,10 @@ const MONTH_LABELS = [
 ];
 
 function toISODate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function isDisabledDate(date: Date): boolean {
@@ -84,15 +89,13 @@ interface FormData {
 interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
+  thingsToBring?: string[];
 }
 
-export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps) {
+export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: AppointmentBookingProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [qrState, setQrState] = useState<"idle" | "active" | "expired">("idle");
-  const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const confirmBtnRef = useRef<HTMLDivElement>(null);
@@ -114,31 +117,6 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
     el.addEventListener("scroll", updateFades, { passive: true });
     return () => el.removeEventListener("scroll", updateFades);
   }, [updateFades]);
-
-  useEffect(() => {
-    if (qrExpiresAt === null) return;
-    const tick = () => {
-      const secs = Math.max(0, Math.ceil((qrExpiresAt - Date.now()) / 1000));
-      setRemainingSeconds(secs);
-      if (secs === 0) {
-        setQrState("expired");
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [qrExpiresAt]);
-
-  const handleGenerateQr = useCallback(() => {
-    setQrExpiresAt(Date.now() + 15 * 1000);
-    setQrState("active");
-  }, []);
-
-  const formatCountdown = (seconds: number): string => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
 
   const scrollDates = useCallback((direction: "left" | "right") => {
     const el = dateScrollRef.current;
@@ -249,111 +227,57 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
           </div>
         </div>
 
-        {/* ── QR Check-in Code ───────────────────────────────────── */}
-        <div className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-white px-6 py-6 text-center">
-          <div>
-            <p className="font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
-              Check-in QR Code
-            </p>
-            {qrState === "idle" && (
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Only click on <strong className="font-semibold text-[var(--text-primary)]">Show QR Code</strong> below once you have arrived at our office.
-              </p>
-            )}
-            {qrState === "active" && (
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                <strong className="font-semibold text-[var(--text-primary)]">Scan this QR Code</strong> at our entrance scanner to generate your queue number.
-              </p>
-            )}
-            {qrState === "expired" && (
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Your QR code has expired. Generate a new one when you&rsquo;re ready to check in.
-              </p>
-            )}
-          </div>
-
-          {/* QR image — always rendered; blurred+overlaid in idle/expired, clear when active */}
-          <div className="relative rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-            <img
-              src="/images/qr-placeholder.png"
-              alt="Your appointment check-in QR code"
-              width={160}
-              height={160}
-              className="block sm:h-[180px] sm:w-[180px] transition-all duration-300"
-              style={{
-                imageRendering: "pixelated",
-                filter: qrState === "active" ? "none" : "blur(6px) grayscale(0.4)",
-              }}
-            />
-
-            {/* Idle overlay — "Show QR Code" button centred on the blurred QR */}
-            {qrState === "idle" && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
-                <button
-                  type="button"
-                  onClick={handleGenerateQr}
-                  className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
-                >
-                  Show QR Code
-                </button>
-              </div>
-            )}
-
-            {/* Expired overlay — bold red "EXPIRED" stamp */}
-            {qrState === "expired" && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)]">
-                <span
-                  className="select-none font-display text-2xl font-black uppercase tracking-widest"
+        {/* ── On the day instructions ─────────────────────────────── */}
+        <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
+            When you arrive
+          </p>
+          <ol className="flex flex-col gap-4">
+            {[
+              "Sign in via Singpass at our counter, a QR code will be generated on your phone.",
+              "Scan the QR code against our scanner at the main door to receive your queue number.",
+              "Take a seat and wait for your queue number to be called.",
+            ].map((text, i) => (
+              <li key={i} className="flex items-center gap-3">
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                   style={{
-                    color: "oklch(0.50 0.22 25)",
-                    border: "3px solid oklch(0.50 0.22 25)",
-                    padding: "4px 10px",
-                    borderRadius: 4,
-                    opacity: 0.85,
-                    transform: "rotate(-12deg)",
-                    letterSpacing: "0.15em",
+                    background: "oklch(0.32 0.14 260 / 0.08)",
+                    color: "var(--brand-blue-hex)",
                   }}
                 >
-                  EXPIRED
-                </span>
-              </div>
-            )}
-          </div>
+                  <span className="text-xs font-bold">{i + 1}</span>
+                </div>
+                <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{text}</p>
+              </li>
+            ))}
+          </ol>
 
-          {/* Below-QR area: countdown while active, "Show QR Code" button when expired */}
-          {qrState === "active" && (
-            <div
-              className="flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-4 py-2.5 transition-colors duration-500"
-              style={{
-                borderColor: remainingSeconds <= 5 ? "oklch(0.75 0.15 55)" : "var(--border-subtle)",
-                background: remainingSeconds <= 5 ? "oklch(0.98 0.04 75)" : "transparent",
-              }}
-            >
-              <span
-                className="font-display text-2xl font-bold tabular-nums tracking-tight transition-colors duration-500"
-                style={{ color: remainingSeconds <= 5 ? "oklch(0.55 0.18 45)" : "var(--text-primary)" }}
-              >
-                {formatCountdown(remainingSeconds)}
-              </span>
-              <span
-                className="text-xs font-medium transition-colors duration-500"
-                style={{ color: remainingSeconds <= 5 ? "oklch(0.60 0.16 45)" : "var(--text-tertiary)" }}
-              >
-                {remainingSeconds <= 5 ? "Expiring soon" : "Time remaining"}
-              </span>
-            </div>
-          )}
-
-          {qrState === "expired" && (
-            <button
-              type="button"
-              onClick={handleGenerateQr}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-            >
-              Show QR Code
-            </button>
-          )}
         </div>
+
+        {thingsToBring.length > 0 && (
+          <div
+            className="flex flex-col gap-4 rounded-[var(--radius-lg)] px-5 py-5 text-left"
+            style={{ background: "var(--brand-blue-hex)" }}
+          >
+            <p className="text-xs font-bold uppercase tracking-wider text-white">
+              Things to bring
+            </p>
+            <ul className="flex flex-col gap-4">
+              {thingsToBring.map((item, i) => (
+                <li key={i} className="flex items-center gap-3">
+                  <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: "oklch(1 0 0 / 0.15)" }}
+                  >
+                    <span className="text-xs font-bold text-white">{i + 1}</span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-white">{item}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Office details */}
         <div className="flex flex-col gap-4 text-left">
@@ -561,16 +485,27 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
                   animationDelay: `${i * 40}ms`,
                 }}
               >
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{
-                    color: isSelected
-                      ? "var(--text-on-brand)"
-                      : "var(--text-tertiary)",
-                  }}
-                >
-                  {DAY_LABELS[date.getDay()]}
-                </span>
+                {isToday ? (
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{
+                      color: isSelected ? "var(--text-on-brand)" : "var(--brand-teal-hex)",
+                    }}
+                  >
+                    Today
+                  </span>
+                ) : (
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider"
+                    style={{
+                      color: isSelected
+                        ? "var(--text-on-brand)"
+                        : "var(--text-tertiary)",
+                    }}
+                  >
+                    {DAY_LABELS[date.getDay()]}
+                  </span>
+                )}
                 <span
                   className="font-display text-lg font-bold leading-none tabular-nums"
                   style={{
@@ -592,12 +527,6 @@ export function AppointmentBooking({ formData, onBack }: AppointmentBookingProps
                   >
                     {MONTH_LABELS[date.getMonth()]}
                   </span>
-                )}
-                {isToday && !isSelected && (
-                  <div
-                    className="h-1 w-1 rounded-full"
-                    style={{ background: "var(--brand-teal-hex)" }}
-                  />
                 )}
               </button>
             );
