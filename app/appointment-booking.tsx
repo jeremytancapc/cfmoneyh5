@@ -52,18 +52,35 @@ function toISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Deterministic urgency indicator — same result for the same date+slot combo. */
-function slotUrgency(date: string, slot: string): "available" | "limited" {
-  const str = date + slot;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
+/** Seeded PRNG (LCG) — deterministic stream from a date string seed. */
+function makePrng(date: string) {
+  let seed = 0;
+  for (let i = 0; i < date.length; i++) {
+    seed = Math.imul(31, seed) + date.charCodeAt(i) | 0;
   }
-  const hour = parseInt(slot.split(":")[0], 10);
-  // Peak hours (11:00–14:00) have higher "limited" rate
-  const isPeak = hour >= 11 && hour <= 14;
-  const threshold = isPeak ? 45 : 22;
-  return (Math.abs(hash) % 100) < threshold ? "limited" : "available";
+  return () => {
+    seed = (Math.imul(1664525, seed) + 1013904223) | 0;
+    return (seed >>> 0) / 0x100000000;
+  };
+}
+
+/** 3–5 scattered "limited spots" indices per day, never the fully-booked slot. */
+function limitedSlotIndices(date: string, bookedIdx: number): Set<number> {
+  const rand = makePrng(date + "limited");
+  const count = 3 + Math.floor(rand() * 3); // 3, 4 or 5
+  const indices = new Set<number>();
+  let guard = 0;
+  while (indices.size < count && guard++ < 60) {
+    const idx = Math.floor(rand() * TIME_SLOTS.length);
+    if (idx !== bookedIdx) indices.add(idx);
+  }
+  return indices;
+}
+
+/** One slot per day is fully booked — deterministic but varies each day. */
+function fullyBookedIndex(date: string): number {
+  const rand = makePrng(date + "booked");
+  return Math.floor(rand() * TIME_SLOTS.length);
 }
 
 function isDisabledDate(date: Date): boolean {
@@ -104,6 +121,67 @@ interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
   thingsToBring?: string[];
+}
+
+const WHAT_TO_BRING = {
+  sg_pr: [
+    "NRIC (original / SingPass)",
+    "Latest 1–3 months payslip or income documents or bank statement",
+    "SingPass on your phone",
+    "If you have CPF / NOA history, no need to bring any income documents",
+  ],
+  foreigner: [
+    "Work Pass (WP / SP / EP / LTVP) with at least 3 months validity",
+    "Latest 1–3 months payslip",
+    "SingPass on your phone",
+    "Latest month proof of residence with your name and SG address (bank statement / utility bill / mobile bill)",
+  ],
+} as const;
+
+function WhatToBring({ idType }: { idType: string }) {
+  const defaultTab = idType === "foreigner" ? "foreigner" : "sg_pr";
+  const [tab, setTab] = useState<"sg_pr" | "foreigner">(defaultTab as "sg_pr" | "foreigner");
+  const items = WHAT_TO_BRING[tab];
+
+  return (
+    <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
+      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+        What to bring
+      </p>
+
+      {/* Tab toggle */}
+      <div className="flex gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-secondary)] p-1 w-fit">
+        {(["sg_pr", "foreigner"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className="rounded-full px-3.5 py-1 text-xs font-semibold transition-all duration-200"
+            style={{
+              background: tab === t ? "var(--brand-teal-hex)" : "transparent",
+              color: tab === t ? "var(--text-primary)" : "var(--text-tertiary)",
+            }}
+          >
+            {t === "sg_pr" ? "Singaporean / PR" : "Foreigner"}
+          </button>
+        ))}
+      </div>
+
+      {/* Checklist — 2-col on sm+ */}
+      <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
+        {items.map((item) => (
+          <li key={item} className="flex items-start gap-2">
+            <CheckCircle
+              size={15}
+              weight="duotone"
+              className="mt-0.5 shrink-0 text-brand-teal"
+            />
+            <span className="text-sm leading-snug text-[var(--text-secondary)]">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: AppointmentBookingProps) {
@@ -241,57 +319,8 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
           </div>
         </div>
 
-        {/* ── On the day instructions ─────────────────────────────── */}
-        <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-            When you arrive
-          </p>
-          <ol className="flex flex-col gap-4">
-            {[
-              "Sign in via Singpass at our counter, a QR code will be generated on your phone.",
-              "Scan the QR code against our scanner at the main door to receive your queue number.",
-              "Take a seat and wait for your queue number to be called.",
-            ].map((text, i) => (
-              <li key={i} className="flex items-center gap-3">
-                <div
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    background: "oklch(0.32 0.14 260 / 0.08)",
-                    color: "var(--brand-blue-hex)",
-                  }}
-                >
-                  <span className="text-xs font-bold">{i + 1}</span>
-                </div>
-                <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{text}</p>
-              </li>
-            ))}
-          </ol>
-
-        </div>
-
-        {thingsToBring.length > 0 && (
-          <div
-            className="flex flex-col gap-4 rounded-[var(--radius-lg)] px-5 py-5 text-left"
-            style={{ background: "var(--brand-blue-hex)" }}
-          >
-            <p className="text-xs font-bold uppercase tracking-wider text-white">
-              Things to bring
-            </p>
-            <ul className="flex flex-col gap-4">
-              {thingsToBring.map((item, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                    style={{ background: "oklch(1 0 0 / 0.15)" }}
-                  >
-                    <span className="text-xs font-bold text-white">{i + 1}</span>
-                  </div>
-                  <p className="text-sm leading-relaxed text-white">{item}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* ── What to bring ───────────────────────────────────────── */}
+        <WhatToBring idType={formData.idType} />
 
         {/* Office details */}
         <div className="flex flex-col gap-4 text-left">
@@ -561,11 +590,15 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
             className="overflow-y-auto"
             style={{ maxHeight: 280 }}
           >
-            {TIME_SLOTS.map((slot, i) => {
-              const disabled = isSlotDisabled(slot);
+            {(() => {
+              const bookedIdx = fullyBookedIndex(selectedDate);
+              const limitedSet = limitedSlotIndices(selectedDate, bookedIdx);
+              return TIME_SLOTS.map((slot, i) => {
+              const pastDisabled = isSlotDisabled(slot);
+              const isFullyBooked = !pastDisabled && i === bookedIdx;
+              const disabled = pastDisabled || isFullyBooked;
               const isSelected = selectedTime === slot;
-              const urgency = slotUrgency(selectedDate, slot);
-              const isLimited = !disabled && urgency === "limited";
+              const isLimited = !disabled && limitedSet.has(i);
 
               return (
                 <button
@@ -587,8 +620,10 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                   style={{
                     background: isSelected
                       ? "var(--brand-blue-hex)"
-                      : "var(--surface-elevated)",
-                    opacity: disabled ? 0.35 : 1,
+                      : isFullyBooked
+                        ? "var(--surface-secondary)"
+                        : "var(--surface-elevated)",
+                    opacity: pastDisabled ? 0.35 : 1,
                     pointerEvents: disabled ? "none" : "auto",
                     borderBottom: i < TIME_SLOTS.length - 1
                       ? "1px solid var(--border-subtle)"
@@ -601,23 +636,41 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                     style={{
                       background: isSelected
                         ? "rgba(255,255,255,0.6)"
-                        : disabled
+                        : pastDisabled
                           ? "var(--border-medium)"
-                          : isLimited
-                            ? "#e07b4a"
-                            : "#4caf7d",
+                          : isFullyBooked
+                            ? "#d1495b"
+                            : isLimited
+                              ? "#e07b4a"
+                              : "#4caf7d",
                     }}
                   />
                   {/* Time label */}
                   <span
                     className="flex-1 text-left"
                     style={{
-                      color: isSelected ? "#ffffff" : "var(--text-primary)",
+                      color: isSelected
+                        ? "#ffffff"
+                        : isFullyBooked
+                          ? "var(--text-tertiary)"
+                          : "var(--text-primary)",
+                      textDecoration: isFullyBooked ? "line-through" : "none",
                     }}
                   >
                     {formatDisplayTime(slot)}
                   </span>
-                  {/* Urgency badge */}
+                  {/* Status badge */}
+                  {isFullyBooked && (
+                    <span
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{
+                        background: "oklch(0.65 0.18 15 / 0.08)",
+                        color: "#a83240",
+                      }}
+                    >
+                      Fully booked
+                    </span>
+                  )}
                   {isLimited && !isSelected && (
                     <span
                       className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -626,7 +679,7 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                         color: "#c45c1a",
                       }}
                     >
-                      Limited
+                      limited spots remain
                     </span>
                   )}
                   {isSelected && (
@@ -636,7 +689,8 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                   )}
                 </button>
               );
-            })}
+            });
+            })()}
           </div>
           </div>{/* end outer clip wrapper */}
         </div>
