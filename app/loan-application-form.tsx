@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import type { LoanFormData as FormData } from "@/lib/loan-form";
+import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, formatCurrency } from "@/lib/loan-form";
 import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
@@ -117,84 +119,7 @@ const PAYMENT_HISTORY_OPTIONS = [
   { value: "on_time", label: "On-time", emoji: "😁" },
 ] as const;
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-SG", {
-    style: "currency",
-    currency: "SGD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function calculateMonthlyRepayment(amount: number, months: number): number {
-  const monthlyRate = 0.47 / 12; // 47% p.a. reducing balance
-  if (months === 0) return 0;
-  return (
-    (amount * (monthlyRate * Math.pow(1 + monthlyRate, months))) /
-    (Math.pow(1 + monthlyRate, months) - 1)
-  );
-}
-
-interface FormData {
-  amount: number;
-  tenure: number;
-  urgency: string;
-  /** How the user continues after step 3 */
-  authMethod: "" | "singpass" | "manual";
-  idType: string;
-  fullName: string;
-  nric: string;
-  employmentStatus: string;
-  monthlyIncome: string;
-  mobile: string;
-  loanPurpose: string;
-  postalCode: string;
-  address: string;
-  // Step 9 fields
-  workIndustry: string;
-  position: string;
-  employmentDuration: string;
-  officePhone: string;
-  mailingAddress: string;
-  secondaryMobile: string;
-  bankruptcyDeclaration: "" | "clear" | "discharged_lt5" | "active";
-  maritalStatus: string;
-  email: string;
-  // Step 9 — moneylender loans
-  moneylenderLoanAmount: string;
-  moneylenderNoLoans: boolean;
-  moneylenderPaymentHistory: string;
-}
-
-const initialFormData: FormData = {
-  amount: 5000,
-  tenure: 6,
-  urgency: "",
-  authMethod: "",
-  idType: "",
-  fullName: "",
-  nric: "",
-  employmentStatus: "",
-  monthlyIncome: "",
-  mobile: "",
-  loanPurpose: "",
-  postalCode: "",
-  address: "",
-  workIndustry: "",
-  position: "",
-  employmentDuration: "",
-  officePhone: "",
-  mailingAddress: "",
-  secondaryMobile: "",
-  bankruptcyDeclaration: "",
-  maritalStatus: "Single",
-  email: "tanweiliang@gmail.com",
-  moneylenderLoanAmount: "",
-  moneylenderNoLoans: false,
-  moneylenderPaymentHistory: "",
-};
-
-function StepIndicator({
+export function StepIndicator({
   current,
   total,
 }: {
@@ -594,22 +519,8 @@ export function LoanApplicationForm({
           <Step3_SingpassGate
             onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
             onSingpass={() => {
-              // Singpass Myinfo prefill — jump straight to Review (step 8)
-              setFormData((prev) => ({
-                ...prev,
-                authMethod: "singpass",
-                idType: "singaporean",
-                fullName: "Tan Wei Liang",
-                nric: "S8912345D",
-                monthlyIncome: prev.monthlyIncome || "5500",
-                mobile: "",
-                loanPurpose: "personal",
-                postalCode: "179094",
-                address: "1 North Bridge Road #08-01",
-                bankruptcyDeclaration: "clear",
-              }));
-              navigateTo(8);
-              scrollToTop();
+              // Redirect to backend auth gateway, which then sends users to Singpass.
+              window.location.href = "/api/auth";
             }}
             onManual={() => {
               updateField("authMethod", "manual");
@@ -742,7 +653,7 @@ export function LoanApplicationForm({
   );
 }
 
-function Step1_LoanDetails({
+export function Step1_LoanDetails({
   formData,
   updateField,
   monthlyRepayment,
@@ -977,7 +888,7 @@ function Step1_LoanDetails({
   );
 }
 
-function Step2_SelfDeclaredIncome({
+export function Step2_SelfDeclaredIncome({
   formData,
   updateField,
   incomeHighWarningShown,
@@ -1034,7 +945,7 @@ function Step2_SelfDeclaredIncome({
   );
 }
 
-function Step3_SingpassGate({
+export function Step3_SingpassGate({
   onBack,
   onSingpass,
   onManual,
@@ -1122,7 +1033,7 @@ function Step3_SingpassGate({
   );
 }
 
-function Step4_Identity({
+export function Step4_Identity({
   formData,
   updateField,
 }: {
@@ -1223,7 +1134,7 @@ function Step5_Employment({
   );
 }
 
-function Step6_Contact({
+export function Step6_Contact({
   formData,
   updateField,
 }: {
@@ -1270,7 +1181,7 @@ function Step6_Contact({
   );
 }
 
-function Step7_Additional({
+export function Step7_Additional({
   formData,
   updateField,
 }: {
@@ -1871,7 +1782,7 @@ function Step9_EmploymentDeclaration({
 
 // ─── Step 9: Moneylender Loans ────────────────────────────────────────────────
 
-function Step9_MoneylenderLoans({
+export function Step9_MoneylenderLoans({
   formData,
   updateField,
 }: {
@@ -2291,7 +2202,7 @@ function LegalModal({
 
 // ─── Step 8 ───────────────────────────────────────────────────────────────────
 
-function Step7_BankruptcyDeclaration({
+export function Step7_BankruptcyDeclaration({
   formData,
   updateField,
   onClear,
@@ -2500,7 +2411,7 @@ function EditableReviewRow({
   );
 }
 
-function Step8_Review({
+export function Step8_Review({
   formData,
   updateField,
   monthlyRepayment,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import type { LoanFormData as FormData } from "@/lib/loan-form";
 import {
   CalendarBlank,
   MapPin,
@@ -101,25 +102,10 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
-interface FormData {
-  amount: number;
-  tenure: number;
-  urgency: string;
-  authMethod: "" | "singpass" | "manual";
-  idType: string;
-  fullName: string;
-  nric: string;
-  employmentStatus: string;
-  monthlyIncome: string;
-  mobile: string;
-  loanPurpose: string;
-  postalCode: string;
-  address: string;
-}
-
 interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
+  onConfirm?: (date: string, time: string) => void;
   thingsToBring?: string[];
 }
 
@@ -184,7 +170,7 @@ function WhatToBring({ idType }: { idType: string }) {
   );
 }
 
-export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: AppointmentBookingProps) {
+export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring = [] }: AppointmentBookingProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -805,9 +791,10 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
         <button
           type="button"
           disabled={!canConfirm}
-          onClick={() => {
+            onClick={() => {
             setConfirmed(true);
             window.scrollTo({ top: 0, behavior: "instant" });
+            if (selectedDate && selectedTime) onConfirm?.(selectedDate, selectedTime);
           }}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
