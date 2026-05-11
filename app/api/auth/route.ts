@@ -1,0 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
+
+const DEFAULT_MYINFO_AUTH_URL =
+  "https://4n0hwiuvn0.execute-api.ap-southeast-1.amazonaws.com/stg/auth";
+
+export async function GET(request: NextRequest) {
+  const configuredUrl = process.env.MYINFO_AUTH_URL ?? DEFAULT_MYINFO_AUTH_URL;
+  const redirectUrl = new URL(configuredUrl);
+
+  // Forward query params (for example: state) to the upstream auth endpoint.
+  request.nextUrl.searchParams.forEach((value, key) => {
+    redirectUrl.searchParams.set(key, value);
+  });
+
+  return NextResponse.redirect(redirectUrl);
+}
