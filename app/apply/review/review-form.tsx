@@ -125,6 +125,28 @@ export function ReviewForm({ initialData }: Props) {
     }
   }
 
+  async function submitApplication() {
+    setSaving(true);
+    try {
+      // First persist the latest form data to the session cookie.
+      await fetch("/api/apply/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ formData, gate: "review" }),
+      });
+      // Then run scoring, save the lead, and get the approval result.
+      const res = await fetch("/api/apply/submit", { method: "POST" });
+      if (!res.ok) {
+        console.error("Submit failed", await res.text());
+        return;
+      }
+      const result = await res.json() as { isEligible: boolean };
+      router.push(result.isEligible ? "/apply/approval" : "/apply/pending");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const handleNext = useCallback(() => {
     // Step 4 (Identity) → jump to review (8)
     if (step === 4) { navigateTo(8); scrollToTop(); return; }
@@ -132,9 +154,9 @@ export function ReviewForm({ initialData }: Props) {
     if (step === 5 && history.includes(8)) { navigateTo(7); scrollToTop(); return; }
     // Post-review: bankruptcy (7) → moneylender (9)
     if (step === 7 && history.includes(8)) { navigateTo(9); scrollToTop(); return; }
-    // Moneylender (9) → save session and go to book page
+    // Moneylender (9) → submit application and go to approval page
     if (step === 9) {
-      saveAndNavigate("/apply/book");
+      submitApplication();
       return;
     }
     navigateTo(step + 1);

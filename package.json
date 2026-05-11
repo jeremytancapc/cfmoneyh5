@@ -11,6 +11,7 @@
   "dependencies": {
     "@aws-sdk/client-ssm": "^3.1045.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@supabase/supabase-js": "^2.105.4",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",

@@ -12,9 +12,24 @@ interface Props {
 export function BookingView({ formData }: Props) {
   const router = useRouter();
 
-  async function handleConfirm() {
-    // Clear all apply/review cookies once the appointment is confirmed.
-    await fetch("/api/apply/session", { method: "DELETE" });
+  async function handleConfirm(date: string, time: string) {
+    const res = await fetch("/api/apply/book", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ date, time }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      if (body.error === "slot_taken") {
+        // Slot was taken between selection and confirmation — page will reload
+        // and the slot will show as fully booked.
+        alert("Sorry, that slot was just taken. Please choose another time.");
+        return;
+      }
+      console.error("Failed to book appointment:", body);
+    }
+    // Cookies are cleared by the /api/apply/book route on success.
   }
 
   return (
@@ -44,7 +59,7 @@ export function BookingView({ formData }: Props) {
           <div className="w-full max-w-[520px]">
             <AppointmentBooking
               formData={formData}
-              onBack={() => router.push("/apply/review")}
+              onBack={() => router.push("/apply/approval")}
               onConfirm={handleConfirm}
             />
           </div>

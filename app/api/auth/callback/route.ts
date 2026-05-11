@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { saveAuthCallbackPayload } from "@/lib/auth-callback-store";
 import { encodeSession } from "@/lib/apply-session";
-import type { LoanFormData } from "@/lib/loan-form";
+import type { CpfContribution, LoanFormData, NoaRecord } from "@/lib/loan-form";
 
 export const runtime = "nodejs";
 
@@ -44,6 +44,12 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
   if (myinfo.uinfin) patch.nric = str(myinfo.uinfin);
   if (myinfo.email) patch.email = str(myinfo.email);
 
+  // Date of birth — used for CPF rate calculation
+  if (myinfo.dob && typeof myinfo.dob === "object") {
+    const dobVal = (myinfo.dob as Record<string, unknown>).value;
+    if (typeof dobVal === "string" && dobVal) patch.dob = dobVal;
+  }
+
   if (myinfo.mobileno && typeof myinfo.mobileno === "object") {
     const m = myinfo.mobileno as Record<string, { value: string }>;
     const nbr = m.nbr?.value ?? "";
@@ -65,14 +71,39 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
     patch.idType = mapResidentialStatus(str(myinfo.residentialstatus));
   }
 
+  // NOA history — all available YA records for scoring
   if (myinfo.noahistory && typeof myinfo.noahistory === "object") {
     const noas = (myinfo.noahistory as Record<string, unknown>).noas;
     if (Array.isArray(noas) && noas.length > 0) {
-      const latest = noas[0] as Record<string, { value?: number }>;
-      const yearlyAmount = latest.employment?.value ?? latest.amount?.value;
-      if (typeof yearlyAmount === "number" && yearlyAmount > 0) {
-        patch.monthlyIncome = String(Math.round(yearlyAmount / 12));
+      patch.noaHistory = noas
+        .map((n) => {
+          const row = n as Record<string, { value?: string | number }>;
+          const ya = String(row.yearofassessment?.value ?? "");
+          const income = Number(row.employment?.value ?? row.amount?.value ?? 0);
+          return ya && income > 0 ? { yearOfAssessment: ya, employmentIncome: income } : null;
+        })
+        .filter((r): r is NoaRecord => r !== null);
+
+      // Pre-fill declared income from latest qualifying NOA for the form display
+      const latest = patch.noaHistory[0];
+      if (latest) {
+        patch.monthlyIncome = String(Math.round(latest.employmentIncome / 12));
       }
+    }
+  }
+
+  // CPF contribution history — used for CPF-based income scoring
+  if (myinfo.cpfcontributions && typeof myinfo.cpfcontributions === "object") {
+    const history = (myinfo.cpfcontributions as Record<string, unknown>).history;
+    if (Array.isArray(history)) {
+      patch.cpfContributions = history
+        .map((h) => {
+          const row = h as Record<string, { value?: string | number }>;
+          const month = String(row.month?.value ?? "");
+          const amount = Number(row.amount?.value ?? 0);
+          return month && amount > 0 ? { month, amount } : null;
+        })
+        .filter((r): r is CpfContribution => r !== null);
     }
   }
 

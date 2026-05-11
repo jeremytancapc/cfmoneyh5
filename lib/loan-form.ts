@@ -1,3 +1,13 @@
+export interface CpfContribution {
+  month: string;   // "YYYY-MM"
+  amount: number;
+}
+
+export interface NoaRecord {
+  yearOfAssessment: string;   // "YYYY"
+  employmentIncome: number;   // annual SGD
+}
+
 export interface LoanFormData {
   amount: number;
   tenure: number;
@@ -24,6 +34,17 @@ export interface LoanFormData {
   moneylenderLoanAmount: string;
   moneylenderNoLoans: boolean;
   moneylenderPaymentHistory: string;
+
+  // MyInfo-derived data for credit scoring (populated at SingPass callback)
+  dob: string;                              // "YYYY-MM-DD"
+  cpfContributions: CpfContribution[];      // up to 12 months
+  noaHistory: NoaRecord[];                  // all available YA records
+
+  // Populated by /api/apply/submit — carried in session to approval + booking pages
+  leadId: string;
+  approvedLoanAmount: number;
+  verifiedMonthlyIncome: number;
+  incomeSource: "" | "cpf" | "noa" | "self_declared";
 }
 
 export const initialLoanFormData: LoanFormData = {
@@ -52,6 +73,13 @@ export const initialLoanFormData: LoanFormData = {
   moneylenderLoanAmount: "",
   moneylenderNoLoans: false,
   moneylenderPaymentHistory: "",
+  dob: "",
+  cpfContributions: [],
+  noaHistory: [],
+  leadId: "",
+  approvedLoanAmount: 0,
+  verifiedMonthlyIncome: 0,
+  incomeSource: "",
 };
 
 export function calculateMonthlyRepayment(amount: number, months: number): number {
