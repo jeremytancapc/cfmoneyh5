@@ -13,18 +13,20 @@ import {
   Car,
 } from "@phosphor-icons/react";
 
-// Singapore 2026 public holidays (YYYY-MM-DD)
+// Singapore 2026 public holidays (YYYY-MM-DD, local dates)
 const SG_PUBLIC_HOLIDAYS_2026 = new Set([
   "2026-01-01", // New Year's Day
-  "2026-01-29", // Chinese New Year
-  "2026-01-30", // Chinese New Year (2nd day)
+  "2026-02-17", // Chinese New Year
+  "2026-02-18", // Chinese New Year (2nd day)
+  "2026-03-21", // Hari Raya Puasa (Saturday)
   "2026-04-03", // Good Friday
   "2026-05-01", // Labour Day
-  "2026-05-12", // Vesak Day
-  "2026-06-17", // Hari Raya Haji
-  "2026-08-09", // National Day
-  "2026-10-20", // Deepavali
+  "2026-05-27", // Hari Raya Haji
+  "2026-06-01", // Vesak Day in-lieu (31 May falls on Sunday)
+  "2026-08-10", // National Day in-lieu (9 Aug falls on Sunday)
+  "2026-11-09", // Deepavali in-lieu (8 Nov falls on Sunday)
   "2026-12-25", // Christmas Day
+  "2027-01-01", // New Year's Day 2027
 ]);
 
 // 30-min slots from 10:30 to 19:00 (last appointment at 19:00, ends 19:30)
@@ -44,7 +46,10 @@ const MONTH_LABELS = [
 ];
 
 function toISODate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function isDisabledDate(date: Date): boolean {
@@ -480,16 +485,27 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                   animationDelay: `${i * 40}ms`,
                 }}
               >
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{
-                    color: isSelected
-                      ? "var(--text-on-brand)"
-                      : "var(--text-tertiary)",
-                  }}
-                >
-                  {DAY_LABELS[date.getDay()]}
-                </span>
+                {isToday ? (
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{
+                      color: isSelected ? "var(--text-on-brand)" : "var(--brand-teal-hex)",
+                    }}
+                  >
+                    Today
+                  </span>
+                ) : (
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider"
+                    style={{
+                      color: isSelected
+                        ? "var(--text-on-brand)"
+                        : "var(--text-tertiary)",
+                    }}
+                  >
+                    {DAY_LABELS[date.getDay()]}
+                  </span>
+                )}
                 <span
                   className="font-display text-lg font-bold leading-none tabular-nums"
                   style={{
@@ -511,12 +527,6 @@ export function AppointmentBooking({ formData, onBack, thingsToBring = [] }: App
                   >
                     {MONTH_LABELS[date.getMonth()]}
                   </span>
-                )}
-                {isToday && !isSelected && (
-                  <div
-                    className="h-1 w-1 rounded-full"
-                    style={{ background: "var(--brand-teal-hex)" }}
-                  />
                 )}
               </button>
             );
