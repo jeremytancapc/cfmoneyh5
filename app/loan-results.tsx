@@ -30,6 +30,7 @@ interface FormData {
   loanPurpose: string;
   postalCode: string;
   address: string;
+  moneylenderPaymentHistory?: string;
 }
 
 function formatCurrency(value: number): string {
@@ -306,6 +307,17 @@ export function LoanResults({
             </span>
           </motion.div>
         </div>
+
+        {/* ── Disclaimer (always shown, extra note for poor history) ── */}
+        <motion.div
+          className="flex flex-col items-center gap-1 -mt-5"
+          initial={{ opacity: 0 }}
+          {...blurIn(revealStage >= 3)}
+        >
+          <p className="text-center text-[10px] leading-relaxed text-[var(--text-tertiary)] w-full">
+            *Declared moneylender history may affect the final disbursed amount.
+          </p>
+        </motion.div>
 
         {/* ── Stage 4: Notice card ────────────────────────────────── */}
         <motion.div

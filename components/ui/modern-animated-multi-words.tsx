@@ -168,7 +168,7 @@ export function ContainerTextFlip({
                 ease: [0.25, 0.25, 0, 1],
               }}
               className={cn(
-                "text-[clamp(1.25rem,5vw,3rem)] font-black tracking-tight",
+                "text-[clamp(1rem,3.8vw,2.25rem)] whitespace-nowrap font-black tracking-tight",
                 "text-center",
                 textClassName
               )}
