@@ -293,14 +293,9 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
             </p>
             <p className="mt-1 text-lg font-semibold text-brand-blue">
               {formatDisplayTime(selectedTime)}
-              {" — "}
-              {formatDisplayTime(
-                (() => {
-                  const [h, m] = selectedTime.split(":").map(Number);
-                  const end = new Date(2000, 0, 1, h, m + 30);
-                  return `${end.getHours()}:${end.getMinutes().toString().padStart(2, "0")}`;
-                })(),
-              )}
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+              We recommend arriving 15 mins before your timeslot so that we can facilitate your appointment on time.
             </p>
           </div>
         </div>
@@ -381,25 +376,6 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
 
         <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)]">
           <p>We look forward to meeting you.</p>
-          <p>
-            If you have any questions, call us at{" "}
-            <a
-              href="tel:+6567778080"
-              className="font-medium text-brand-blue transition-colors duration-200 hover:brightness-110"
-            >
-              6777 8080
-            </a>
-            {" "}or{" "}
-            <a
-              href="https://wa.me/6560119380?text=I%20have%20a%20question%20about%20my%20appointment"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-brand-blue transition-colors duration-200 hover:brightness-110"
-            >
-              WhatsApp us
-            </a>
-            .
-          </p>
         </div>
       </div>
     );

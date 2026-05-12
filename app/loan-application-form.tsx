@@ -115,7 +115,7 @@ const EMPLOYMENT_DURATION_OPTIONS = [
 ] as const;
 
 const PAYMENT_HISTORY_OPTIONS = [
-  { value: "bad_debt", label: "Bad Debt", emoji: "😰" },
+  { value: "bad_debt", label: "Missed payments", emoji: "😰" },
   { value: "average", label: "Average", emoji: "😐" },
   { value: "on_time", label: "On-time", emoji: "😁" },
 ] as const;
@@ -650,7 +650,7 @@ export function LoanApplicationForm({
             </button>
           )}
         </div>
-        {(step === 9 || (step === 7 && history.includes(8))) && (
+        {step === 9 && (
           <p className="mt-3 text-center text-[10px] leading-relaxed text-[var(--text-tertiary)]">
             *Declared history may affect the final disbursed amount.
           </p>
