@@ -592,6 +592,7 @@ export function LoanApplicationForm({
       )}
 
       {step !== 3 && (
+        <>
         <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3 relative z-20">
           {step > 1 && (
             <button
@@ -649,6 +650,12 @@ export function LoanApplicationForm({
             </button>
           )}
         </div>
+        {(step === 9 || (step === 7 && history.includes(8))) && (
+          <p className="mt-3 text-center text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+            *Declared history may affect the final disbursed amount.
+          </p>
+        )}
+        </>
       )}
     </div>
   );
