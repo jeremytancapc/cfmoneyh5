@@ -9,9 +9,6 @@ import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
 import {
-  Lightning,
-  CalendarBlank,
-  Sliders,
   ArrowRight,
   ArrowLeft,
   CheckCircle,
@@ -46,9 +43,9 @@ const TOTAL_STEPS = 8; // review is still at internal step 8
 const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
 
 const URGENCY_OPTIONS = [
-  { value: "today", label: "Today", icon: Lightning },
-  { value: "this_week", label: "This Week", icon: CalendarBlank },
-  { value: "not_sure", label: "Flexible", icon: Sliders },
+  { value: "today", label: "Today", emoji: "⚡" },
+  { value: "this_week", label: "This Week", emoji: "📅" },
+  { value: "not_sure", label: "Flexible", emoji: "🔄" },
 ] as const;
 
 const ID_TYPE_OPTIONS = [
@@ -847,7 +844,7 @@ export function Step1_LoanDetails({
             When do you need the funds?
           </label>
           <div className="grid grid-cols-3 gap-2">
-            {URGENCY_OPTIONS.map(({ value, label, icon: Icon }) => {
+            {URGENCY_OPTIONS.map(({ value, label, emoji }) => {
               const isSelected = formData.urgency === value;
               return (
                 <button
@@ -863,24 +860,16 @@ export function Step1_LoanDetails({
                       ? "var(--brand-blue-hex)"
                       : "var(--border-subtle)",
                     background: isSelected
-                      ? "oklch(0.32 0.14 260 / 0.06)"
+                      ? "var(--brand-blue-hex)"
                       : "transparent",
                   }}
                 >
-                  <Icon
-                    size={22}
-                    weight={isSelected ? "duotone" : "regular"}
-                    style={{
-                      color: isSelected
-                        ? "var(--brand-blue-hex)"
-                        : "var(--text-tertiary)",
-                    }}
-                  />
+                  <span className="text-[22px] leading-none" aria-hidden="true">{emoji}</span>
                   <span
                     className="text-xs font-medium"
                     style={{
                       color: isSelected
-                        ? "var(--brand-blue-hex)"
+                        ? "var(--text-on-brand)"
                         : "var(--text-secondary)",
                     }}
                   >
