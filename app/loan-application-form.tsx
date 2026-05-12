@@ -365,6 +365,31 @@ export function LoanApplicationForm({
   const bottomCtaRef = useRef<HTMLDivElement>(null);
   const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [step3RedirectPending, setStep3RedirectPending] = useState(false);
+
+  const leaveAfterSavingGate = useCallback(
+    async (destination: string, patch: Partial<FormData>) => {
+      setStep3RedirectPending(true);
+      try {
+        const res = await fetch("/api/apply/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            formData: { ...formData, ...patch },
+            gate: "apply",
+          }),
+        });
+        if (!res.ok) {
+          setStep3RedirectPending(false);
+          return;
+        }
+        window.location.assign(destination);
+      } catch {
+        setStep3RedirectPending(false);
+      }
+    },
+    [formData],
+  );
 
   useEffect(() => {
     const el = bottomCtaRef.current;
@@ -515,16 +540,18 @@ export function LoanApplicationForm({
         )}
         {step === 3 && (
           <Step3_SingpassGate
-            onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
-            onSingpass={() => {
-              // Redirect to backend auth gateway, which then sends users to Singpass.
-              window.location.href = "/api/auth";
-            }}
-            onManual={() => {
-              updateField("authMethod", "manual");
-              navigateTo(4);
+            onBack={() => {
+              setStep3RedirectPending(false);
+              setHistory((h) => h.slice(0, -1));
               scrollToTop();
             }}
+            onSingpass={() => {
+              void leaveAfterSavingGate("/api/auth", { authMethod: "singpass" });
+            }}
+            onManual={() => {
+              void leaveAfterSavingGate("/apply/review", { authMethod: "manual" });
+            }}
+            redirectPending={step3RedirectPending}
           />
         )}
         {step === 4 && (
@@ -946,10 +973,13 @@ export function Step3_SingpassGate({
   onBack,
   onSingpass,
   onManual,
+  redirectPending = false,
 }: {
   onBack: () => void;
   onSingpass: () => void;
   onManual: () => void;
+  /** When true, disables actions while session is saved and browser navigates away. */
+  redirectPending?: boolean;
 }) {
   const benefits = [
     "No documents required — Myinfo retrieves everything automatically",
@@ -982,19 +1012,29 @@ export function Step3_SingpassGate({
       <button
         type="button"
         onClick={onSingpass}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 shadow-[0_1px_2px_rgba(0,0,51,0.06)] transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-[0_2px_6px_rgba(0,0,51,0.1)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue"
+        disabled={redirectPending}
+        className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 shadow-[0_1px_2px_rgba(0,0,51,0.06)] transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-[0_2px_6px_rgba(0,0,51,0.1)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Retrieve Myinfo with Singpass"
       >
-        <span className="text-sm font-medium text-[var(--text-secondary)]">
-          Retrieve Myinfo with
-        </span>
-        <Image
-          src="/images/singpass_logo_fullcolours.png"
-          alt="Singpass"
-          width={88}
-          height={28}
-          className="h-5 w-auto translate-y-px"
-        />
+        {redirectPending ? (
+          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+            <span className="h-4 w-4 rounded-full border-2 border-[var(--border-medium)] border-t-brand-blue animate-spin" />
+            Please wait…
+          </span>
+        ) : (
+          <>
+            <span className="text-sm font-medium text-[var(--text-secondary)]">
+              Retrieve Myinfo with
+            </span>
+            <Image
+              src="/images/singpass_logo_fullcolours.png"
+              alt="Singpass"
+              width={88}
+              height={28}
+              className="h-5 w-auto translate-y-px"
+            />
+          </>
+        )}
       </button>
 
       <div className="relative my-4">
@@ -1012,7 +1052,8 @@ export function Step3_SingpassGate({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          disabled={redirectPending}
+          className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ArrowLeft size={16} weight="bold" />
           Back
@@ -1020,10 +1061,11 @@ export function Step3_SingpassGate({
         <button
           type="button"
           onClick={onManual}
-          className="flex items-center gap-2 text-sm font-semibold text-brand-blue transition-colors hover:brightness-110"
+          disabled={redirectPending}
+          className="flex items-center gap-2 text-sm font-semibold text-brand-blue transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Fill in manually
-          <ArrowRight size={16} weight="bold" />
+          {redirectPending ? "Please wait…" : "Fill in manually"}
+          {!redirectPending && <ArrowRight size={16} weight="bold" />}
         </button>
       </div>
     </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Step1_LoanDetails,
@@ -17,7 +16,6 @@ import {
 import { SidebarTrustFeatures } from "@/app/sidebar-trust-features";
 
 export default function ApplyPage() {
-  const router = useRouter();
   const [history, setHistory] = useState<number[]>([1]);
   const step = history[history.length - 1];
 
@@ -74,7 +72,9 @@ export default function ApplyPage() {
   const bottomCtaRef = useRef<HTMLDivElement>(null);
   const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const el = bottomCtaRef.current;
@@ -98,12 +98,13 @@ export default function ApplyPage() {
   ) {
     setSaving(true);
     try {
-      await fetch("/api/apply/session", {
+      const res = await fetch("/api/apply/session", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ formData: { ...formData, ...patch }, gate }),
       });
-      router.push(destination);
+      if (!res.ok) return;
+      window.location.assign(destination);
     } finally {
       setSaving(false);
     }
@@ -117,7 +118,10 @@ export default function ApplyPage() {
         return;
       }
     }
-    if (step < 3) { navigateTo(step + 1); scrollToTop(); }
+    if (step < 3) {
+      navigateTo(step + 1);
+      scrollToTop();
+    }
   }
 
   function handleBack() {
@@ -129,11 +133,17 @@ export default function ApplyPage() {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh">
-      {/* Sidebar */}
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
           <div className="mb-16">
-            <Image src="/images/cf-money-white.png" alt="CF Money" width={160} height={48} className="h-6 w-auto" priority />
+            <Image
+              src="/images/cf-money-white.png"
+              alt="CF Money"
+              width={160}
+              height={48}
+              className="h-6 w-auto"
+              priority
+            />
           </div>
           <h1 className="font-display text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-[var(--text-on-brand)] max-w-[420px]">
             Get the funds you need, in 8 minutes
@@ -145,11 +155,17 @@ export default function ApplyPage() {
         <SidebarTrustFeatures />
       </aside>
 
-      {/* Main */}
       <main className="flex flex-col flex-1 overflow-x-clip">
         <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
           <a href="/">
-            <Image src="/images/cf-money-full-color.png" alt="CF Money" width={120} height={36} className="h-4 w-auto" priority />
+            <Image
+              src="/images/cf-money-full-color.png"
+              alt="CF Money"
+              width={120}
+              height={36}
+              className="h-4 w-auto"
+              priority
+            />
           </a>
         </div>
 
@@ -183,11 +199,11 @@ export default function ApplyPage() {
                   onManual={() => {
                     saveSessionAndRedirect({ authMethod: "manual" }, "apply", "/apply/review");
                   }}
+                  redirectPending={saving}
                 />
               )}
             </div>
 
-            {/* CTA buttons */}
             {step !== 3 && (
               <>
                 {step === 1 && !isBottomCtaVisible && (

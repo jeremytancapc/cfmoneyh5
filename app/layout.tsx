@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     default: "Crawfort | Apply for a Loan",
     template: "%s | Crawfort",
   },
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
+  },
   description:
     "Apply for a personal loan in minutes. Get approved by a licensed money lender in Singapore.",
   robots: {

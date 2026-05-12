@@ -2,12 +2,31 @@
  * Income determination and loan eligibility engine.
  *
  * Rules source:
- *  - Eligibility: 18+; foreigners ≥ S$40k/year; income ≤ S$20k/year → max S$3k;
- *    otherwise max = 4× monthly income — all minus existing moneylender loans.
+ *  - Eligibility: 18+; foreigners ≥ S$40k/year; income ≤ S$20k/year → max S$3k − O/S balance;
+ *    otherwise max = incomeMultiple × monthly income − declared moneylender O/S balance.
+ *    incomeMultiple: no ML loans 4.5×; on-time 4.9×; average 3.8×; bad debt 1.38×.
  *  - Income priority: CPF (if fresh) → NOA (if in window) → self-declared.
  */
 
 import type { CpfContribution, NoaRecord } from "./loan-form";
+
+/** Max loan = multiplier × verified monthly income − declared moneylender outstanding balance. */
+export function moneylenderIncomeMultiplier(
+  noLoans: boolean,
+  paymentHistory: string,
+): number {
+  if (noLoans) return 4.5;
+  switch (paymentHistory) {
+    case "on_time":
+      return 4.9;
+    case "average":
+      return 3.8;
+    case "bad_debt":
+      return 1.38;
+    default:
+      return 1.38;
+  }
+}
 
 // ─── CPF total rates by age bracket ───────────────────────────────────────────
 
@@ -171,7 +190,7 @@ export interface CreditAssessment {
   /** Whether a foreigner meets the income floor (always true for SG/PR). */
   meetsForeignerIncomeFloor: boolean;
 
-  /** Existing moneylender loan balance (SGD, 0 if declared none). */
+  /** Declared moneylender balance (audit only; not subtracted from max loan). */
   existingLoans: number;
 
   /** Maximum loan the applicant is eligible for before the cap. */
@@ -204,6 +223,9 @@ export function assessCredit(params: {
   requestedLoanAmount: number;
   moneylenderNoLoans: boolean;
   moneylenderLoanAmount: string;
+  moneylenderPaymentHistory: string;
+  /** When `"manual"`, age eligibility is not enforced here (no verified DOB yet). */
+  authMethod?: "" | "singpass" | "manual";
   ref?: Date;
 }): CreditAssessment {
   const ref = params.ref ?? new Date();
@@ -236,32 +258,45 @@ export function assessCredit(params: {
     explanation = `Based on your Notice of Assessment (YA ${noa.latestYa}, annual income S$${noa.annualIncome.toLocaleString()}), your monthly income is S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
   }
 
-  // Existing loans
+  // Declared moneylender balance (stored on lead / audit — not used to reduce max loan).
   const existingLoans =
     params.moneylenderNoLoans
       ? 0
       : Math.max(0, parseInt(params.moneylenderLoanAmount, 10) || 0);
 
-  // Eligibility checks
-  const meetsAgeRequirement = age >= 18;
+  const incomeMultiple = moneylenderIncomeMultiplier(
+    params.moneylenderNoLoans,
+    params.moneylenderPaymentHistory ?? "",
+  );
+
+  // Eligibility checks — manual path skips verified age until DOB is collected properly.
+  const meetsAgeRequirement =
+    params.authMethod === "manual" || age >= 18;
   const foreignerMinMonthlyIncome = 40000 / 12; // ~S$3,333/month
   const meetsForeignerIncomeFloor = !isForeigner || verifiedMonthlyIncome >= foreignerMinMonthlyIncome;
 
-  // Loan cap calculation
+  // Loan cap calculation — declared O/S balance is always subtracted from the cap.
   const annualIncome = verifiedMonthlyIncome * 12;
   let maxEligibleLoan: number;
   if (annualIncome <= 20000) {
     maxEligibleLoan = Math.max(0, 3000 - existingLoans);
   } else {
-    maxEligibleLoan = Math.max(0, 4 * verifiedMonthlyIncome - existingLoans);
+    maxEligibleLoan = Math.max(0, incomeMultiple * verifiedMonthlyIncome - existingLoans);
   }
+
+  const moneylenderNote =
+    params.moneylenderNoLoans
+      ? "No moneylender loans declared — capacity factor 4.5× monthly income."
+      : `Moneylender payment record: ${incomeMultiple}× monthly income; declared O/S balance S$${existingLoans.toLocaleString()} deducted from cap.`;
+
+  const explanationWithCap = `${explanation} ${moneylenderNote}`;
 
   const isEligible =
     meetsAgeRequirement &&
     meetsForeignerIncomeFloor &&
     maxEligibleLoan > 0;
 
-  // Approved = what they asked for, capped at eligibility max, rounded to nearest $100
+  // Approved = what they asked for, capped at eligibility max, floored to nearest $100
   const rawApproved = Math.min(params.requestedLoanAmount, maxEligibleLoan);
   const approvedLoanAmount = isEligible ? Math.floor(rawApproved / 100) * 100 : 0;
 
@@ -277,7 +312,7 @@ export function assessCredit(params: {
     requestedLoanAmount: params.requestedLoanAmount,
     approvedLoanAmount,
     isEligible,
-    explanation,
+    explanation: explanationWithCap,
     cpf,
     noa,
     selfDeclaredMonthlyIncome: selfDeclared,

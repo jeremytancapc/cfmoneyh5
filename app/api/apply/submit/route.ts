@@ -20,15 +20,29 @@ import {
   SESSION_COOKIE,
 } from "@/lib/apply-session";
 import { initialLoanFormData } from "@/lib/loan-form";
+import type { LoanFormData } from "@/lib/loan-form";
 import { assessCredit } from "@/lib/credit-score";
 import { createAdminClient } from "@/lib/supabase/client";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  // Accept formData posted directly in the body (preferred — avoids cookie race
+  // between the session-save and submit requests).  Fall back to the session
+  // cookie so that older callers keep working.
+  let bodyData: Partial<LoanFormData> = {};
+  try {
+    const ct = request.headers.get("content-type") ?? "";
+    if (ct.includes("application/json")) {
+      bodyData = (await request.json()) as Partial<LoanFormData>;
+    }
+  } catch {
+    // ignore parse errors; will fall back to cookie
+  }
   const rawSession = request.cookies.get(SESSION_COOKIE)?.value ?? "";
   const sessionData = rawSession ? (decodeSession(rawSession) ?? {}) : {};
-  const formData = { ...initialLoanFormData, ...sessionData };
+  // Body takes precedence over cookie so fresh data is always used.
+  const formData = { ...initialLoanFormData, ...sessionData, ...bodyData };
 
   const admin = createAdminClient();
 
@@ -108,6 +122,8 @@ export async function POST(request: NextRequest) {
     requestedLoanAmount: formData.amount,
     moneylenderNoLoans: formData.moneylenderNoLoans,
     moneylenderLoanAmount: formData.moneylenderLoanAmount,
+    moneylenderPaymentHistory: formData.moneylenderPaymentHistory,
+    authMethod: formData.authMethod,
   });
 
   // ── 4. Save credit assessment ─────────────────────────────────────────────
@@ -120,6 +136,8 @@ export async function POST(request: NextRequest) {
     is_eligible: assessment.isEligible,
     age_at_application: assessment.age || null,
     existing_loans: assessment.existingLoans,
+    moneylender_loan_amount: assessment.existingLoans > 0 ? assessment.existingLoans : null,
+    moneylender_payment_history: formData.moneylenderNoLoans ? null : (formData.moneylenderPaymentHistory || null),
     explanation: assessment.explanation,
     raw_assessment: assessment as unknown as Record<string, unknown>,
   });

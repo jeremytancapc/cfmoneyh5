@@ -136,6 +136,8 @@ export interface CreditAssessmentRow {
 
   age_at_application: number | null;
   existing_loans: number;
+  moneylender_loan_amount: number | null;
+  moneylender_payment_history: string | null;
   explanation: string | null;
   raw_assessment: Record<string, unknown>;
 }

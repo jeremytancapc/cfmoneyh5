@@ -36,7 +36,7 @@ export function PendingView({ formData }: Props) {
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh">
       {/* Sidebar */}
-      <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-[#1a2e4a] p-12 xl:p-16">
+      <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
           <div className="mb-16">
             <Image
@@ -48,10 +48,10 @@ export function PendingView({ formData }: Props) {
               priority
             />
           </div>
-          <h1 className="font-display text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-white max-w-[420px]">
+          <h1 className="font-display text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-[var(--text-on-brand)] max-w-[420px]">
             Application received
           </h1>
-          <p className="mt-6 text-lg leading-relaxed text-white/70 max-w-[380px]">
+          <p className="mt-6 text-lg leading-relaxed text-[var(--text-on-brand)] opacity-75 max-w-[380px]">
             We've received your application and our team will be in touch with you shortly.
           </p>
         </div>

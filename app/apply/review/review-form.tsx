@@ -128,14 +128,13 @@ export function ReviewForm({ initialData }: Props) {
   async function submitApplication() {
     setSaving(true);
     try {
-      // First persist the latest form data to the session cookie.
-      await fetch("/api/apply/session", {
+      // Post formData directly to the submit route so the latest values are
+      // used without relying on a prior cookie-save round trip.
+      const res = await fetch("/api/apply/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ formData, gate: "review" }),
+        body: JSON.stringify(formData),
       });
-      // Then run scoring, save the lead, and get the approval result.
-      const res = await fetch("/api/apply/submit", { method: "POST" });
       if (!res.ok) {
         console.error("Submit failed", await res.text());
         return;
@@ -154,14 +153,9 @@ export function ReviewForm({ initialData }: Props) {
     if (step === 5 && history.includes(8)) { navigateTo(7); scrollToTop(); return; }
     // Post-review: bankruptcy (7) → moneylender (9)
     if (step === 7 && history.includes(8)) { navigateTo(9); scrollToTop(); return; }
-    // Moneylender (9) → submit application and go to approval page
-    if (step === 9) {
-      submitApplication();
-      return;
-    }
     navigateTo(step + 1);
     scrollToTop();
-  }, [step, history, navigateTo, scrollToTop]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, history, navigateTo, scrollToTop]);
 
   const handleBack = useCallback(() => {
     if (history.length > 1) {
@@ -278,7 +272,7 @@ export function ReviewForm({ initialData }: Props) {
               ) : step === 9 ? (
                 <button
                   type="button"
-                  onClick={handleNext}
+                  onClick={submitApplication}
                   disabled={(mounted && !canProceed) || saving}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                 >
