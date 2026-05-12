@@ -1861,7 +1861,7 @@ export function Step9_MoneylenderLoans({
                         ? "var(--brand-blue-hex)"
                         : "var(--border-subtle)",
                       background: isSelected
-                        ? "oklch(0.32 0.14 260 / 0.06)"
+                        ? "var(--brand-blue-hex)"
                         : "transparent",
                     }}
                   >
@@ -1870,7 +1870,7 @@ export function Step9_MoneylenderLoans({
                       className="text-[11px] font-medium text-center leading-tight"
                       style={{
                         color: isSelected
-                          ? "var(--brand-blue-hex)"
+                          ? "var(--text-on-brand)"
                           : "var(--text-secondary)",
                       }}
                     >
