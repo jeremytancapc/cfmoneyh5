@@ -1,7 +1,8 @@
 /**
  * POST /api/apply/book
  *
- * Saves the chosen appointment slot to Supabase and then clears all apply cookies.
+ * Saves the chosen appointment slot to Supabase, clears apply cookies, and
+ * notifies AirConnect via the external appointments API.
  * Body: { date: "YYYY-MM-DD", time: "HH:MM" }
  */
 
@@ -16,6 +17,44 @@ import { createAdminClient } from "@/lib/supabase/client";
 export const runtime = "nodejs";
 
 type Body = { date: string; time: string };
+
+async function notifyAirConnect(
+  customerName: string,
+  phoneNumber: string,
+  appointmentDate: string,
+  timeSlot: string,
+) {
+  const apiKey = process.env.AIRCONNECT_API_KEY;
+  const url = process.env.AIRCONNECT_APPOINTMENTS_URL;
+
+  if (!apiKey || !url) {
+    console.warn("AirConnect env vars not configured — skipping notification");
+    return;
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "apikey": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        app: "dashboard",
+        customerName,
+        phoneNumber,
+        appointmentDate,
+        timeSlot,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("AirConnect notification failed:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("AirConnect notification error:", err);
+  }
+}
 
 export async function POST(request: NextRequest) {
   const rawSession = request.cookies.get(SESSION_COOKIE)?.value ?? "";
@@ -51,11 +90,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to book appointment" }, { status: 500 });
   }
 
+  // Fetch lead details for the AirConnect notification
+  const { data: lead } = await admin
+    .from("leads")
+    .select("full_name, mobile")
+    .eq("id", leadId)
+    .single();
+
   // Update the lead status to "appointed"
   await admin
     .from("leads")
     .update({ status: "appointed" })
     .eq("id", leadId);
+
+  // Notify AirConnect — fire-and-forget so a failure doesn't block the response
+  notifyAirConnect(
+    lead?.full_name ?? "",
+    lead?.mobile ?? "",
+    date,
+    time,
+  );
 
   const res = NextResponse.json({ ok: true });
 
