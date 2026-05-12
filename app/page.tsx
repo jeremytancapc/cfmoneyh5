@@ -89,10 +89,8 @@ export default function HomePage() {
           </p>
 
           <p className="mt-4 text-xs font-semibold">
-            For loan enquiries, please contact us at{" "}
-            <a href="tel:+6567778080" className="underline underline-offset-2">+65 6777 8080</a>
-            {" "}or{" "}
-            <a href="mailto:hellosg@crawfort.com" className="underline underline-offset-2">hellosg@crawfort.com</a>
+            For any enquiries, please WhatsApp us at{" "}
+            <a href="https://wa.me/6560279208" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">6027 9208</a>
           </p>
         </footer>
       </main>

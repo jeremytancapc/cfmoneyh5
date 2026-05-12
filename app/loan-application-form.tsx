@@ -20,6 +20,7 @@ import {
   User,
   Briefcase,
   Phone,
+  ChatTeardropText,
   IdentificationCard,
   Buildings,
   ChartLineUp,
@@ -472,7 +473,7 @@ export function LoanApplicationForm({
   }, [formData.authMethod]);
 
   const sliderPercentage = useMemo(() => {
-    return ((formData.amount - 500) / (30000 - 500)) * 100;
+    return ((formData.amount - 500) / (20000 - 500)) * 100;
   }, [formData.amount]);
 
   if (postSubmitPhase === "loading") {
@@ -676,7 +677,7 @@ export function Step1_LoanDetails({
       const raw = e.target.value.replace(/[^0-9]/g, "");
       setAmountRaw(raw);
       const num = parseInt(raw, 10);
-      if (!Number.isNaN(num) && num >= 500 && num <= 30000) {
+      if (!Number.isNaN(num) && num >= 500 && num <= 20000) {
         updateField("amount", num);
       }
     },
@@ -688,7 +689,7 @@ export function Step1_LoanDetails({
     const num = parseInt(amountRaw, 10);
     const clamped = Number.isNaN(num)
       ? 500
-      : Math.round(Math.min(Math.max(num, 500), 30000) / 500) * 500;
+      : Math.round(Math.min(Math.max(num, 500), 20000) / 500) * 500;
     updateField("amount", clamped);
     setAmountRaw(String(clamped));
   }, [amountRaw, updateField]);
@@ -697,7 +698,7 @@ export function Step1_LoanDetails({
     setTenureFocused(false);
     const num = parseInt(tenureRaw, 10);
     if (Number.isNaN(num) || num <= 0) { setTenureRaw(String(formData.tenure)); return; }
-    const clamped = Math.min(Math.max(num, 1), 12);
+    const clamped = Math.min(Math.max(num, 1), 24);
     updateField("tenure", clamped);
     setTenureRaw(String(clamped));
   }, [tenureRaw, formData.tenure, updateField]);
@@ -722,7 +723,7 @@ export function Step1_LoanDetails({
               <input
                 type="text"
                 inputMode="numeric"
-                value={amountFocused ? amountRaw : `${formData.amount.toLocaleString("en-SG")}${formData.amount >= 30000 ? "+" : ""}`}
+                value={amountFocused ? amountRaw : `${formData.amount.toLocaleString("en-SG")}${formData.amount >= 20000 ? "+" : ""}`}
                 onFocus={() => { setAmountFocused(true); setAmountRaw(String(formData.amount)); }}
                 onBlur={handleAmountBlur}
                 onChange={handleAmountChange}
@@ -743,7 +744,7 @@ export function Step1_LoanDetails({
             <input
               type="range"
               min={500}
-              max={30000}
+              max={20000}
               step={500}
               value={formData.amount}
               onChange={(e) => {
@@ -756,7 +757,7 @@ export function Step1_LoanDetails({
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
             <span>$500</span>
-            <span>$30,000+</span>
+            <span>$20,000+</span>
           </div>
         </div>
 
@@ -790,14 +791,14 @@ export function Step1_LoanDetails({
             <div
               className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full"
               style={{
-                width: `${((formData.tenure - 1) / (12 - 1)) * 100}%`,
+                width: `${((formData.tenure - 1) / (24 - 1)) * 100}%`,
                 background: "var(--brand-blue-hex)",
               }}
             />
             <input
               type="range"
               min={1}
-              max={12}
+              max={24}
               step={1}
               value={formData.tenure}
               onChange={(e) => {
@@ -810,7 +811,7 @@ export function Step1_LoanDetails({
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
             <span>1 month</span>
-            <span>12 months+</span>
+            <span>24 months+</span>
           </div>
         </div>
 
@@ -913,7 +914,7 @@ export function Step2_SelfDeclaredIncome({
       />
       <div className="flex flex-col gap-5">
         <InputField
-          label="Monthly Income"
+          label="Estimated Gross Monthly Income"
           type="number"
           placeholder="e.g. 4500"
           value={formData.monthlyIncome}
@@ -1143,39 +1144,42 @@ export function Step6_Contact({
 }) {
   return (
     <div>
-      <div className="mb-6 sm:mb-8">
-        <div className="flex items-center gap-3 sm:block">
-          <div className="flex items-center gap-2 sm:mb-3">
-            <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06]">
-              <Phone size={18} weight="duotone" className="text-brand-blue sm:hidden" />
-              <Phone size={22} weight="duotone" className="text-brand-blue hidden sm:block" />
-            </div>
-            <div
-              className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)]"
-              style={{ background: "oklch(0.72 0.19 145 / 0.10)" }}
-            >
-              <WhatsappLogo size={18} weight="duotone" className="sm:hidden" style={{ color: "#25D366" }} />
-              <WhatsappLogo size={22} weight="duotone" className="hidden sm:block" style={{ color: "#25D366" }} />
-            </div>
-          </div>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-            How can we reach you?
-          </h2>
-        </div>
-        <p className="mt-3 text-base leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
-          We&apos;ll contact you regarding your loan status and details
-        </p>
-      </div>
+      <StepHeader
+        icon={Phone}
+        title="How can we reach you?"
+        subtitle="We'll contact you regarding your loan status and details."
+      />
 
       <div className="flex flex-col gap-5">
-        <InputField
-          label="Mobile Number"
-          type="tel"
-          placeholder="9123 4567"
-          value={formData.mobile}
-          onChange={(v) => updateField("mobile", v)}
-          prefix="+65"
-        />
+        {/* Mobile number field with Phone + WhatsApp icons on the label right */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-base font-medium text-[var(--text-primary)]">
+              Mobile Number
+            </label>
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-brand-blue">
+                <ChatTeardropText size={14} weight="fill" className="text-white" />
+              </div>
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)]"
+                style={{ background: "#25D366" }}
+              >
+                <WhatsappLogo size={14} weight="fill" className="text-white" />
+              </div>
+            </div>
+          </div>
+          <div className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10">
+            <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">+65</span>
+            <input
+              type="tel"
+              placeholder="9123 4567"
+              value={formData.mobile}
+              onChange={(e) => updateField("mobile", e.target.value)}
+              className="min-w-0 flex-1 border-0 bg-transparent py-2 sm:py-3 pl-0 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

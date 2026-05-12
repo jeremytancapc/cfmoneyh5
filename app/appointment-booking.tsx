@@ -132,7 +132,7 @@ function WhatToBring({ idType }: { idType: string }) {
   return (
     <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
       <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-        What to bring
+        Things to bring
       </p>
 
       {/* Tab toggle */}
