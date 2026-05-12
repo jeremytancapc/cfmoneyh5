@@ -11,7 +11,7 @@ import { AppointmentBooking } from "./appointment-booking";
 import {
   Lightning,
   CalendarBlank,
-  Question,
+  Sliders,
   ArrowRight,
   ArrowLeft,
   CheckCircle,
@@ -48,7 +48,7 @@ const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
 const URGENCY_OPTIONS = [
   { value: "today", label: "Today", icon: Lightning },
   { value: "this_week", label: "This Week", icon: CalendarBlank },
-  { value: "not_sure", label: "Not Sure", icon: Question },
+  { value: "not_sure", label: "Flexible", icon: Sliders },
 ] as const;
 
 const ID_TYPE_OPTIONS = [
