@@ -2223,21 +2223,17 @@ export function Step7_BankruptcyDeclaration({
     <div>
       <StepHeader
         icon={ShieldCheck}
-        title="Bankruptcy / DRS Status"
-        subtitle="We're required to verify your bankruptcy and debt repayment status before proceeding."
+        title="A Quick Check"
+        subtitle="Help us confirm your financial standing to move forward."
       />
 
       <div className="flex flex-col gap-5">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-base font-medium text-[var(--text-primary)]">
-              What is your current status?
+          <div className="mb-3">
+            <label className="block w-full text-base font-medium text-[var(--text-primary)]">
+              Which of the following applies to you at this time?
             </label>
-            <span className="text-xs text-[var(--text-tertiary)]">Select one</span>
           </div>
-          <p className="mb-3 text-sm text-[var(--text-secondary)]">
-            Select the option that applies to you as of today.
-          </p>
 
           <div className="flex flex-col gap-2.5">
             {/* Not bankrupt option — green when selected */}
@@ -2266,7 +2262,7 @@ export function Step7_BankruptcyDeclaration({
                 className="text-sm font-semibold"
                 style={{ color: isClear ? "oklch(0.40 0.12 145)" : "var(--text-primary)" }}
               >
-                I am NOT bankrupt, under DRS or self-exclusion as of this application.
+                I do not have any active bankruptcy, DRS, or self-exclusion records.
               </span>
             </button>
 
@@ -2293,7 +2289,7 @@ export function Step7_BankruptcyDeclaration({
                 className="text-sm"
                 style={{ color: isDischarged ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
               >
-                I am a discharged bankrupt (less than 5 years ago)
+                I have previously been discharged from bankruptcy (within the last 5 years).
               </span>
             </button>
 
@@ -2320,7 +2316,7 @@ export function Step7_BankruptcyDeclaration({
                 className="text-sm"
                 style={{ color: isActive ? "oklch(0.40 0.15 25)" : "var(--text-secondary)" }}
               >
-                I am currently under bankruptcy / DRS status
+                I have an ongoing bankruptcy or Debt Repayment Scheme (DRS).
               </span>
             </button>
           </div>
