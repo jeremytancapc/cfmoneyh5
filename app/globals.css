@@ -76,6 +76,15 @@ body::before {
   will-change: transform;
 }
 
+/* Prevent iOS Safari auto-zoom on input focus (triggered when font-size < 16px) */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Hand cursor on all clickable / interactive controls */
 button:not(:disabled),
 a[href],
