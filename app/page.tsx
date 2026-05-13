@@ -1,8 +1,18 @@
 import Image from "next/image";
+import { cookies } from "next/headers";
 import { LoanApplicationForm } from "./loan-application-form";
 import { SidebarTrustFeatures } from "./sidebar-trust-features";
+import { GATE_COOKIE, getApplySession } from "@/lib/apply-session";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getApplySession();
+  const cookieStore = await cookies();
+  const hasApplyGate = cookieStore.get(GATE_COOKIE)?.value === "1";
+  const resumeSingpassReview = Boolean(
+    session?.authMethod === "singpass" &&
+      hasApplyGate &&
+      (session.nric || session.fullName),
+  );
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
@@ -62,7 +72,10 @@ export default function HomePage() {
 
         <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
-            <LoanApplicationForm />
+            <LoanApplicationForm
+              initialApplySession={session ?? undefined}
+              initialHistorySteps={resumeSingpassReview ? [1, 2, 3, 8] : undefined}
+            />
           </div>
         </div>
 

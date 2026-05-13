@@ -5,13 +5,13 @@ export function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/apply/review")) {
     if (!request.cookies.has("apply_gate")) {
-      return NextResponse.redirect(new URL("/apply", request.url));
+      return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
   if (pathname.startsWith("/apply/book")) {
     if (!request.cookies.has("review_gate")) {
-      return NextResponse.redirect(new URL("/apply", request.url));
+      return NextResponse.redirect(new URL("/", request.url));
     }
   }
 

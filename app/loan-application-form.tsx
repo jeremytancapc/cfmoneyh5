@@ -2,12 +2,11 @@
 
 import Image from "next/image";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { LoanFormData as FormData } from "@/lib/loan-form";
 import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, formatCurrency } from "@/lib/loan-form";
 import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
-import { LoanResults } from "./loan-results";
-import { AppointmentBooking } from "./appointment-booking";
 import {
   ArrowRight,
   ArrowLeft,
@@ -265,26 +264,39 @@ function SelectableChip({
   );
 }
 
-type PostSubmitPhase = "form" | "loading" | "results" | "booking";
-
 export function LoanApplicationForm({
-  reminderItems = [],
-  thingsToBring = [],
+  reminderItems: _reminderItems = [],
+  thingsToBring: _thingsToBring = [],
+  initialApplySession,
+  initialHistorySteps,
 }: {
   reminderItems?: string[];
   thingsToBring?: string[];
+  initialApplySession?: Partial<FormData> | null;
+  initialHistorySteps?: number[];
 }) {
+  const router = useRouter();
+
   // Navigation history stack — Back always pops, so non-linear jumps (e.g.
   // Singpass skipping steps 4-7) are correctly unwound on Back.
-  const [history, setHistory] = useState<number[]>([1]);
+  const [history, setHistory] = useState<number[]>(() =>
+    initialHistorySteps && initialHistorySteps.length > 0 ? initialHistorySteps : [1],
+  );
   const step = history[history.length - 1];
 
   const navigateTo = useCallback((next: number) => {
     setHistory((h) => [...h, next]);
   }, []);
 
-  const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [postSubmitPhase, setPostSubmitPhase] = useState<PostSubmitPhase>("form");
+  const [formData, setFormData] = useState<FormData>(() => ({
+    ...initialFormData,
+    ...(initialApplySession ?? {}),
+  }));
+  const [submitOverlay, setSubmitOverlay] = useState<{
+    waitUntil: Promise<unknown>;
+    key: number;
+  } | null>(null);
+  const submitNavRef = useRef<string | null>(null);
   const [incomeHighWarningShown, setIncomeHighWarningShown] = useState(false);
 
   const updateField = useCallback(
@@ -350,10 +362,10 @@ export function LoanApplicationForm({
     }
   }, [step, formData]);
 
-  // Scroll to top after every step/phase change, once new content is in the DOM.
+  // Scroll to top after every step change, once new content is in the DOM.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-  }, [step, postSubmitPhase]);
+  }, [step]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -391,6 +403,28 @@ export function LoanApplicationForm({
     [formData],
   );
 
+  const continueManualAfterGate = useCallback(async () => {
+    setStep3RedirectPending(true);
+    try {
+      const res = await fetch("/api/apply/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          formData: { ...formData, authMethod: "manual" },
+          gate: "apply",
+        }),
+      });
+      if (!res.ok) return;
+      setFormData((prev) => ({ ...prev, authMethod: "manual" }));
+      navigateTo(4);
+      scrollToTop();
+    } catch {
+      // ignore
+    } finally {
+      setStep3RedirectPending(false);
+    }
+  }, [formData, navigateTo, scrollToTop]);
+
   useEffect(() => {
     const el = bottomCtaRef.current;
     if (!el) return;
@@ -427,10 +461,34 @@ export function LoanApplicationForm({
     requestAnimationFrame(tick);
   }, []);
 
-  const handleSubmit = useCallback(() => {
-    setPostSubmitPhase("loading");
+  const submitApplication = useCallback(() => {
+    if (submitOverlay) return;
+    submitNavRef.current = null;
+
+    const task = (async () => {
+      const res = await fetch("/api/apply/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) {
+        console.error("Submit failed", await res.text());
+        return;
+      }
+      const result = (await res.json()) as { isEligible: boolean };
+      submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
+    })();
+
+    void task.catch(() => {
+      /* network / parse errors */
+    });
+
+    setSubmitOverlay({
+      waitUntil: task.finally(() => {}),
+      key: Date.now(),
+    });
     scrollToTop();
-  }, [scrollToTop]);
+  }, [formData, submitOverlay, scrollToTop]);
 
   const handleNext = useCallback(() => {
     if (step === 2) {
@@ -460,11 +518,11 @@ export function LoanApplicationForm({
     }
     // Moneylender loans → submit
     if (step === 9) {
-      handleSubmit();
+      submitApplication();
       return;
     }
     if (step < TOTAL_STEPS) { navigateTo(step + 1); scrollToTop(); }
-  }, [step, formData.monthlyIncome, incomeHighWarningShown, history, navigateTo, scrollToTop, handleSubmit]);
+  }, [step, formData.monthlyIncome, incomeHighWarningShown, history, navigateTo, scrollToTop, submitApplication]);
 
   const handleBack = useCallback(() => {
     // Pop the history stack so Back always returns to where the user actually
@@ -474,16 +532,6 @@ export function LoanApplicationForm({
       scrollToTop();
     }
   }, [history, scrollToTop]);
-
-  const handleLoadingComplete = useCallback(() => {
-    setPostSubmitPhase("results");
-    scrollToTop();
-  }, [scrollToTop]);
-
-  const handleAcceptOffer = useCallback(() => {
-    setPostSubmitPhase("booking");
-    scrollToTop();
-  }, [scrollToTop]);
 
   // Display step = position in the journey (history length), not the internal step number.
   // Singpass path: 1→2→3→review→contact→bankruptcy→moneylender = 7 steps
@@ -498,27 +546,19 @@ export function LoanApplicationForm({
     return ((formData.amount - 500) / (20000 - 500)) * 100;
   }, [formData.amount]);
 
-  if (postSubmitPhase === "loading") {
-    return <LoanLoadingScreen onComplete={handleLoadingComplete} />;
-  }
-
-  if (postSubmitPhase === "results") {
-    return (
-      <LoanResults
-        formData={formData}
-        monthlyRepayment={monthlyRepayment}
-        onAccept={handleAcceptOffer}
-        reminderItems={reminderItems}
-      />
-    );
-  }
-
-  if (postSubmitPhase === "booking") {
-    return <AppointmentBooking formData={formData} onBack={() => { setPostSubmitPhase("results"); scrollToTop(); }} thingsToBring={thingsToBring} />;
-  }
-
   return (
     <div>
+      {submitOverlay ? (
+        <LoanLoadingScreen
+          key={submitOverlay.key}
+          waitUntil={submitOverlay.waitUntil}
+          onComplete={() => {
+            const path = submitNavRef.current;
+            if (path) router.push(path);
+            setSubmitOverlay(null);
+          }}
+        />
+      ) : null}
       <StepIndicator current={displayStep} total={displayTotal} />
 
       <div key={step} className="animate-slide-in">
@@ -549,7 +589,7 @@ export function LoanApplicationForm({
               void leaveAfterSavingGate("/api/auth", { authMethod: "singpass" });
             }}
             onManual={() => {
-              void leaveAfterSavingGate("/apply/review", { authMethod: "manual" });
+              void continueManualAfterGate();
             }}
             redirectPending={step3RedirectPending}
           />
@@ -645,11 +685,11 @@ export function LoanApplicationForm({
             <button
               type="button"
               onClick={handleNext}
-              disabled={mounted && !canProceed}
+              disabled={(mounted && !canProceed) || !!submitOverlay}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
             >
               <ShieldCheck size={18} weight="bold" />
-              Submit Application
+              {submitOverlay ? "Submitting…" : "Submit Application"}
             </button>
           ) : step === 7 && history.includes(8) ? (
             // Post-review bankruptcy step — next (goes to moneylender loans)

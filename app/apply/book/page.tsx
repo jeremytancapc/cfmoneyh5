@@ -9,7 +9,7 @@ export default async function BookPage() {
   const session = await getApplySession();
 
   // Middleware already guards this — belt-and-suspenders.
-  if (!session) redirect("/apply");
+  if (!session) redirect("/");
 
   const formData = { ...initialLoanFormData, ...session };
 

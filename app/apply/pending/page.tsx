@@ -9,7 +9,7 @@ export default async function PendingPage() {
   const session = await getApplySession();
 
   // Must have a leadId — means submit was called
-  if (!session || !session.leadId) redirect("/apply");
+  if (!session || !session.leadId) redirect("/");
 
   const formData = { ...initialLoanFormData, ...session };
 

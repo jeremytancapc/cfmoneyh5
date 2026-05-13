@@ -1,7 +1,7 @@
 /**
  * POST /api/apply/submit
  *
- * Called from the review form (step 9) when the applicant clicks "Submit Application".
+ * Called when the applicant finishes the moneylender step and submits.
  * 1. Reads the full form data from the signed session cookie.
  * 2. Saves a Lead row to Supabase.
  * 3. If MyInfo was used, saves a MyInfoProfile row.
@@ -43,6 +43,18 @@ export async function POST(request: NextRequest) {
   const sessionData = rawSession ? (decodeSession(rawSession) ?? {}) : {};
   // Body takes precedence over cookie so fresh data is always used.
   const formData = { ...initialLoanFormData, ...sessionData, ...bodyData };
+  // SPA manual path: client JSON often omits or sends authMethod "" while the
+  // cookie was set at the Singpass gate — don't let the body wipe it.
+  const sessionAuth = sessionData.authMethod;
+  const bodyAuth = bodyData.authMethod;
+  const bodyHasConcreteAuth =
+    bodyAuth === "manual" || bodyAuth === "singpass";
+  if (
+    !bodyHasConcreteAuth &&
+    (sessionAuth === "manual" || sessionAuth === "singpass")
+  ) {
+    formData.authMethod = sessionAuth;
+  }
 
   const admin = createAdminClient();
 
