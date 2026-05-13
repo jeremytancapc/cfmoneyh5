@@ -46,6 +46,9 @@ const MONTH_LABELS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+/** Browser console prefix when confirming appointment — filter DevTools by this string. */
+const BOOK_LOG = "[apply/book:ui]";
+
 function toISODate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -102,10 +105,19 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
+/** Returned by POST /api/apply/book — shown on the confirmation step. */
+export type BookingConfirmation = {
+  appointmentId: string;
+  cfh5Id: string;
+  loanAmount: number;
+  date: string;
+  time: string;
+};
+
 interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
-  onConfirm?: (date: string, time: string) => void;
+  onConfirm?: (date: string, time: string) => Promise<BookingConfirmation | null>;
   thingsToBring?: string[];
 }
 
@@ -174,6 +186,8 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [isBookingSubmit, setIsBookingSubmit] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState<BookingConfirmation | null>(null);
 
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const confirmBtnRef = useRef<HTMLDivElement>(null);
@@ -299,6 +313,20 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
             </p>
           </div>
         </div>
+
+        {bookingDetails && (
+          <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-4 text-left">
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Application reference</p>
+              <p className="mt-0.5 font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
+                {bookingDetails.cfh5Id}
+              </p>
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-teal/10">
+              <CalendarBlank size={18} weight="duotone" className="text-brand-blue" />
+            </div>
+          </div>
+        )}
 
         {/* ── What to bring ───────────────────────────────────────── */}
         <WhatToBring idType={formData.idType} />
@@ -766,16 +794,38 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
       >
         <button
           type="button"
-          disabled={!canConfirm}
-            onClick={() => {
-            setConfirmed(true);
-            window.scrollTo({ top: 0, behavior: "instant" });
-            if (selectedDate && selectedTime) onConfirm?.(selectedDate, selectedTime);
+          disabled={!canConfirm || isBookingSubmit}
+            onClick={async () => {
+            if (!selectedDate || !selectedTime) return;
+            console.info(`${BOOK_LOG} Confirm clicked`, {
+              date: selectedDate,
+              time: selectedTime,
+              hasOnConfirm: Boolean(onConfirm),
+            });
+            setIsBookingSubmit(true);
+            try {
+              if (onConfirm) {
+                const out = await onConfirm(selectedDate, selectedTime);
+                if (out === null) {
+                  console.warn(`${BOOK_LOG} onConfirm returned null — staying on picker (error or slot_taken)`);
+                  return;
+                }
+                setBookingDetails(out);
+              } else {
+                console.info(`${BOOK_LOG} no onConfirm — demo mode, no API`);
+                setBookingDetails(null);
+              }
+              console.info(`${BOOK_LOG} showing confirmation step`);
+              setConfirmed(true);
+              window.scrollTo({ top: 0, behavior: "instant" });
+            } finally {
+              setIsBookingSubmit(false);
+            }
           }}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
-          Confirm Appointment
-          <ArrowRight size={16} weight="bold" />
+          {isBookingSubmit ? "Confirming…" : "Confirm Appointment"}
+          {!isBookingSubmit && <ArrowRight size={16} weight="bold" />}
         </button>
         {!canConfirm && (
           <p className="mt-2 text-center text-xs text-[var(--text-tertiary)]">

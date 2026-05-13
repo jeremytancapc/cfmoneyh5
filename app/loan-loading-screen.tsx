@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CircleLoader } from "@/components/ui/circle-loader";
 
 const STATUS_MESSAGES = [
@@ -12,41 +13,77 @@ const STATUS_MESSAGES = [
 
 interface LoanLoadingScreenProps {
   onComplete: () => void;
+  /**
+   * When set, `onComplete` runs only after both the progress animation has
+   * reached 100% and this promise has settled (success or failure).
+   */
+  waitUntil?: Promise<unknown>;
 }
 
-export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
+export function LoanLoadingScreen({ onComplete, waitUntil }: LoanLoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [statusIndex, setStatusIndex] = useState(0);
   const [statusVisible, setStatusVisible] = useState(true);
+  const [domReady, setDomReady] = useState(false);
 
-  // Keep a stable ref to onComplete so the effect never needs to re-run
+  useEffect(() => {
+    setDomReady(true);
+  }, []);
+
   const onCompleteRef = useRef(onComplete);
-  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     let current = 0;
     let done = false;
+    let released = !waitUntil;
 
     const t = (fn: () => void, ms: number) => {
       const id = setTimeout(fn, ms);
       timers.push(id);
     };
 
-    // Irregular progress ticks — staggered, not smooth (~9 s total)
+    const clearAll = () => {
+      timers.forEach(clearTimeout);
+      timers.length = 0;
+    };
+
+    const tryFinish = () => {
+      if (done) return;
+      if (current >= 100 && released) {
+        done = true;
+        clearAll();
+        t(() => onCompleteRef.current(), 600);
+      }
+    };
+
+    if (waitUntil) {
+      void Promise.resolve(waitUntil).finally(() => {
+        released = true;
+        if (current < 100) {
+          current = 100;
+          setProgress(100);
+        }
+        tryFinish();
+      });
+    }
+
     const ticks: [number, number][] = [
-      [400,   7],
-      [900,   9],
-      [1500,  5],
+      [400, 7],
+      [900, 9],
+      [1500, 5],
       [2200, 11],
-      [2900,  6],
-      [3700,  8],  // deliberate pause here — feels like a real check
+      [2900, 6],
+      [3700, 8],
       [4600, 10],
-      [5400,  7],
+      [5400, 7],
       [6200, 12],
-      [7000,  8],
-      [7800,  9],
-      [8500,  8],
+      [7000, 8],
+      [7800, 9],
+      [8500, 8],
     ];
 
     ticks.forEach(([delay, inc]) => {
@@ -54,14 +91,10 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
         if (done) return;
         current = Math.min(100, current + inc);
         setProgress(current);
-        if (current >= 100 && !done) {
-          done = true;
-          t(() => onCompleteRef.current(), 600);
-        }
+        if (current >= 100) tryFinish();
       }, delay);
     });
 
-    // Status message cycling — spread across the full duration
     const cycle = (idx: number, at: number) => {
       if (idx >= STATUS_MESSAGES.length) return;
       t(() => {
@@ -77,19 +110,17 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
 
     return () => {
       done = true;
-      timers.forEach(clearTimeout);
+      clearAll();
     };
-  }, []); // intentionally empty — screen mounts once and transitions away
+  }, [waitUntil]);
 
-  return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center">
-
+  const content = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* ── Background ghost content (behind the frosted layer) ── */}
       <div
         className="absolute inset-0 flex flex-col items-center justify-center gap-10 px-8"
         aria-hidden="true"
       >
-        {/* Ghost: large dollar figure */}
         <div
           className="animate-blur-reveal flex flex-col gap-3"
           style={{ animationDelay: "0.8s" }}
@@ -104,7 +135,6 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
           />
         </div>
 
-        {/* Ghost: three summary stats */}
         <div
           className="animate-blur-reveal flex gap-8"
           style={{ animationDelay: "2.0s" }}
@@ -123,7 +153,6 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
           ))}
         </div>
 
-        {/* Ghost: document lines */}
         <div
           className="animate-blur-reveal flex flex-col gap-2.5"
           style={{ animationDelay: "3.2s" }}
@@ -138,7 +167,6 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
         </div>
       </div>
 
-      {/* ── Frosted overlay — light, see-through enough to notice background ── */}
       <div
         className="absolute inset-0"
         style={{
@@ -148,13 +176,9 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
         }}
       />
 
-      {/* ── Loader content — left-of-center on desktop ── */}
       <div className="relative z-10 flex w-full max-w-[380px] flex-col gap-8 px-8 lg:ml-[-8%]">
-
-        {/* Circle loader */}
         <CircleLoader size={56} />
 
-        {/* Status text */}
         <div>
           <p
             className="font-display text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-4xl"
@@ -172,7 +196,6 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
           </p>
         </div>
 
-        {/* Staggered progress bar — scaleX transform, GPU composited */}
         <div className="flex flex-col gap-2.5">
           <div
             className="h-1 w-full overflow-hidden rounded-full"
@@ -200,4 +223,10 @@ export function LoanLoadingScreen({ onComplete }: LoanLoadingScreenProps) {
       </div>
     </div>
   );
+
+  if (!domReady || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(content, document.body);
 }

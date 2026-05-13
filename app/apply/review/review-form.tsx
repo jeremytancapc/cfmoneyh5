@@ -14,6 +14,7 @@ import {
 } from "@/app/loan-application-form";
 import type { LoanFormData } from "@/lib/loan-form";
 import { calculateMonthlyRepayment } from "@/lib/loan-form";
+import { LoanLoadingScreen } from "@/app/loan-loading-screen";
 
 interface Props {
   initialData: LoanFormData;
@@ -25,7 +26,12 @@ interface Props {
 export function ReviewForm({ initialData }: Props) {
   const router = useRouter();
   const [formData, setFormData] = useState<LoanFormData>(initialData);
-  const [saving, setSaving] = useState(false);
+  const [submitOverlay, setSubmitOverlay] = useState<{
+    waitUntil: Promise<unknown>;
+    key: number;
+  } | null>(null);
+  const submitNavRef = useRef<string | null>(null);
+  const submitLeadIdRef = useRef<string | null>(null);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -111,25 +117,12 @@ export function ReviewForm({ initialData }: Props) {
     bottomCtaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
-  async function saveAndNavigate(destination: string) {
-    setSaving(true);
-    try {
-      await fetch("/api/apply/session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ formData, gate: "review" }),
-      });
-      router.push(destination);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function submitApplication() {
-    setSaving(true);
-    try {
-      // Post formData directly to the submit route so the latest values are
-      // used without relying on a prior cookie-save round trip.
+    if (submitOverlay) return;
+    submitNavRef.current = null;
+    submitLeadIdRef.current = null;
+
+    const task = (async () => {
       const res = await fetch("/api/apply/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -139,11 +132,19 @@ export function ReviewForm({ initialData }: Props) {
         console.error("Submit failed", await res.text());
         return;
       }
-      const result = await res.json() as { isEligible: boolean };
-      router.push(result.isEligible ? "/apply/approval" : "/apply/pending");
-    } finally {
-      setSaving(false);
-    }
+      const result = (await res.json()) as { isEligible: boolean; leadId?: string };
+      submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
+      submitLeadIdRef.current = typeof result.leadId === "string" ? result.leadId : null;
+    })();
+
+    void task.catch(() => {
+      /* non-2xx handled inside task; this is for network / parse errors */
+    });
+
+    setSubmitOverlay({
+      waitUntil: task.finally(() => {}),
+      key: Date.now(),
+    });
   }
 
   const handleNext = useCallback(() => {
@@ -162,7 +163,7 @@ export function ReviewForm({ initialData }: Props) {
       setHistory((h) => h.slice(0, -1));
       scrollToTop();
     } else {
-      router.push("/apply");
+      router.push("/");
     }
   }, [history, scrollToTop, router]);
 
@@ -179,6 +180,23 @@ export function ReviewForm({ initialData }: Props) {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh">
+      {submitOverlay ? (
+        <LoanLoadingScreen
+          key={submitOverlay.key}
+          waitUntil={submitOverlay.waitUntil}
+          onComplete={() => {
+            const path = submitNavRef.current;
+            const leadId = submitLeadIdRef.current;
+            if (path === "/apply/pending" && leadId) {
+              router.push(`/apply/pending?leadId=${encodeURIComponent(leadId)}`);
+            } else if (path) {
+              router.push(path);
+            }
+            setSubmitOverlay(null);
+          }}
+        />
+      ) : null}
+
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
           <div className="mb-16">
@@ -273,10 +291,10 @@ export function ReviewForm({ initialData }: Props) {
                 <button
                   type="button"
                   onClick={submitApplication}
-                  disabled={(mounted && !canProceed) || saving}
+                  disabled={(mounted && !canProceed) || !!submitOverlay}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                 >
-                  {saving ? "Saving…" : "Submit Application"}
+                  {submitOverlay ? "Submitting…" : "Submit Application"}
                 </button>
               ) : (
                 <button

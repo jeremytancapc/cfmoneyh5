@@ -3,9 +3,7 @@
 import Image from "next/image";
 import {
   HourglassMedium,
-  Phone,
   WhatsappLogo,
-  EnvelopeSimple,
   Info,
   CheckCircle,
 } from "@phosphor-icons/react";
@@ -23,13 +21,13 @@ function shortRef(leadId: string): string {
 const NEXT_STEPS = [
   "Our team will review your application within 1–2 business days.",
   "We may contact you to request supporting documents.",
-  "You can call or WhatsApp us to check on your application status.",
+  "WhatsApp us if you need to follow up.",
 ];
 
 export function PendingView({ formData }: Props) {
   const { fullName, leadId, amount, idType } = formData;
   const firstName = fullName ? fullName.split(" ")[0] : null;
-  const ref = leadId ? shortRef(leadId) : null;
+  const cfh5Ref = leadId ? `CFH5-${shortRef(leadId)}` : null;
 
   const isForeigner = idType === "foreigner";
 
@@ -102,16 +100,16 @@ export function PendingView({ formData }: Props) {
               </p>
             </div>
 
-            {/* Reference number */}
-            {ref && (
+            {/* Application reference */}
+            {cfh5Ref && (
               <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-4">
                 <div>
-                  <p className="text-xs text-[var(--text-tertiary)]">Reference number</p>
-                  <p className="mt-0.5 font-mono text-lg font-bold tracking-widest text-[var(--text-primary)]">
-                    {ref}
+                  <p className="text-xs text-[var(--text-tertiary)]">Application reference</p>
+                  <p className="mt-0.5 font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
+                    {cfh5Ref}
                   </p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
                   <HourglassMedium size={18} weight="duotone" style={{ color: "#e07b4a" }} />
                 </div>
               </div>
@@ -147,45 +145,21 @@ export function PendingView({ formData }: Props) {
 
             <div className="h-px bg-[var(--border-subtle)]" />
 
-            {/* Contact options */}
+            {/* WhatsApp — official channel for follow-up */}
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Get in touch</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <a
-                  href="tel:+6567778080"
-                  className="flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
-                >
-                  <Phone size={15} weight="duotone" className="shrink-0 text-brand-blue" />
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">Call us</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">6777 8080</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://wa.me/6560119380?text=Hi%2C%20I%20would%20like%20to%20follow%20up%20on%20my%20loan%20application"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
-                >
-                  <WhatsappLogo size={15} weight="duotone" className="shrink-0 text-brand-blue" />
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">WhatsApp</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">6011 9380</p>
-                  </div>
-                </a>
-
-                <a
-                  href="mailto:info@cfmoney.sg"
-                  className="flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
-                >
-                  <EnvelopeSimple size={15} weight="duotone" className="shrink-0 text-brand-blue" />
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">Email</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">info@cfmoney.sg</p>
-                  </div>
-                </a>
-              </div>
+              <a
+                href="https://wa.me/6560119380?text=Hi%20My%20application%20is%20pending%20review"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-4 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
+              >
+                <WhatsappLogo size={22} weight="duotone" className="shrink-0 text-brand-blue" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">WhatsApp us</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">6011 9380 · Mon – Sat, 10:30am – 7:30pm</p>
+                </div>
+              </a>
             </div>
 
             {/* Footer note */}

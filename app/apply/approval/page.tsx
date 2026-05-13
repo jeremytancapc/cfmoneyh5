@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function ApprovalPage() {
   const session = await getApplySession();
 
-  if (!session || !session.leadId) redirect("/apply");
+  if (!session || !session.leadId) redirect("/");
 
   const formData = { ...initialLoanFormData, ...session };
 
