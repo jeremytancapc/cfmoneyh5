@@ -193,6 +193,7 @@ function InputField({
   onBlur,
   prefix,
   helper,
+  tooltip,
 }: {
   label: string;
   type?: string;
@@ -202,12 +203,99 @@ function InputField({
   onBlur?: () => void;
   prefix?: string;
   helper?: string;
+  tooltip?: React.ReactNode;
 }) {
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tipPos, setTipPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const hoverRef = useRef(false);
+  const clickRef = useRef(false);
+
+  function calcPos() {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setTipPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+  }
+
+  function handleMouseEnter() {
+    hoverRef.current = true;
+    calcPos();
+    setTipVisible(true);
+  }
+
+  function handleMouseLeave() {
+    hoverRef.current = false;
+    if (!clickRef.current) setTipVisible(false);
+  }
+
+  function handleClick() {
+    clickRef.current = !clickRef.current;
+    if (clickRef.current) {
+      calcPos();
+      setTipVisible(true);
+    } else if (!hoverRef.current) {
+      setTipVisible(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!tipVisible) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        !tipRef.current?.contains(e.target as Node) &&
+        !btnRef.current?.contains(e.target as Node)
+      ) {
+        clickRef.current = false;
+        setTipVisible(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [tipVisible]);
+
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-base font-medium text-[var(--text-primary)]">
-        {label}
-      </label>
+      <div className="flex items-center gap-1.5">
+        <label className="text-base font-medium text-[var(--text-primary)]">
+          {label}
+        </label>
+        {tooltip && (
+          <>
+            <button
+              ref={btnRef}
+              type="button"
+              onClick={handleClick}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-brand-blue/30 bg-white text-[10px] font-bold text-brand-blue shadow-sm transition-colors duration-150 hover:bg-brand-blue/5 focus:outline-none"
+              aria-label="More information"
+            >
+              ?
+            </button>
+            {tipVisible && createPortal(
+              <div
+                ref={tipRef}
+                style={{
+                  position: "fixed",
+                  top: tipPos.top,
+                  right: tipPos.right,
+                  zIndex: 9999,
+                  width: "18rem",
+                  maxWidth: "calc(100vw - 2.5rem)",
+                }}
+                className="rounded-[var(--radius-md)] bg-gray-900 p-3.5 shadow-2xl"
+              >
+                <div
+                  style={{ position: "absolute", top: -6, right: 6 }}
+                  className="h-3 w-3 rotate-45 bg-gray-900"
+                />
+                {tooltip}
+              </div>,
+              document.body
+            )}
+          </>
+        )}
+      </div>
       <div
         className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10 ${
           prefix ? "gap-2 pl-4 pr-4" : ""
@@ -220,6 +308,7 @@ function InputField({
         )}
         <input
           type={type}
+          inputMode={type === "number" ? "decimal" : undefined}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -745,7 +834,8 @@ export function Step1_LoanDetails({
 
       <div className="flex flex-col gap-5 sm:gap-6">
         <div>
-          <div className="mb-1 flex justify-end">
+          <div className="mb-1 flex items-end justify-between">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Loan Amount</label>
             <div
               className="flex items-baseline gap-0.5 border-b-2 pb-0.5 transition-colors duration-150"
               style={{ borderColor: amountFocused ? "var(--brand-blue-hex)" : "var(--border-medium)" }}
@@ -795,7 +885,7 @@ export function Step1_LoanDetails({
         <div>
           <div className="mb-1 flex items-end justify-between">
             <label className="text-sm font-medium text-[var(--text-primary)]">
-              Pick your tenure
+              Loan Tenure
             </label>
             <div
               className="flex items-baseline gap-1.5 border-b-2 pb-0.5 transition-colors duration-150"
@@ -933,7 +1023,7 @@ export function Step2_SelfDeclaredIncome({
       <StepHeader
         icon={Coins}
         title="What is your monthly income?"
-        subtitle="Helps us confirm the loan fits your budget."
+        subtitle="This helps us confirm the loan is within your budget."
       />
       <div className="flex flex-col gap-5">
         <InputField
@@ -945,6 +1035,22 @@ export function Step2_SelfDeclaredIncome({
           onBlur={() => setTouched(true)}
           prefix="$"
           helper=""
+          tooltip={
+            <ol className="space-y-2.5">
+              <li className="text-sm leading-snug text-white/70">
+                <span className="font-semibold text-white">Employed Full-time — </span>
+                Gross monthly salary before CPF deduction
+              </li>
+              <li className="text-sm leading-snug text-white/70">
+                <span className="font-semibold text-white">PHV drivers — </span>
+                Gross monthly salary after deducting vehicle rental fees
+              </li>
+              <li className="text-sm leading-snug text-white/70">
+                <span className="font-semibold text-white">Own business — </span>
+                Monthly salary based on latest year Notice of Assessment or monthly bank statement
+              </li>
+            </ol>
+          }
         />
 
         {isTooLow && (
@@ -2615,6 +2721,47 @@ export function Step8_Review({
           onClose={handleCloseModal}
         />
       )}
+    </div>
+  );
+}
+
+export function MobileHeader() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <div
+      className={`sticky top-0 z-30 flex items-center px-6 lg:hidden transition-all duration-300 ${
+        scrolled
+          ? "bg-brand-blue shadow-sm py-3"
+          : "bg-transparent pb-4 pt-8"
+      }`}
+    >
+      <a href="/" className="relative block h-4">
+        <Image
+          src="/images/cf-money-full-color.png"
+          alt="CF Money"
+          width={120}
+          height={36}
+          className={`absolute inset-0 h-4 w-auto transition-opacity duration-300 ${scrolled ? "opacity-0" : "opacity-100"}`}
+          priority
+        />
+        <Image
+          src="/images/cf-money-white.png"
+          alt="CF Money"
+          width={120}
+          height={36}
+          className={`h-4 w-auto transition-opacity duration-300 ${scrolled ? "opacity-100" : "opacity-0"}`}
+          priority
+          aria-hidden={!scrolled}
+        />
+      </a>
     </div>
   );
 }
