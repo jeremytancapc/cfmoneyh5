@@ -26,6 +26,9 @@ function cfh5ApplicationRef(leadId: string): string {
   return `CFH5-${leadId.slice(-8).toUpperCase()}`;
 }
 
+/** Outbound AirConnect call — must be awaited before returning the HTTP response.
+ * If left fire-and-forget, serverless often freezes right after `return res` and the
+ * fetch never completes, so upstream never sees the request and you won't get OK/error logs. */
 async function notifyAirConnect(payload: {
   customerName: string;
   phoneNumber: string;
@@ -54,16 +57,19 @@ async function notifyAirConnect(payload: {
     bookingUrl.searchParams.set("leadId", payload.leadId);
 
     console.info(`${LOG} AirConnect POST`, {
+      host: bookingUrl.hostname,
+      pathname: bookingUrl.pathname,
       cfh5Id,
       appointmentDate: payload.appointmentDate,
       timeSlot: payload.timeSlot,
       loanAmount: payload.loanAmount,
     });
 
+    const started = Date.now();
     const res = await fetch(bookingUrl.toString(), {
       method: "POST",
       headers: {
-        "apikey": apiKey,
+        apikey: apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -77,12 +83,20 @@ async function notifyAirConnect(payload: {
         leadId: payload.leadId,
         loanAmount: payload.loanAmount,
       }),
+      signal: AbortSignal.timeout(25_000),
     });
 
+    const ms = Date.now() - started;
+
     if (!res.ok) {
-      console.error(`${LOG} AirConnect notification failed`, res.status, await res.text());
+      const text = await res.text();
+      console.error(`${LOG} AirConnect notification failed`, {
+        status: res.status,
+        ms,
+        body: text.slice(0, 500),
+      });
     } else {
-      console.info(`${LOG} AirConnect OK`, { status: res.status, cfh5Id });
+      console.info(`${LOG} AirConnect OK`, { status: res.status, ms, cfh5Id });
     }
   } catch (err) {
     console.error(`${LOG} AirConnect notification error`, err);
@@ -179,8 +193,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Notify AirConnect — fire-and-forget so a failure doesn't block the response
-  notifyAirConnect({
+  // Notify AirConnect — await so serverless completes the outbound fetch before freeze.
+  // Booking still succeeds in DB even if AirConnect fails (errors logged above).
+  await notifyAirConnect({
     customerName: lead?.full_name ?? "",
     phoneNumber: lead?.mobile ?? "",
     appointmentDate: date,
