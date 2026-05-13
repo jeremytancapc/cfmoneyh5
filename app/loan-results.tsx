@@ -33,7 +33,7 @@ function isBusinessDay(d: Date) {
 }
 
 /** Advance `from` by exactly `n` business days and return 7:30 PM on that date. */
-function computeExpiry(from: Date, n = 3): Date {
+function computeExpiry(from: Date, n = 4): Date {
   const d = new Date(from);
   d.setHours(0, 0, 0, 0);
   let counted = 0;
@@ -116,16 +116,16 @@ const NOTICE_ITEMS = [
   },
   {
     icon: HandCoins,
-    short: "Takes 20 mins: Verify, sign & receive funds.",
-    text: "The entire process takes approximately 20 minutes — verification, signing, and disbursement on the spot.",
+    short: "Takes 30 mins: Verify, sign & receive funds.",
+    text: "The entire process takes approximately 30 minutes.",
   },
 ];
 
 const DETERRENT_ITEMS = [
   {
     icon: Clock,
-    heading: "Offer expires in 3 days",
-    body: "This in-principle approval is time-limited. After 3 days it lapses and you will need to submit a full application again.",
+    heading: "Offer expires in 4 days",
+    body: "This in-principle approval is time-limited. After 4 days it lapses and you will need to submit a full application again.",
   },
   {
     icon: TrendUp,
@@ -445,7 +445,7 @@ export function LoanResults({
             onClick={onAccept}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           >
-            Receive Your Funds Now
+            Secure My Offer Now
             <ArrowRight size={16} weight="bold" />
           </button>
           <button
@@ -466,7 +466,7 @@ export function LoanResults({
             onClick={scrollToCta}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           >
-            Accept Loan Offer
+            Secure Offer
             <ArrowDown size={16} weight="bold" />
           </button>
         </div>
