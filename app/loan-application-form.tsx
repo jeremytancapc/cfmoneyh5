@@ -368,6 +368,8 @@ export function LoanApplicationForm({
   const [history, setHistory] = useState<number[]>([1]);
   const step = history[history.length - 1];
 
+  const [incomeConfirmed, setIncomeConfirmed] = useState(false);
+
   const navigateTo = useCallback((next: number) => {
     setHistory((h) => [...h, next]);
   }, []);
@@ -378,7 +380,7 @@ export function LoanApplicationForm({
 
   const updateField = useCallback(
     <K extends keyof FormData>(key: K, value: FormData[K]) => {
-      if (key === "monthlyIncome") setIncomeHighWarningShown(false);
+      if (key === "monthlyIncome") { setIncomeHighWarningShown(false); setIncomeConfirmed(false); }
       setFormData((prev) => ({ ...prev, [key]: value }));
     },
     [],
@@ -404,7 +406,7 @@ export function LoanApplicationForm({
           formData.urgency !== ""
         );
       case 2:
-        return hasDeclaredIncome;
+        return hasDeclaredIncome && incomeConfirmed;
       case 3:
         return false;
       case 4:
@@ -437,7 +439,7 @@ export function LoanApplicationForm({
       default:
         return false;
     }
-  }, [step, formData]);
+  }, [step, formData, incomeConfirmed]);
 
   // Scroll to top after every step/phase change, once new content is in the DOM.
   useEffect(() => {
@@ -625,6 +627,8 @@ export function LoanApplicationForm({
             formData={formData}
             updateField={updateField}
             incomeHighWarningShown={incomeHighWarningShown}
+            incomeConfirmed={incomeConfirmed}
+            onIncomeConfirmedChange={setIncomeConfirmed}
           />
         )}
         {step === 3 && (
@@ -1006,10 +1010,14 @@ export function Step2_SelfDeclaredIncome({
   formData,
   updateField,
   incomeHighWarningShown,
+  incomeConfirmed,
+  onIncomeConfirmedChange,
 }: {
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
   incomeHighWarningShown: boolean;
+  incomeConfirmed: boolean;
+  onIncomeConfirmedChange: (v: boolean) => void;
 }) {
   const [touched, setTouched] = useState(false);
 
@@ -1069,6 +1077,48 @@ export function Step2_SelfDeclaredIncome({
               Just double checking your income is entered correctly.
             </p>
           </div>
+        )}
+
+        {/* Income confirmation checkbox — only shown once a valid amount is entered */}
+        {hasValue && !isTooLow && (
+          <button
+            type="button"
+            onClick={() => onIncomeConfirmedChange(!incomeConfirmed)}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+            style={{
+              borderColor: incomeConfirmed ? "var(--brand-blue-hex)" : "var(--border-subtle)",
+              background: incomeConfirmed
+                ? "oklch(0.32 0.14 260 / 0.06)"
+                : "var(--surface-elevated)",
+            }}
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+              style={{
+                borderColor: incomeConfirmed
+                  ? "var(--brand-blue-hex)"
+                  : "var(--border-medium)",
+                background: incomeConfirmed ? "var(--brand-blue-hex)" : "transparent",
+              }}
+            >
+              {incomeConfirmed && (
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                  <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </span>
+            <span
+              className="text-sm leading-snug"
+              style={{
+                color: incomeConfirmed
+                  ? "var(--brand-blue-hex)"
+                  : "var(--text-secondary)",
+              }}
+            >
+              I confirm this income is accurate and understand it will be used to
+              determine my final loan eligibility.
+            </span>
+          </button>
         )}
       </div>
     </div>

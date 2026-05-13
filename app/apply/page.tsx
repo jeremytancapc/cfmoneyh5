@@ -21,11 +21,12 @@ export default function ApplyPage() {
 
   const [formData, setFormData] = useState<LoanFormData>(initialLoanFormData);
   const [incomeHighWarningShown, setIncomeHighWarningShown] = useState(false);
+  const [incomeConfirmed, setIncomeConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const updateField = useCallback(
     <K extends keyof LoanFormData>(key: K, value: LoanFormData[K]) => {
-      if (key === "monthlyIncome") setIncomeHighWarningShown(false);
+      if (key === "monthlyIncome") { setIncomeHighWarningShown(false); setIncomeConfirmed(false); }
       setFormData((prev) => ({ ...prev, [key]: value }));
     },
     [],
@@ -51,11 +52,11 @@ export default function ApplyPage() {
       case 1:
         return formData.amount >= 500 && formData.tenure > 0 && formData.urgency !== "";
       case 2:
-        return hasDeclaredIncome;
+        return hasDeclaredIncome && incomeConfirmed;
       default:
         return false;
     }
-  }, [step, formData]);
+  }, [step, formData, incomeConfirmed]);
 
   const navigateTo = useCallback((next: number) => {
     setHistory((h) => [...h, next]);
@@ -188,6 +189,8 @@ export default function ApplyPage() {
                   formData={formData}
                   updateField={updateField}
                   incomeHighWarningShown={incomeHighWarningShown}
+                  incomeConfirmed={incomeConfirmed}
+                  onIncomeConfirmedChange={setIncomeConfirmed}
                 />
               )}
               {step === 3 && (
@@ -219,24 +222,39 @@ export default function ApplyPage() {
                   </div>
                 )}
 
-                <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3">
-                  {step > 1 && (
+                <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    {step > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-5 text-sm font-medium text-[var(--text-secondary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-primary)] active:scale-[0.98]"
+                      >
+                        Back
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={handleBack}
-                      className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-5 text-sm font-medium text-[var(--text-secondary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-primary)] active:scale-[0.98]"
+                      onClick={handleNext}
+                      disabled={(mounted && !canProceed) || saving}
+                      className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                     >
-                      Back
+                      {saving ? "Please wait…" : "Continue"}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    disabled={(mounted && !canProceed) || saving}
-                    className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    {saving ? "Please wait…" : "Continue"}
-                  </button>
+                  </div>
+                  {step === 2 && !incomeConfirmed && (() => {
+                    const incomeNum = parseInt(formData.monthlyIncome, 10);
+                    const hasValidIncome = formData.monthlyIncome.trim() !== "" && !Number.isNaN(incomeNum) && incomeNum >= 200;
+                    return hasValidIncome ? (
+                      <div className="flex items-center gap-3">
+                        {/* invisible spacer matching the Back button width */}
+                        <div className="invisible flex h-0 shrink-0 items-center px-5 text-sm">Back</div>
+                        <p className="flex-1 text-center text-xs text-[var(--text-tertiary)]">
+                          Please tick the confirmation checkbox above to continue.
+                        </p>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </>
             )}
