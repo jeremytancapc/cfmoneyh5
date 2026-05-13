@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { AppointmentBooking } from "@/app/appointment-booking";
+import { AppointmentBooking, type BookingConfirmation } from "@/app/appointment-booking";
 import type { LoanFormData } from "@/lib/loan-form";
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 export function BookingView({ formData }: Props) {
   const router = useRouter();
 
-  async function handleConfirm(date: string, time: string) {
+  async function handleConfirm(date: string, time: string): Promise<BookingConfirmation | null> {
     const res = await fetch("/api/apply/book", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -22,14 +22,15 @@ export function BookingView({ formData }: Props) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
       if (body.error === "slot_taken") {
-        // Slot was taken between selection and confirmation — page will reload
-        // and the slot will show as fully booked.
         alert("Sorry, that slot was just taken. Please choose another time.");
-        return;
+        return null;
       }
       console.error("Failed to book appointment:", body);
+      alert("We couldn’t confirm your appointment. Please try again.");
+      return null;
     }
-    // Cookies are cleared by the /api/apply/book route on success.
+
+    return (await res.json()) as BookingConfirmation;
   }
 
   return (
