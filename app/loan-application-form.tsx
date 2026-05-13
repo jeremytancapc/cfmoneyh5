@@ -2,14 +2,13 @@
 
 import Image from "next/image";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import type { LoanFormData as FormData } from "@/lib/loan-form";
+import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, formatCurrency } from "@/lib/loan-form";
 import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
 import {
-  Lightning,
-  CalendarBlank,
-  Question,
   ArrowRight,
   ArrowLeft,
   CheckCircle,
@@ -18,6 +17,7 @@ import {
   User,
   Briefcase,
   Phone,
+  ChatTeardropText,
   IdentificationCard,
   Buildings,
   ChartLineUp,
@@ -43,9 +43,9 @@ const TOTAL_STEPS = 8; // review is still at internal step 8
 const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
 
 const URGENCY_OPTIONS = [
-  { value: "today", label: "Today", icon: Lightning },
-  { value: "this_week", label: "This Week", icon: CalendarBlank },
-  { value: "not_sure", label: "Not Sure", icon: Question },
+  { value: "today", label: "Today", emoji: "⚡" },
+  { value: "this_week", label: "This Week", emoji: "📅" },
+  { value: "not_sure", label: "Flexible", emoji: "🔄" },
 ] as const;
 
 const ID_TYPE_OPTIONS = [
@@ -112,89 +112,12 @@ const EMPLOYMENT_DURATION_OPTIONS = [
 ] as const;
 
 const PAYMENT_HISTORY_OPTIONS = [
-  { value: "bad_debt", label: "Bad Debt", emoji: "😰" },
+  { value: "bad_debt", label: "Missed payments", emoji: "😰" },
   { value: "average", label: "Average", emoji: "😐" },
   { value: "on_time", label: "On-time", emoji: "😁" },
 ] as const;
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-SG", {
-    style: "currency",
-    currency: "SGD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function calculateMonthlyRepayment(amount: number, months: number): number {
-  const monthlyRate = 0.47 / 12; // 47% p.a. reducing balance
-  if (months === 0) return 0;
-  return (
-    (amount * (monthlyRate * Math.pow(1 + monthlyRate, months))) /
-    (Math.pow(1 + monthlyRate, months) - 1)
-  );
-}
-
-interface FormData {
-  amount: number;
-  tenure: number;
-  urgency: string;
-  /** How the user continues after step 3 */
-  authMethod: "" | "singpass" | "manual";
-  idType: string;
-  fullName: string;
-  nric: string;
-  employmentStatus: string;
-  monthlyIncome: string;
-  mobile: string;
-  loanPurpose: string;
-  postalCode: string;
-  address: string;
-  // Step 9 fields
-  workIndustry: string;
-  position: string;
-  employmentDuration: string;
-  officePhone: string;
-  mailingAddress: string;
-  secondaryMobile: string;
-  bankruptcyDeclaration: "" | "clear" | "discharged_lt5" | "active";
-  maritalStatus: string;
-  email: string;
-  // Step 9 — moneylender loans
-  moneylenderLoanAmount: string;
-  moneylenderNoLoans: boolean;
-  moneylenderPaymentHistory: string;
-}
-
-const initialFormData: FormData = {
-  amount: 5000,
-  tenure: 6,
-  urgency: "",
-  authMethod: "",
-  idType: "",
-  fullName: "",
-  nric: "",
-  employmentStatus: "",
-  monthlyIncome: "",
-  mobile: "",
-  loanPurpose: "",
-  postalCode: "",
-  address: "",
-  workIndustry: "",
-  position: "",
-  employmentDuration: "",
-  officePhone: "",
-  mailingAddress: "",
-  secondaryMobile: "",
-  bankruptcyDeclaration: "",
-  maritalStatus: "Single",
-  email: "tanweiliang@gmail.com",
-  moneylenderLoanAmount: "",
-  moneylenderNoLoans: false,
-  moneylenderPaymentHistory: "",
-};
-
-function StepIndicator({
+export function StepIndicator({
   current,
   total,
 }: {
@@ -442,6 +365,31 @@ export function LoanApplicationForm({
   const bottomCtaRef = useRef<HTMLDivElement>(null);
   const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [step3RedirectPending, setStep3RedirectPending] = useState(false);
+
+  const leaveAfterSavingGate = useCallback(
+    async (destination: string, patch: Partial<FormData>) => {
+      setStep3RedirectPending(true);
+      try {
+        const res = await fetch("/api/apply/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            formData: { ...formData, ...patch },
+            gate: "apply",
+          }),
+        });
+        if (!res.ok) {
+          setStep3RedirectPending(false);
+          return;
+        }
+        window.location.assign(destination);
+      } catch {
+        setStep3RedirectPending(false);
+      }
+    },
+    [formData],
+  );
 
   useEffect(() => {
     const el = bottomCtaRef.current;
@@ -547,7 +495,7 @@ export function LoanApplicationForm({
   }, [formData.authMethod]);
 
   const sliderPercentage = useMemo(() => {
-    return ((formData.amount - 500) / (30000 - 500)) * 100;
+    return ((formData.amount - 500) / (20000 - 500)) * 100;
   }, [formData.amount]);
 
   if (postSubmitPhase === "loading") {
@@ -592,30 +540,18 @@ export function LoanApplicationForm({
         )}
         {step === 3 && (
           <Step3_SingpassGate
-            onBack={() => { setHistory((h) => h.slice(0, -1)); scrollToTop(); }}
-            onSingpass={() => {
-              // Singpass Myinfo prefill — jump straight to Review (step 8)
-              setFormData((prev) => ({
-                ...prev,
-                authMethod: "singpass",
-                idType: "singaporean",
-                fullName: "Tan Wei Liang",
-                nric: "S8912345D",
-                monthlyIncome: prev.monthlyIncome || "5500",
-                mobile: "",
-                loanPurpose: "personal",
-                postalCode: "179094",
-                address: "1 North Bridge Road #08-01",
-                bankruptcyDeclaration: "clear",
-              }));
-              navigateTo(8);
+            onBack={() => {
+              setStep3RedirectPending(false);
+              setHistory((h) => h.slice(0, -1));
               scrollToTop();
+            }}
+            onSingpass={() => {
+              void leaveAfterSavingGate("/api/auth", { authMethod: "singpass" });
             }}
             onManual={() => {
-              updateField("authMethod", "manual");
-              navigateTo(4);
-              scrollToTop();
+              void leaveAfterSavingGate("/apply/review", { authMethod: "manual" });
             }}
+            redirectPending={step3RedirectPending}
           />
         )}
         {step === 4 && (
@@ -680,6 +616,7 @@ export function LoanApplicationForm({
       )}
 
       {step !== 3 && (
+        <>
         <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3 relative z-20">
           {step > 1 && (
             <button
@@ -737,12 +674,18 @@ export function LoanApplicationForm({
             </button>
           )}
         </div>
+        {step === 9 && (
+          <p className="mt-3 text-center text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+            *Declared history may affect the final disbursed amount.
+          </p>
+        )}
+        </>
       )}
     </div>
   );
 }
 
-function Step1_LoanDetails({
+export function Step1_LoanDetails({
   formData,
   updateField,
   monthlyRepayment,
@@ -765,7 +708,7 @@ function Step1_LoanDetails({
       const raw = e.target.value.replace(/[^0-9]/g, "");
       setAmountRaw(raw);
       const num = parseInt(raw, 10);
-      if (!Number.isNaN(num) && num >= 500 && num <= 30000) {
+      if (!Number.isNaN(num) && num >= 500 && num <= 20000) {
         updateField("amount", num);
       }
     },
@@ -777,7 +720,7 @@ function Step1_LoanDetails({
     const num = parseInt(amountRaw, 10);
     const clamped = Number.isNaN(num)
       ? 500
-      : Math.round(Math.min(Math.max(num, 500), 30000) / 500) * 500;
+      : Math.round(Math.min(Math.max(num, 500), 20000) / 500) * 500;
     updateField("amount", clamped);
     setAmountRaw(String(clamped));
   }, [amountRaw, updateField]);
@@ -786,7 +729,7 @@ function Step1_LoanDetails({
     setTenureFocused(false);
     const num = parseInt(tenureRaw, 10);
     if (Number.isNaN(num) || num <= 0) { setTenureRaw(String(formData.tenure)); return; }
-    const clamped = Math.min(Math.max(num, 1), 12);
+    const clamped = Math.min(Math.max(num, 1), 24);
     updateField("tenure", clamped);
     setTenureRaw(String(clamped));
   }, [tenureRaw, formData.tenure, updateField]);
@@ -811,7 +754,7 @@ function Step1_LoanDetails({
               <input
                 type="text"
                 inputMode="numeric"
-                value={amountFocused ? amountRaw : `${formData.amount.toLocaleString("en-SG")}${formData.amount >= 30000 ? "+" : ""}`}
+                value={amountFocused ? amountRaw : `${formData.amount.toLocaleString("en-SG")}${formData.amount >= 20000 ? "+" : ""}`}
                 onFocus={() => { setAmountFocused(true); setAmountRaw(String(formData.amount)); }}
                 onBlur={handleAmountBlur}
                 onChange={handleAmountChange}
@@ -832,7 +775,7 @@ function Step1_LoanDetails({
             <input
               type="range"
               min={500}
-              max={30000}
+              max={20000}
               step={500}
               value={formData.amount}
               onChange={(e) => {
@@ -845,7 +788,7 @@ function Step1_LoanDetails({
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
             <span>$500</span>
-            <span>$30,000+</span>
+            <span>$20,000+</span>
           </div>
         </div>
 
@@ -879,14 +822,14 @@ function Step1_LoanDetails({
             <div
               className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full"
               style={{
-                width: `${((formData.tenure - 1) / (12 - 1)) * 100}%`,
+                width: `${((formData.tenure - 1) / (24 - 1)) * 100}%`,
                 background: "var(--brand-blue-hex)",
               }}
             />
             <input
               type="range"
               min={1}
-              max={12}
+              max={24}
               step={1}
               value={formData.tenure}
               onChange={(e) => {
@@ -899,7 +842,7 @@ function Step1_LoanDetails({
           </div>
           <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
             <span>1 month</span>
-            <span>12 months+</span>
+            <span>24 months+</span>
           </div>
         </div>
 
@@ -928,7 +871,7 @@ function Step1_LoanDetails({
             When do you need the funds?
           </label>
           <div className="grid grid-cols-3 gap-2">
-            {URGENCY_OPTIONS.map(({ value, label, icon: Icon }) => {
+            {URGENCY_OPTIONS.map(({ value, label, emoji }) => {
               const isSelected = formData.urgency === value;
               return (
                 <button
@@ -944,24 +887,16 @@ function Step1_LoanDetails({
                       ? "var(--brand-blue-hex)"
                       : "var(--border-subtle)",
                     background: isSelected
-                      ? "oklch(0.32 0.14 260 / 0.06)"
+                      ? "var(--brand-blue-hex)"
                       : "transparent",
                   }}
                 >
-                  <Icon
-                    size={22}
-                    weight={isSelected ? "duotone" : "regular"}
-                    style={{
-                      color: isSelected
-                        ? "var(--brand-blue-hex)"
-                        : "var(--text-tertiary)",
-                    }}
-                  />
+                  <span className="text-[22px] leading-none" aria-hidden="true">{emoji}</span>
                   <span
                     className="text-xs font-medium"
                     style={{
                       color: isSelected
-                        ? "var(--brand-blue-hex)"
+                        ? "var(--text-on-brand)"
                         : "var(--text-secondary)",
                     }}
                   >
@@ -977,7 +912,7 @@ function Step1_LoanDetails({
   );
 }
 
-function Step2_SelfDeclaredIncome({
+export function Step2_SelfDeclaredIncome({
   formData,
   updateField,
   incomeHighWarningShown,
@@ -1002,7 +937,7 @@ function Step2_SelfDeclaredIncome({
       />
       <div className="flex flex-col gap-5">
         <InputField
-          label="Monthly Income"
+          label="Estimated Gross Monthly Income"
           type="number"
           placeholder="e.g. 4500"
           value={formData.monthlyIncome}
@@ -1034,14 +969,17 @@ function Step2_SelfDeclaredIncome({
   );
 }
 
-function Step3_SingpassGate({
+export function Step3_SingpassGate({
   onBack,
   onSingpass,
   onManual,
+  redirectPending = false,
 }: {
   onBack: () => void;
   onSingpass: () => void;
   onManual: () => void;
+  /** When true, disables actions while session is saved and browser navigates away. */
+  redirectPending?: boolean;
 }) {
   const benefits = [
     "No documents required — Myinfo retrieves everything automatically",
@@ -1074,19 +1012,29 @@ function Step3_SingpassGate({
       <button
         type="button"
         onClick={onSingpass}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 shadow-[0_1px_2px_rgba(0,0,51,0.06)] transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-[0_2px_6px_rgba(0,0,51,0.1)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue"
+        disabled={redirectPending}
+        className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 shadow-[0_1px_2px_rgba(0,0,51,0.06)] transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-[0_2px_6px_rgba(0,0,51,0.1)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Retrieve Myinfo with Singpass"
       >
-        <span className="text-sm font-medium text-[var(--text-secondary)]">
-          Retrieve Myinfo with
-        </span>
-        <Image
-          src="/images/singpass_logo_fullcolours.png"
-          alt="Singpass"
-          width={88}
-          height={28}
-          className="h-5 w-auto translate-y-px"
-        />
+        {redirectPending ? (
+          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+            <span className="h-4 w-4 rounded-full border-2 border-[var(--border-medium)] border-t-brand-blue animate-spin" />
+            Please wait…
+          </span>
+        ) : (
+          <>
+            <span className="text-sm font-medium text-[var(--text-secondary)]">
+              Retrieve Myinfo with
+            </span>
+            <Image
+              src="/images/singpass_logo_fullcolours.png"
+              alt="Singpass"
+              width={88}
+              height={28}
+              className="h-5 w-auto translate-y-px"
+            />
+          </>
+        )}
       </button>
 
       <div className="relative my-4">
@@ -1104,7 +1052,8 @@ function Step3_SingpassGate({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          disabled={redirectPending}
+          className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ArrowLeft size={16} weight="bold" />
           Back
@@ -1112,17 +1061,18 @@ function Step3_SingpassGate({
         <button
           type="button"
           onClick={onManual}
-          className="flex items-center gap-2 text-sm font-semibold text-brand-blue transition-colors hover:brightness-110"
+          disabled={redirectPending}
+          className="flex items-center gap-2 text-sm font-semibold text-brand-blue transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Fill in manually
-          <ArrowRight size={16} weight="bold" />
+          {redirectPending ? "Please wait…" : "Fill in manually"}
+          {!redirectPending && <ArrowRight size={16} weight="bold" />}
         </button>
       </div>
     </div>
   );
 }
 
-function Step4_Identity({
+export function Step4_Identity({
   formData,
   updateField,
 }: {
@@ -1223,7 +1173,7 @@ function Step5_Employment({
   );
 }
 
-function Step6_Contact({
+export function Step6_Contact({
   formData,
   updateField,
 }: {
@@ -1232,45 +1182,48 @@ function Step6_Contact({
 }) {
   return (
     <div>
-      <div className="mb-6 sm:mb-8">
-        <div className="flex items-center gap-3 sm:block">
-          <div className="flex items-center gap-2 sm:mb-3">
-            <div className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)] bg-brand-blue/[0.06]">
-              <Phone size={18} weight="duotone" className="text-brand-blue sm:hidden" />
-              <Phone size={22} weight="duotone" className="text-brand-blue hidden sm:block" />
-            </div>
-            <div
-              className="shrink-0 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-[var(--radius-md)]"
-              style={{ background: "oklch(0.72 0.19 145 / 0.10)" }}
-            >
-              <WhatsappLogo size={18} weight="duotone" className="sm:hidden" style={{ color: "#25D366" }} />
-              <WhatsappLogo size={22} weight="duotone" className="hidden sm:block" style={{ color: "#25D366" }} />
-            </div>
-          </div>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-            How can we reach you?
-          </h2>
-        </div>
-        <p className="mt-3 text-base leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
-          We&apos;ll contact you regarding your loan status and details
-        </p>
-      </div>
+      <StepHeader
+        icon={Phone}
+        title="How can we reach you?"
+        subtitle="We'll contact you regarding your loan status and details."
+      />
 
       <div className="flex flex-col gap-5">
-        <InputField
-          label="Mobile Number"
-          type="tel"
-          placeholder="9123 4567"
-          value={formData.mobile}
-          onChange={(v) => updateField("mobile", v)}
-          prefix="+65"
-        />
+        {/* Mobile number field with Phone + WhatsApp icons on the label right */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-base font-medium text-[var(--text-primary)]">
+              Mobile Number
+            </label>
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-brand-blue">
+                <ChatTeardropText size={14} weight="fill" className="text-white" />
+              </div>
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)]"
+                style={{ background: "#25D366" }}
+              >
+                <WhatsappLogo size={14} weight="fill" className="text-white" />
+              </div>
+            </div>
+          </div>
+          <div className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10">
+            <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">+65</span>
+            <input
+              type="tel"
+              placeholder="9123 4567"
+              value={formData.mobile}
+              onChange={(e) => updateField("mobile", e.target.value)}
+              className="min-w-0 flex-1 border-0 bg-transparent py-2 sm:py-3 pl-0 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function Step7_Additional({
+export function Step7_Additional({
   formData,
   updateField,
 }: {
@@ -1871,7 +1824,7 @@ function Step9_EmploymentDeclaration({
 
 // ─── Step 9: Moneylender Loans ────────────────────────────────────────────────
 
-function Step9_MoneylenderLoans({
+export function Step9_MoneylenderLoans({
   formData,
   updateField,
 }: {
@@ -1950,7 +1903,7 @@ function Step9_MoneylenderLoans({
                         ? "var(--brand-blue-hex)"
                         : "var(--border-subtle)",
                       background: isSelected
-                        ? "oklch(0.32 0.14 260 / 0.06)"
+                        ? "var(--brand-blue-hex)"
                         : "transparent",
                     }}
                   >
@@ -1959,7 +1912,7 @@ function Step9_MoneylenderLoans({
                       className="text-[11px] font-medium text-center leading-tight"
                       style={{
                         color: isSelected
-                          ? "var(--brand-blue-hex)"
+                          ? "var(--text-on-brand)"
                           : "var(--text-secondary)",
                       }}
                     >
@@ -2291,7 +2244,7 @@ function LegalModal({
 
 // ─── Step 8 ───────────────────────────────────────────────────────────────────
 
-function Step7_BankruptcyDeclaration({
+export function Step7_BankruptcyDeclaration({
   formData,
   updateField,
   onClear,
@@ -2308,21 +2261,17 @@ function Step7_BankruptcyDeclaration({
     <div>
       <StepHeader
         icon={ShieldCheck}
-        title="Bankruptcy / DRS Status"
-        subtitle="We're required to verify your bankruptcy and debt repayment status before proceeding."
+        title="A Quick Check"
+        subtitle="Help us confirm your financial standing to move forward."
       />
 
       <div className="flex flex-col gap-5">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-base font-medium text-[var(--text-primary)]">
-              What is your current status?
+          <div className="mb-3">
+            <label className="block w-full text-base font-medium text-[var(--text-primary)]">
+              Which of the following applies to you at this time?
             </label>
-            <span className="text-xs text-[var(--text-tertiary)]">Select one</span>
           </div>
-          <p className="mb-3 text-sm text-[var(--text-secondary)]">
-            Select the option that applies to you as of today.
-          </p>
 
           <div className="flex flex-col gap-2.5">
             {/* Not bankrupt option — green when selected */}
@@ -2351,7 +2300,7 @@ function Step7_BankruptcyDeclaration({
                 className="text-sm font-semibold"
                 style={{ color: isClear ? "oklch(0.40 0.12 145)" : "var(--text-primary)" }}
               >
-                I am NOT bankrupt, under DRS or self-exclusion as of this application.
+                I do not have any active bankruptcy, DRS, or self-exclusion records.
               </span>
             </button>
 
@@ -2378,7 +2327,7 @@ function Step7_BankruptcyDeclaration({
                 className="text-sm"
                 style={{ color: isDischarged ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
               >
-                I am a discharged bankrupt (less than 5 years ago)
+                I have previously been discharged from bankruptcy (within the last 5 years).
               </span>
             </button>
 
@@ -2405,7 +2354,7 @@ function Step7_BankruptcyDeclaration({
                 className="text-sm"
                 style={{ color: isActive ? "oklch(0.40 0.15 25)" : "var(--text-secondary)" }}
               >
-                I am currently under bankruptcy / DRS status
+                I have an ongoing bankruptcy or Debt Repayment Scheme (DRS).
               </span>
             </button>
           </div>
@@ -2500,7 +2449,7 @@ function EditableReviewRow({
   );
 }
 
-function Step8_Review({
+export function Step8_Review({
   formData,
   updateField,
   monthlyRepayment,

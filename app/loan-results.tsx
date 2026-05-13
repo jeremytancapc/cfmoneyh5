@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ShieldCheck,
   Scroll,
   HandCoins,
   ArrowRight,
+  ArrowDown,
   Warning,
   Clock,
   ArrowLeft,
@@ -15,6 +16,67 @@ import {
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
+
+// ── Offer expiry helpers ──────────────────────────────────────────────────────
+
+const SG_HOLIDAYS = new Set([
+  "2026-01-01", "2026-02-17", "2026-02-18", "2026-03-21",
+  "2026-04-03", "2026-05-01", "2026-05-27", "2026-06-01",
+  "2026-08-10", "2026-11-09", "2026-12-25", "2027-01-01",
+]);
+
+function localISO(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isBusinessDay(d: Date) {
+  return d.getDay() !== 0 && !SG_HOLIDAYS.has(localISO(d));
+}
+
+/** Advance `from` by exactly `n` business days and return 7:30 PM on that date. */
+function computeExpiry(from: Date, n = 3): Date {
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  let counted = 0;
+  while (counted < n) {
+    if (isBusinessDay(d)) counted++;
+    if (counted < n) d.setDate(d.getDate() + 1);
+  }
+  d.setHours(19, 30, 0, 0);
+  return d;
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Offer expired";
+  const totalSec = Math.floor(ms / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hrs  = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  if (days > 0) return `${days}d ${hrs}h ${mins}m ${String(secs).padStart(2, "0")}s`;
+  return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function OfferCountdown() {
+  const expiryRef = useRef<Date | null>(null);
+  if (!expiryRef.current) expiryRef.current = computeExpiry(new Date());
+
+  const [display, setDisplay] = useState(() =>
+    formatCountdown(expiryRef.current!.getTime() - Date.now())
+  );
+
+  useEffect(() => {
+    const tick = () =>
+      setDisplay(formatCountdown(expiryRef.current!.getTime() - Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <>{display}</>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface FormData {
   amount: number;
@@ -210,6 +272,28 @@ export function LoanResults({
   );
   const allRemindersChecked = reminderItems.length === 0 || checkedItems.every(Boolean);
 
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const [isCtaVisible, setIsCtaVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsCtaVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToCta = useCallback(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const targetY = window.scrollY + rect.bottom - window.innerHeight + 24;
+    window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+  }, []);
+
   function toggleItem(index: number) {
     setCheckedItems((prev) => prev.map((v, i) => (i === index ? !v : v)));
   }
@@ -300,24 +384,13 @@ export function LoanResults({
               }}
             />
             <span
-              className="text-xs font-semibold"
+              className="text-xs font-semibold tabular-nums"
               style={{ color: "oklch(0.45 0.20 50)" }}
             >
-              Offer valid for 3 days only
+              Offer expires in <OfferCountdown />
             </span>
           </motion.div>
         </div>
-
-        {/* ── Disclaimer (always shown, extra note for poor history) ── */}
-        <motion.div
-          className="flex flex-col items-center gap-1 -mt-5"
-          initial={{ opacity: 0 }}
-          {...blurIn(revealStage >= 3)}
-        >
-          <p className="text-center text-[10px] leading-relaxed text-[var(--text-tertiary)] w-full">
-            *Declared moneylender history may affect the final disbursed amount.
-          </p>
-        </motion.div>
 
         {/* ── Stage 4: Notice card ────────────────────────────────── */}
         <motion.div
@@ -417,6 +490,7 @@ export function LoanResults({
 
         {/* ── Stage 4: CTA ────────────────────────────────────────── */}
         <motion.div
+          ref={ctaRef}
           className="flex flex-col gap-3"
           initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
           animate={
@@ -433,7 +507,7 @@ export function LoanResults({
             disabled={!allRemindersChecked}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
           >
-            Accept &amp; Book Appointment
+            Receive Your Funds Now
             <ArrowRight size={16} weight="bold" />
           </button>
           <button
@@ -445,6 +519,20 @@ export function LoanResults({
           </button>
         </motion.div>
       </div>
+
+      {/* ── Floating CTA — visible on mobile when Accept button is off-screen ── */}
+      {revealStage >= 4 && !isCtaVisible && (
+        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-sm">
+          <button
+            type="button"
+            onClick={scrollToCta}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+          >
+            Accept Loan Offer
+            <ArrowDown size={16} weight="bold" />
+          </button>
+        </div>
+      )}
 
       {/* ── Reconsider modal ───────────────────────────────────── */}
       {showModal && (

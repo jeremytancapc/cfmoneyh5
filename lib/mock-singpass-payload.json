@@ -1,0 +1,377 @@
+{
+  "myinfo": {
+    "iss": "https://stg-id.singpass.gov.sg",
+    "sub": "u=881ad2ea-0128-4275-9220-dd7bc9f1060e",
+    "aud": "ZOy3c3EYVNXvk7kM48pOnfW2jQbMqrCp",
+    "iat": 1778494502,
+    "uinfin": {
+      "value": "S7790721A",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "name": {
+      "value": "FELICIA TAN WEI LIN",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "sex": {
+      "code": "M",
+      "desc": "MALE",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "race": {
+      "code": "CN",
+      "desc": "CHINESE",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "nationality": {
+      "code": "CN",
+      "desc": "CHINESE",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "dob": {
+      "value": "1993-03-03",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "residentialstatus": {
+      "code": "P",
+      "desc": "PR",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "email": {
+      "value": "myinfotesting@gmail.com",
+      "classification": "C",
+      "source": "4",
+      "lastupdated": "2025-06-03"
+    },
+    "mobileno": {
+      "prefix": {
+        "value": "+"
+      },
+      "areacode": {
+        "value": "65"
+      },
+      "nbr": {
+        "value": "91178740"
+      },
+      "classification": "C",
+      "source": "4",
+      "lastupdated": "2025-06-03"
+    },
+    "regadd": {
+      "type": "SG",
+      "block": {
+        "value": "288A"
+      },
+      "building": {
+        "value": ""
+      },
+      "floor": {
+        "value": "8"
+      },
+      "unit": {
+        "value": "367"
+      },
+      "street": {
+        "value": "JURONG EAST STREET 21"
+      },
+      "postal": {
+        "value": "601288"
+      },
+      "country": {
+        "code": "SG",
+        "desc": "SINGAPORE"
+      },
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "marital": {
+      "code": "2",
+      "desc": "MARRIED",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2022-03-19"
+    },
+    "occupation": {
+      "value": "",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-05-06"
+    },
+    "employment": {
+      "value": "",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-05-06"
+    },
+    "passstatus": {
+      "value": "",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "passexpirydate": {
+      "value": "",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "housingtype": {
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-05-06"
+    },
+    "hdbtype": {
+      "code": "115",
+      "desc": "5-ROOM FLAT (HDB)",
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2025-06-03"
+    },
+    "hdbownership": [
+      {
+        "address": {
+          "type": "SG",
+          "block": {
+            "value": "288A"
+          },
+          "building": {
+            "value": ""
+          },
+          "floor": {
+            "value": "8"
+          },
+          "unit": {
+            "value": "367"
+          },
+          "street": {
+            "value": "JURONG EAST STREET 21"
+          },
+          "postal": {
+            "value": "601288"
+          },
+          "country": {
+            "code": "SG",
+            "desc": "SINGAPORE"
+          }
+        },
+        "hdbtype": {
+          "code": "115",
+          "desc": "5-ROOM FLAT (HDB)"
+        },
+        "purchaseprice": {
+          "value": 500000
+        },
+        "classification": "C",
+        "source": "1",
+        "lastupdated": "2025-06-03"
+      }
+    ],
+    "vehicles": [],
+    "noahistory": {
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2026-05-11",
+      "noas": [
+        {
+          "amount": {
+            "value": 100000
+          },
+          "yearofassessment": {
+            "value": "2025"
+          },
+          "employment": {
+            "value": 100000
+          },
+          "trade": {
+            "value": 0
+          },
+          "rent": {
+            "value": 0
+          },
+          "interest": {
+            "value": 0
+          },
+          "taxclearance": {
+            "value": "N"
+          },
+          "category": {
+            "value": "ORIGINAL"
+          }
+        },
+        {
+          "amount": {
+            "value": 472000
+          },
+          "yearofassessment": {
+            "value": "2024"
+          },
+          "employment": {
+            "value": 49202
+          },
+          "trade": {
+            "value": 0
+          },
+          "rent": {
+            "value": 0
+          },
+          "interest": {
+            "value": 0
+          },
+          "taxclearance": {
+            "value": "N"
+          },
+          "category": {
+            "value": "ORIGINAL"
+          }
+        }
+      ]
+    },
+    "ownerprivate": {
+      "value": false,
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2026-05-11"
+    },
+    "cpfcontributions": {
+      "history": [
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "date": {
+            "value": "2026-02-01"
+          },
+          "month": {
+            "value": "2026-02"
+          },
+          "amount": {
+            "value": 2516
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "date": {
+            "value": "2026-01-01"
+          },
+          "month": {
+            "value": "2026-01"
+          },
+          "amount": {
+            "value": 2516
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "date": {
+            "value": "2025-12-01"
+          },
+          "month": {
+            "value": "2025-12"
+          },
+          "amount": {
+            "value": 2516
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "date": {
+            "value": "2025-11-01"
+          },
+          "month": {
+            "value": "2025-11"
+          },
+          "amount": {
+            "value": 2516
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "date": {
+            "value": "2025-10-01"
+          },
+          "month": {
+            "value": "2025-10"
+          },
+          "amount": {
+            "value": 2516
+          }
+        }
+      ],
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2026-05-11"
+    },
+    "cpfemployers": {
+      "history": [
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "month": {
+            "value": "2026-02"
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "month": {
+            "value": "2026-01"
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "month": {
+            "value": "2025-12"
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "month": {
+            "value": "2025-11"
+          }
+        },
+        {
+          "employer": {
+            "value": "1Aaaaaaaa 2AAAAAAAA 3AAAAAAAA 4AAAAAAAA 5AAAAAAAA 6AAAAAAAA 7AAAAAAAA 8AAAAAAAA 9AAAAAAAA 0AAAAAAAAA"
+          },
+          "month": {
+            "value": "2025-10"
+          }
+        }
+      ],
+      "classification": "C",
+      "source": "1",
+      "lastupdated": "2026-05-11"
+    }
+  },
+  "state": "6ea3766b-9d4a-48a4-a56b-58b00672e83f",
+  "code": 200,
+  "message": "success"
+}

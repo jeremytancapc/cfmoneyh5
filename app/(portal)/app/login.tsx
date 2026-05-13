@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   DeviceMobile,
   LockKey,
-  ArrowRight,
   ShieldCheck,
   Warning,
 } from "@phosphor-icons/react";
@@ -13,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { usePortal } from "./portal-context";
 
 export function LoginScreen() {
-  const { loginWithSingpass, loginWithOtp } = usePortal();
+  const { loginWithOtp } = usePortal();
 
   const [showOtp, setShowOtp] = useState(false);
   const [phone, setPhone] = useState("");
@@ -66,10 +65,7 @@ export function LoginScreen() {
 
   function handleSingpass() {
     setSingpassLoading(true);
-    setTimeout(() => {
-      setSingpassLoading(false);
-      loginWithSingpass();
-    }, 1400);
+    window.location.href = "/api/auth";
   }
 
   return (
