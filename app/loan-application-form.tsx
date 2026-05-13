@@ -214,7 +214,11 @@ function InputField({
 
   function calcPos() {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) setTipPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+    if (!r) return;
+    const tooltipW = Math.min(288, window.innerWidth - 32);
+    const rawRight = window.innerWidth - r.right;
+    const right = Math.max(16, Math.min(rawRight, window.innerWidth - tooltipW - 16));
+    setTipPos({ top: r.bottom + 8, right });
   }
 
   function handleMouseEnter() {
@@ -281,7 +285,7 @@ function InputField({
                   right: tipPos.right,
                   zIndex: 9999,
                   width: "18rem",
-                  maxWidth: "calc(100vw - 2.5rem)",
+                  maxWidth: "calc(100vw - 2rem)",
                 }}
                 className="rounded-[var(--radius-md)] bg-gray-900 p-3.5 shadow-2xl"
               >
@@ -1934,20 +1938,78 @@ export function Step9_MoneylenderLoans({
     rawAmount.trim() !== "" &&
     !Number.isNaN(parseInt(rawAmount, 10));
 
+  const [amtTipVisible, setAmtTipVisible] = useState(false);
+  const [amtTipPos, setAmtTipPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const amtBtnRef = useRef<HTMLButtonElement>(null);
+  const amtTipRef = useRef<HTMLDivElement>(null);
+  const amtHoverRef = useRef(false);
+  const amtClickRef = useRef(false);
+
+  function calcAmtPos() {
+    const r = amtBtnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const tooltipW = Math.min(224, window.innerWidth - 32);
+    const rawRight = window.innerWidth - r.right;
+    const right = Math.max(16, Math.min(rawRight, window.innerWidth - tooltipW - 16));
+    setAmtTipPos({ top: r.bottom + 8, right });
+  }
+
+  useEffect(() => {
+    if (!amtTipVisible) return;
+    const handler = (e: MouseEvent) => {
+      if (!amtTipRef.current?.contains(e.target as Node) && !amtBtnRef.current?.contains(e.target as Node)) {
+        amtClickRef.current = false;
+        setAmtTipVisible(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [amtTipVisible]);
+
   return (
     <div>
       <StepHeader
         icon={ChartLineUp}
-        title="Any moneylender loans?"
-        subtitle="Include any outstanding licensed moneylender balances."
+        title="Existing moneylender loans?"
+        subtitle="Include all outstanding licensed moneylender balances."
       />
 
       <div className="flex flex-col gap-4">
         {/* Amount input — always visible */}
         <div className="flex flex-col gap-2">
-          <label className="text-base font-medium text-[var(--text-primary)]">
-            Total outstanding amount
-          </label>
+          <div className="flex items-center gap-1.5">
+            <label className="text-base font-medium text-[var(--text-primary)]">
+              Total outstanding amount
+            </label>
+            <button
+              ref={amtBtnRef}
+              type="button"
+              onClick={() => {
+                amtClickRef.current = !amtClickRef.current;
+                if (amtClickRef.current) { calcAmtPos(); setAmtTipVisible(true); }
+                else if (!amtHoverRef.current) setAmtTipVisible(false);
+              }}
+              onMouseEnter={() => { amtHoverRef.current = true; calcAmtPos(); setAmtTipVisible(true); }}
+              onMouseLeave={() => { amtHoverRef.current = false; if (!amtClickRef.current) setAmtTipVisible(false); }}
+              className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-brand-blue/30 bg-white text-[10px] font-bold text-brand-blue shadow-sm transition-colors duration-150 hover:bg-brand-blue/5 focus:outline-none"
+              aria-label="More information"
+            >
+              ?
+            </button>
+            {amtTipVisible && createPortal(
+              <div
+                ref={amtTipRef}
+                style={{ position: "fixed", top: amtTipPos.top, right: amtTipPos.right, zIndex: 9999, width: "14rem", maxWidth: "calc(100vw - 2rem)" }}
+                className="rounded-[var(--radius-md)] bg-gray-900 p-3.5 shadow-2xl"
+              >
+                <div style={{ position: "absolute", top: -6, right: 6 }} className="h-3 w-3 rotate-45 bg-gray-900" />
+                <p className="text-sm leading-snug text-white/80">
+                  Only state the <span className="font-semibold text-white">remaining balance</span> yet to pay and not the original loan amount taken.
+                </p>
+              </div>,
+              document.body
+            )}
+          </div>
           <div
             className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
             style={{
@@ -2398,7 +2460,7 @@ export function Step7_BankruptcyDeclaration({
                 className="text-sm font-semibold"
                 style={{ color: isClear ? "oklch(0.40 0.12 145)" : "var(--text-primary)" }}
               >
-                I do not have any active bankruptcy, DRS, or self-exclusion records.
+                I am not currently under bankruptcy, DRS, or self-exclusion, nor do I intend to file for these in the near future.
               </span>
             </button>
 
