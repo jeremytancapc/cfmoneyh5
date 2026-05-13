@@ -233,7 +233,7 @@ function InputField({
     if (clickRef.current) {
       calcPos();
       setTipVisible(true);
-    } else if (!hoverRef.current) {
+    } else {
       setTipVisible(false);
     }
   }
@@ -2033,7 +2033,7 @@ export function Step9_MoneylenderLoans({
               onClick={() => {
                 amtClickRef.current = !amtClickRef.current;
                 if (amtClickRef.current) { calcAmtPos(); setAmtTipVisible(true); }
-                else if (!amtHoverRef.current) setAmtTipVisible(false);
+                else { setAmtTipVisible(false); }
               }}
               onMouseEnter={() => { amtHoverRef.current = true; calcAmtPos(); setAmtTipVisible(true); }}
               onMouseLeave={() => { amtHoverRef.current = false; if (!amtClickRef.current) setAmtTipVisible(false); }}
