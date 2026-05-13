@@ -13,18 +13,11 @@ interface Props {
 export function ApprovalView({ formData }: Props) {
   const router = useRouter();
 
-  const { approvedLoanAmount, tenure, incomeSource } = formData;
+  const { approvedLoanAmount, tenure } = formData;
 
   // Show the approved amount (not the requested amount) in the results screen.
   const displayData = { ...formData, amount: approvedLoanAmount };
   const monthlyRepayment = calculateMonthlyRepayment(approvedLoanAmount, tenure);
-
-  const incomeNote =
-    incomeSource === "cpf"
-      ? "Income verified via CPF contributions."
-      : incomeSource === "noa"
-        ? "Income verified via Notice of Assessment (NOA)."
-        : "Income based on self-declaration.";
 
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh">
@@ -71,7 +64,6 @@ export function ApprovalView({ formData }: Props) {
               formData={displayData}
               monthlyRepayment={monthlyRepayment}
               onAccept={() => router.push("/apply/book")}
-              reminderItems={[incomeNote]}
             />
           </div>
         </div>
