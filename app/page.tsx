@@ -103,7 +103,7 @@ export default async function HomePage() {
 
           <p className="mt-4 text-xs font-semibold">
             For any enquiries, please WhatsApp us at{" "}
-            <a href="https://wa.me/6560279208" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">6027 9208</a>
+            <a href="https://wa.me/6560119380" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">6011 9380</a>
           </p>
         </footer>
       </main>

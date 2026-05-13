@@ -149,7 +149,7 @@ export function PendingView({ formData }: Props) {
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Get in touch</p>
               <a
-                href="https://api.whatsapp.com/send/?phone=6560279208&text&type=phone_number&app_absent=0"
+                href="https://wa.me/6560119380?text=Hi%20My%20application%20is%20pending%20review"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-4 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
@@ -157,7 +157,7 @@ export function PendingView({ formData }: Props) {
                 <WhatsappLogo size={22} weight="duotone" className="shrink-0 text-brand-blue" />
                 <div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">WhatsApp us</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">6027 9208 · Mon – Sat, 10:30am – 7:30pm</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">6011 9380 · Mon – Sat, 10:30am – 7:30pm</p>
                 </div>
               </a>
             </div>
