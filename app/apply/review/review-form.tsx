@@ -251,43 +251,59 @@ export function ReviewForm({ initialData }: Props) {
             )}
 
             {/* CTA buttons */}
-            <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-5 text-sm font-medium text-[var(--text-secondary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-primary)] active:scale-[0.98]"
-              >
-                Back
-              </button>
+            <div className="flex flex-col gap-2">
+              <div ref={bottomCtaRef} className="mt-10 sm:mt-8 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-5 text-sm font-medium text-[var(--text-secondary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-primary)] active:scale-[0.98]"
+                >
+                  Back
+                </button>
 
-              {step === 8 ? (
-                <button
-                  type="button"
-                  onClick={handleReviewConfirm}
-                  disabled={mounted && !canProceed}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  Yes, I confirm
-                </button>
-              ) : step === 9 ? (
-                <button
-                  type="button"
-                  onClick={submitApplication}
-                  disabled={(mounted && !canProceed) || saving}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  {saving ? "Saving…" : "Submit Application"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={mounted && !canProceed}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  Continue
-                </button>
-              )}
+                {step === 8 ? (
+                  <button
+                    type="button"
+                    onClick={handleReviewConfirm}
+                    disabled={mounted && !canProceed}
+                    className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    Yes, I confirm
+                  </button>
+                ) : step === 9 ? (
+                  <button
+                    type="button"
+                    onClick={submitApplication}
+                    disabled={(mounted && !canProceed) || saving}
+                    className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    {saving ? "Saving…" : "Submit Application"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    disabled={mounted && !canProceed}
+                    className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-[var(--text-on-brand)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    Continue
+                  </button>
+                )}
+              </div>
+
+              {step === 9 && (() => {
+                const rawAmount = formData.moneylenderLoanAmount ?? "";
+                const hasAmount = rawAmount.trim() !== "" && !Number.isNaN(parseInt(rawAmount, 10));
+                const needsHistory = !formData.moneylenderNoLoans && hasAmount && !formData.moneylenderPaymentHistory;
+                return needsHistory ? (
+                  <div className="flex items-center gap-3">
+                    <div className="invisible flex h-0 shrink-0 items-center px-5 text-sm">Back</div>
+                    <p className="flex-1 text-center text-xs text-[var(--text-tertiary)]">
+                      Please select your repayment history to continue.
+                    </p>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>

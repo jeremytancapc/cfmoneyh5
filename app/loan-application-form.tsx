@@ -768,9 +768,26 @@ export function LoanApplicationForm({
           )}
         </div>
         {step === 9 && (
-          <p className="mt-3 text-center text-[10px] leading-relaxed text-[var(--text-tertiary)]">
-            *Declared history may affect the final disbursed amount.
-          </p>
+          <>
+            {(() => {
+              const rawAmount = formData.moneylenderLoanAmount ?? "";
+              const hasAmount = rawAmount.trim() !== "" && !Number.isNaN(parseInt(rawAmount, 10));
+              const needsHistory = !formData.moneylenderNoLoans && hasAmount && !formData.moneylenderPaymentHistory;
+              return needsHistory ? (
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="invisible flex h-0 shrink-0 items-center px-5 text-sm gap-2">
+                    <span>Back</span>
+                  </div>
+                  <p className="flex-1 text-center text-xs text-[var(--text-tertiary)]">
+                    Please select your repayment history to continue.
+                  </p>
+                </div>
+              ) : null;
+            })()}
+            <p className="mt-3 text-center text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+              *Declared history may affect the final disbursed amount.
+            </p>
+          </>
         )}
         </>
       )}
