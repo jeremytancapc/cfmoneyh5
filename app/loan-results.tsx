@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
+import { trackEvent } from "@/lib/analytics";
 
 // ── Offer expiry helpers ──────────────────────────────────────────────────────
 
@@ -270,6 +271,11 @@ export function LoanResults({
   const [checkedItems, setCheckedItems] = useState<boolean[]>(() =>
     reminderItems.map(() => false)
   );
+
+  const handleAccept = useCallback(() => {
+    trackEvent("step_12_offer_accepted");
+    onAccept();
+  }, [onAccept]);
   const allRemindersChecked = reminderItems.length === 0 || checkedItems.every(Boolean);
 
   const ctaRef = useRef<HTMLDivElement>(null);
@@ -503,7 +509,7 @@ export function LoanResults({
         >
           <button
             type="button"
-            onClick={onAccept}
+            onClick={handleAccept}
             disabled={!allRemindersChecked}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
           >
@@ -537,7 +543,7 @@ export function LoanResults({
       {/* ── Reconsider modal ───────────────────────────────────── */}
       {showModal && (
         <ReconsiderModal
-          onAccept={onAccept}
+          onAccept={handleAccept}
           onClose={() => setShowModal(false)}
         />
       )}
