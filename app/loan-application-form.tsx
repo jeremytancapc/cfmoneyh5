@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
 import { LoanResults } from "./loan-results";
 import { AppointmentBooking } from "./appointment-booking";
+import { PaymentHistorySelector } from "@/components/ui/gradient-selector-card";
 import {
   ArrowRight,
   ArrowLeft,
@@ -111,11 +112,6 @@ const EMPLOYMENT_DURATION_OPTIONS = [
   { value: "10y_plus", label: "10 years and above" },
 ] as const;
 
-const PAYMENT_HISTORY_OPTIONS = [
-  { value: "bad_debt", label: "Missed payments", emoji: "😰" },
-  { value: "average", label: "Average", emoji: "😐" },
-  { value: "on_time", label: "On-time", emoji: "😁" },
-] as const;
 
 export function StepIndicator({
   current,
@@ -2044,44 +2040,13 @@ export function Step9_MoneylenderLoans({
         {/* Payment history — revealed directly below the amount input */}
         {hasAmount && !formData.moneylenderNoLoans && (
           <div className="animate-slide-in" key="payment-history">
-            <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
-              How is your payment history?
+            <label className="mb-3 block text-base font-medium text-[var(--text-primary)]">
+              How is your repayment history?
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {PAYMENT_HISTORY_OPTIONS.map(({ value, label, emoji }) => {
-                const isSelected = formData.moneylenderPaymentHistory === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      updateField("moneylenderPaymentHistory", value)
-                    }
-                    className="flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border py-3 transition-all duration-200 active:scale-[0.96]"
-                    style={{
-                      borderColor: isSelected
-                        ? "var(--brand-blue-hex)"
-                        : "var(--border-subtle)",
-                      background: isSelected
-                        ? "var(--brand-blue-hex)"
-                        : "transparent",
-                    }}
-                  >
-                    <span className="text-xl leading-none">{emoji}</span>
-                    <span
-                      className="text-[11px] font-medium text-center leading-tight"
-                      style={{
-                        color: isSelected
-                          ? "var(--text-on-brand)"
-                          : "var(--text-secondary)",
-                      }}
-                    >
-                      {label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <PaymentHistorySelector
+              value={formData.moneylenderPaymentHistory}
+              onChange={(val) => updateField("moneylenderPaymentHistory", val)}
+            />
           </div>
         )}
 
