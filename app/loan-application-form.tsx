@@ -1088,15 +1088,16 @@ export function Step3_SingpassGate({
   redirectPending?: boolean;
 }) {
   const benefits = [
-    "No documents required — Myinfo retrieves everything automatically",
+    "No documents submission required",
     "Increases approval rate to up to 90%",
-    "Gov-grade security — your session is encrypted end-to-end",
+    "Your data is safe and will only be used for this application.",
   ];
 
   return (
     <div className="py-4 sm:py-6">
       <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-        Continue with Singpass
+        Get Approved Quicker{" "}
+        <span className="inline-block animate-float">⚡</span>
       </h2>
       <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)] sm:whitespace-nowrap">
         Verify with Singpass for higher approval rates and faster processing.
@@ -1115,33 +1116,29 @@ export function Step3_SingpassGate({
         ))}
       </ul>
 
-      <button
-        type="button"
-        onClick={onSingpass}
-        disabled={redirectPending}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 shadow-[0_1px_2px_rgba(0,0,51,0.06)] transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-[0_2px_6px_rgba(0,0,51,0.1)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue disabled:cursor-not-allowed disabled:opacity-60"
-        aria-label="Retrieve Myinfo with Singpass"
-      >
-        {redirectPending ? (
-          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-            <span className="h-4 w-4 rounded-full border-2 border-[var(--border-medium)] border-t-brand-blue animate-spin" />
-            Please wait…
-          </span>
-        ) : (
-          <>
-            <span className="text-sm font-medium text-[var(--text-secondary)]">
-              Retrieve Myinfo with
-            </span>
-            <Image
-              src="/images/singpass_logo_fullcolours.png"
-              alt="Singpass"
-              width={88}
-              height={28}
-              className="h-5 w-auto translate-y-px"
-            />
-          </>
-        )}
-      </button>
+      {redirectPending ? (
+        <div className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[#E3001B] text-sm font-medium text-white">
+          <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+          Please wait…
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onSingpass}
+          disabled={redirectPending}
+          className="mt-6 flex w-full justify-center active:scale-[0.98] transition-transform duration-150 disabled:cursor-not-allowed disabled:opacity-60"
+          aria-label="Retrieve Myinfo with Singpass"
+        >
+          <Image
+            src="/images/singpass-myinfo-red.png"
+            alt="Retrieve Myinfo with Singpass"
+            width={320}
+            height={56}
+            className="h-12 w-auto rounded-[var(--radius-md)]"
+            priority
+          />
+        </button>
+      )}
 
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
@@ -1295,22 +1292,17 @@ export function Step6_Contact({
       />
 
       <div className="flex flex-col gap-5">
-        {/* Mobile number field with Phone + WhatsApp icons on the label right */}
+        {/* Mobile number field */}
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <label className="text-base font-medium text-[var(--text-primary)]">
-              Mobile Number
+              WhatsApp Mobile Number
             </label>
-            <div className="flex items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-brand-blue">
-                <ChatTeardropText size={14} weight="fill" className="text-white" />
-              </div>
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)]"
-                style={{ background: "#25D366" }}
-              >
-                <WhatsappLogo size={14} weight="fill" className="text-white" />
-              </div>
+            <div
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+              style={{ background: "#25D366" }}
+            >
+              <WhatsappLogo size={13} weight="fill" className="text-white" />
             </div>
           </div>
           <div className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10">
@@ -2603,19 +2595,6 @@ export function Step8_Review({
     ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
   ];
 
-  const declarationRows = [
-    {
-      label: "Bankruptcy / DRS",
-      value:
-        formData.bankruptcyDeclaration === "clear"
-          ? "Not bankrupt / DRS"
-          : formData.bankruptcyDeclaration === "discharged_lt5"
-            ? "Discharged (< 5 yrs)"
-            : formData.bankruptcyDeclaration === "active"
-              ? "Currently bankrupt / DRS"
-              : "—",
-    },
-  ];
 
   return (
     <div>
@@ -2668,21 +2647,6 @@ export function Step8_Review({
           </div>
         </div>
 
-        {/* Declaration */}
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <ShieldCheck size={16} weight="duotone" className="text-brand-blue" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Declaration</span>
-          </div>
-          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-            {declarationRows.map(({ label, value }) => (
-              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-[var(--text-tertiary)]">{label}</span>
-                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="mt-6 rounded-[var(--radius-md)] bg-brand-teal/[0.06] px-4 py-3">
