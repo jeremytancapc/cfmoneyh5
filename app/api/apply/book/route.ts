@@ -1,8 +1,8 @@
 /**
- * POST /api/apply/book
+ * POST /api/apply/book  (simulation mode — no Supabase)
  *
- * Saves the chosen appointment slot to Supabase, clears apply cookies, and
- * notifies AirConnect via the external appointments API.
+ * Records the chosen appointment slot and notifies AirConnect.
+ * DB write is skipped; AirConnect notification still fires if configured.
  * Body: { date: "YYYY-MM-DD", time: "HH:MM" }
  */
 
@@ -12,7 +12,6 @@ import {
   clearCookies,
   SESSION_COOKIE,
 } from "@/lib/apply-session";
-import { createAdminClient } from "@/lib/supabase/client";
 
 export const runtime = "nodejs";
 
@@ -72,41 +71,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "date and time are required" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-
-  const { error } = await admin.from("appointments").insert({
-    lead_id: leadId,
-    appointment_date: date,
-    appointment_time: time,
-    status: "confirmed",
-  });
-
-  if (error) {
-    // Unique slot conflict — someone else just took this slot
-    if (error.code === "23505") {
-      return NextResponse.json({ error: "slot_taken" }, { status: 409 });
-    }
-    console.error("Failed to save appointment:", error);
-    return NextResponse.json({ error: "Failed to book appointment" }, { status: 500 });
-  }
-
-  // Fetch lead details for the AirConnect notification
-  const { data: lead } = await admin
-    .from("leads")
-    .select("full_name, mobile")
-    .eq("id", leadId)
-    .single();
-
-  // Update the lead status to "appointed"
-  await admin
-    .from("leads")
-    .update({ status: "appointed" })
-    .eq("id", leadId);
-
-  // Notify AirConnect — fire-and-forget so a failure doesn't block the response
+  // Notify AirConnect — fire-and-forget; failure does not block the response.
   notifyAirConnect(
-    lead?.full_name ?? "",
-    lead?.mobile ?? "",
+    (session as Record<string, string>).fullName ?? "",
+    (session as Record<string, string>).mobile ?? "",
     date,
     time,
   );
