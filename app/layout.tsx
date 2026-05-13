@@ -15,7 +15,10 @@ export const metadata: Metadata = {
     template: "%s | Crawfort",
   },
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "any" },
+    ],
   },
   description:
     "Apply for a personal loan in minutes. Get approved by a licensed money lender in Singapore.",
