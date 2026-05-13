@@ -46,6 +46,9 @@ const MONTH_LABELS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+/** Browser console prefix when confirming appointment — filter DevTools by this string. */
+const BOOK_LOG = "[apply/book:ui]";
+
 function toISODate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -794,15 +797,25 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
           disabled={!canConfirm || isBookingSubmit}
             onClick={async () => {
             if (!selectedDate || !selectedTime) return;
+            console.info(`${BOOK_LOG} Confirm clicked`, {
+              date: selectedDate,
+              time: selectedTime,
+              hasOnConfirm: Boolean(onConfirm),
+            });
             setIsBookingSubmit(true);
             try {
               if (onConfirm) {
                 const out = await onConfirm(selectedDate, selectedTime);
-                if (out === null) return;
+                if (out === null) {
+                  console.warn(`${BOOK_LOG} onConfirm returned null — staying on picker (error or slot_taken)`);
+                  return;
+                }
                 setBookingDetails(out);
               } else {
+                console.info(`${BOOK_LOG} no onConfirm — demo mode, no API`);
                 setBookingDetails(null);
               }
+              console.info(`${BOOK_LOG} showing confirmation step`);
               setConfirmed(true);
               window.scrollTo({ top: 0, behavior: "instant" });
             } finally {

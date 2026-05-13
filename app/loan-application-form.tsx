@@ -297,6 +297,8 @@ export function LoanApplicationForm({
     key: number;
   } | null>(null);
   const submitNavRef = useRef<string | null>(null);
+  /** Submit API returns leadId — used when navigating so /apply/pending can show CFH5 if cookie is truncated (large Singpass sessions). */
+  const submitLeadIdRef = useRef<string | null>(null);
   const [incomeHighWarningShown, setIncomeHighWarningShown] = useState(false);
 
   const updateField = useCallback(
@@ -464,6 +466,7 @@ export function LoanApplicationForm({
   const submitApplication = useCallback(() => {
     if (submitOverlay) return;
     submitNavRef.current = null;
+    submitLeadIdRef.current = null;
 
     const task = (async () => {
       const res = await fetch("/api/apply/submit", {
@@ -475,8 +478,9 @@ export function LoanApplicationForm({
         console.error("Submit failed", await res.text());
         return;
       }
-      const result = (await res.json()) as { isEligible: boolean };
+      const result = (await res.json()) as { isEligible: boolean; leadId?: string };
       submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
+      submitLeadIdRef.current = typeof result.leadId === "string" ? result.leadId : null;
     })();
 
     void task.catch(() => {
@@ -554,7 +558,12 @@ export function LoanApplicationForm({
           waitUntil={submitOverlay.waitUntil}
           onComplete={() => {
             const path = submitNavRef.current;
-            if (path) router.push(path);
+            const leadId = submitLeadIdRef.current;
+            if (path === "/apply/pending" && leadId) {
+              router.push(`/apply/pending?leadId=${encodeURIComponent(leadId)}`);
+            } else if (path) {
+              router.push(path);
+            }
             setSubmitOverlay(null);
           }}
         />

@@ -31,6 +31,7 @@ export function ReviewForm({ initialData }: Props) {
     key: number;
   } | null>(null);
   const submitNavRef = useRef<string | null>(null);
+  const submitLeadIdRef = useRef<string | null>(null);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -119,6 +120,7 @@ export function ReviewForm({ initialData }: Props) {
   async function submitApplication() {
     if (submitOverlay) return;
     submitNavRef.current = null;
+    submitLeadIdRef.current = null;
 
     const task = (async () => {
       const res = await fetch("/api/apply/submit", {
@@ -130,8 +132,9 @@ export function ReviewForm({ initialData }: Props) {
         console.error("Submit failed", await res.text());
         return;
       }
-      const result = (await res.json()) as { isEligible: boolean };
+      const result = (await res.json()) as { isEligible: boolean; leadId?: string };
       submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
+      submitLeadIdRef.current = typeof result.leadId === "string" ? result.leadId : null;
     })();
 
     void task.catch(() => {
@@ -183,7 +186,12 @@ export function ReviewForm({ initialData }: Props) {
           waitUntil={submitOverlay.waitUntil}
           onComplete={() => {
             const path = submitNavRef.current;
-            if (path) router.push(path);
+            const leadId = submitLeadIdRef.current;
+            if (path === "/apply/pending" && leadId) {
+              router.push(`/apply/pending?leadId=${encodeURIComponent(leadId)}`);
+            } else if (path) {
+              router.push(path);
+            }
             setSubmitOverlay(null);
           }}
         />

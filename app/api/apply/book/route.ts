@@ -17,6 +17,8 @@ import { createAdminClient } from "@/lib/supabase/client";
 
 export const runtime = "nodejs";
 
+const LOG = "[apply/book]";
+
 type Body = { date: string; time: string };
 
 /** Same convention as the pending UI — last 8 chars of lead UUID, uppercased. */
@@ -36,7 +38,10 @@ async function notifyAirConnect(payload: {
   const url = process.env.AIRCONNECT_APPOINTMENTS_URL;
 
   if (!apiKey || !url) {
-    console.warn("AirConnect env vars not configured — skipping notification");
+    console.warn(`${LOG} AirConnect env not configured — skipping notification`, {
+      hasApiKey: Boolean(apiKey),
+      hasUrl: Boolean(url),
+    });
     return;
   }
 
@@ -47,6 +52,13 @@ async function notifyAirConnect(payload: {
     bookingUrl.searchParams.set("cfh5Id", cfh5Id);
     bookingUrl.searchParams.set("loanAmount", String(payload.loanAmount));
     bookingUrl.searchParams.set("leadId", payload.leadId);
+
+    console.info(`${LOG} AirConnect POST`, {
+      cfh5Id,
+      appointmentDate: payload.appointmentDate,
+      timeSlot: payload.timeSlot,
+      loanAmount: payload.loanAmount,
+    });
 
     const res = await fetch(bookingUrl.toString(), {
       method: "POST",
@@ -68,10 +80,12 @@ async function notifyAirConnect(payload: {
     });
 
     if (!res.ok) {
-      console.error("AirConnect notification failed:", res.status, await res.text());
+      console.error(`${LOG} AirConnect notification failed`, res.status, await res.text());
+    } else {
+      console.info(`${LOG} AirConnect OK`, { status: res.status, cfh5Id });
     }
   } catch (err) {
-    console.error("AirConnect notification error:", err);
+    console.error(`${LOG} AirConnect notification error`, err);
   }
 }
 
@@ -80,7 +94,15 @@ export async function POST(request: NextRequest) {
   const session = rawSession ? (decodeSession(rawSession) ?? {}) : {};
 
   const leadId = session.leadId;
+  console.info(`${LOG} POST`, {
+    hasSessionCookie: Boolean(rawSession),
+    sessionDecoded: Boolean(session && Object.keys(session).length > 0),
+    hasLeadId: Boolean(leadId),
+    cfh5Hint: leadId ? cfh5ApplicationRef(String(leadId)) : undefined,
+  });
+
   if (!leadId) {
+    console.warn(`${LOG} reject: no leadId in session (cookie missing or stale)`);
     return NextResponse.json({ error: "No active application found" }, { status: 400 });
   }
 
@@ -88,8 +110,11 @@ export async function POST(request: NextRequest) {
   const { date, time } = body;
 
   if (!date || !time) {
+    console.warn(`${LOG} reject: missing date or time`, { hasDate: Boolean(date), hasTime: Boolean(time) });
     return NextResponse.json({ error: "date and time are required" }, { status: 400 });
   }
+
+  console.info(`${LOG} booking slot`, { date, time, cfh5Hint: cfh5ApplicationRef(leadId) });
 
   const admin = createAdminClient();
 
@@ -107,15 +132,24 @@ export async function POST(request: NextRequest) {
   if (error) {
     // Unique slot conflict — someone else just took this slot
     if (error.code === "23505") {
+      console.warn(`${LOG} slot conflict (23505)`, { date, time, cfh5Hint: cfh5ApplicationRef(leadId) });
       return NextResponse.json({ error: "slot_taken" }, { status: 409 });
     }
-    console.error("Failed to save appointment:", error);
+    console.error(`${LOG} insert appointment failed`, error);
     return NextResponse.json({ error: "Failed to book appointment" }, { status: 500 });
   }
 
   if (!appointment?.id) {
+    console.error(`${LOG} insert returned no appointment id`);
     return NextResponse.json({ error: "Failed to book appointment" }, { status: 500 });
   }
+
+  console.info(`${LOG} appointment saved`, {
+    appointmentId: appointment.id,
+    date,
+    time,
+    cfh5Hint: cfh5ApplicationRef(leadId),
+  });
 
   // Fetch lead details for the AirConnect notification
   const { data: lead } = await admin
@@ -125,13 +159,25 @@ export async function POST(request: NextRequest) {
     .single();
 
   // Update the lead status to "appointed"
-  await admin
+  const { error: leadUpdateError } = await admin
     .from("leads")
     .update({ status: "appointed" })
     .eq("id", leadId);
 
+  if (leadUpdateError) {
+    console.error(`${LOG} lead status update failed`, leadUpdateError);
+  } else {
+    console.info(`${LOG} lead status → appointed`, { cfh5Hint: cfh5ApplicationRef(leadId) });
+  }
+
   const loanAmount = Number(lead?.loan_amount ?? 0) || 0;
   const cfh5Id = cfh5ApplicationRef(leadId);
+
+  if (!lead) {
+    console.warn(`${LOG} lead row missing for notify (AirConnect may get empty name/phone)`, {
+      cfh5Id,
+    });
+  }
 
   // Notify AirConnect — fire-and-forget so a failure doesn't block the response
   notifyAirConnect({
@@ -155,6 +201,13 @@ export async function POST(request: NextRequest) {
   for (const c of clearCookies()) {
     res.cookies.set(c);
   }
+
+  console.info(`${LOG} success — session cookies cleared, JSON response`, {
+    appointmentId: appointment.id,
+    cfh5Id,
+    date,
+    time,
+  });
 
   return res;
 }

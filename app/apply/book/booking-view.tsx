@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AppointmentBooking, type BookingConfirmation } from "@/app/appointment-booking";
@@ -9,28 +10,55 @@ interface Props {
   formData: LoanFormData;
 }
 
+const LOG = "[apply/book:client]";
+
 export function BookingView({ formData }: Props) {
   const router = useRouter();
 
+  useEffect(() => {
+    const lid = formData.leadId;
+    console.info(`${LOG} BookingView mounted`, {
+      hasLeadId: Boolean(lid),
+      cfh5Hint:
+        typeof lid === "string" && lid.length > 0
+          ? `CFH5-${lid.slice(-8).toUpperCase()}`
+          : undefined,
+      authMethod: formData.authMethod ?? null,
+    });
+  }, [formData.leadId, formData.authMethod]);
+
   async function handleConfirm(date: string, time: string): Promise<BookingConfirmation | null> {
+    console.info(`${LOG} POST /api/apply/book`, { date, time });
+
     const res = await fetch("/api/apply/book", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ date, time }),
     });
 
+    console.info(`${LOG} response`, { status: res.status, ok: res.ok });
+
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
       if (body.error === "slot_taken") {
+        console.warn(`${LOG} slot_taken (409) — user must pick another time`);
         alert("Sorry, that slot was just taken. Please choose another time.");
         return null;
       }
-      console.error("Failed to book appointment:", body);
+      console.error(`${LOG} book failed`, { status: res.status, error: body.error, body });
       alert("We couldn’t confirm your appointment. Please try again.");
       return null;
     }
 
-    return (await res.json()) as BookingConfirmation;
+    const json = (await res.json()) as BookingConfirmation;
+    console.info(`${LOG} success`, {
+      appointmentId: json.appointmentId,
+      cfh5Id: json.cfh5Id,
+      date: json.date,
+      time: json.time,
+      loanAmount: json.loanAmount,
+    });
+    return json;
   }
 
   return (
