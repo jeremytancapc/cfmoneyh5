@@ -2,9 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  ShieldCheck,
-  Scroll,
-  HandCoins,
   ArrowRight,
   ArrowDown,
   Warning,
@@ -104,19 +101,19 @@ function formatCurrency(value: number): string {
 
 const NOTICE_ITEMS = [
   {
-    icon: ShieldCheck,
-    short: "In-person visit required for AML/KYC.",
-    text: "A face-to-face visit is required by local regulations for AML and KYC purposes.",
+    emoji: "🛡️",
+    short: "No obligation to take the loan.",
+    text: "Lock in this rate now and decide during your appointment.",
   },
   {
-    icon: Scroll,
-    short: "Loan officer explains all terms in person.",
-    text: "Our loan officer will explain all terms, conditions, and interest rates in person.",
+    emoji: "✅",
+    short: "Simple 30-minute verification.",
+    text: "Just a quick face-to-face ID check.",
   },
   {
-    icon: HandCoins,
-    short: "Takes 30 mins: Verify, sign & receive funds.",
-    text: "The entire process takes approximately 30 minutes.",
+    emoji: "💰",
+    short: "Same-day cash or transfer.",
+    text: "Funds will be disbursed to you on the spot.",
   },
 ];
 
@@ -356,25 +353,25 @@ export function LoanResults({
           <motion.div
             className="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5"
             style={{
-              background: "oklch(0.82 0.18 85 / 0.18)",
-              border: "1px solid oklch(0.75 0.20 85 / 0.45)",
+              background: "oklch(0.91 0.19 88)",
+              border: "1px solid oklch(0.25 0.03 85)",
             }}
             initial={{ opacity: 0, x: "-120%" }}
             animate={revealStage >= 3 ? { opacity: 1, x: 0 } : { opacity: 0, x: "-120%" }}
             transition={{ type: "spring", stiffness: 200, damping: 22 }}
           >
             <Clock
-              size={13}
+              size={17}
               weight="duotone"
               style={{
-                color: "oklch(0.52 0.20 85)",
+                color: "oklch(0.22 0.03 85)",
                 flexShrink: 0,
                 animation: "clock-tick 3s steps(12, end) infinite",
               }}
             />
             <span
-              className="text-xs font-semibold tabular-nums"
-              style={{ color: "oklch(0.42 0.20 85)" }}
+              className="text-xs font-black tabular-nums"
+              style={{ color: "oklch(0.20 0.03 85)" }}
             >
               Offer expires in <OfferCountdown />
             </span>
@@ -391,7 +388,7 @@ export function LoanResults({
             To receive your funds:
           </p>
           <ul className="flex flex-col gap-3 sm:gap-4">
-            {NOTICE_ITEMS.map(({ icon: Icon, short, text }, i) => (
+            {NOTICE_ITEMS.map(({ emoji, short, text }, i) => (
               <motion.li
                 key={i}
                 className="flex items-start gap-3"
@@ -403,14 +400,12 @@ export function LoanResults({
                 }
                 transition={{ duration: 0.4, ease: EASE, delay: revealStage >= 4 ? i * 0.1 : 0 }}
               >
-                <Icon
-                  size={16}
-                  weight="duotone"
-                  className="mt-0.5 shrink-0 text-brand-blue"
-                />
-                <span className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                  <span className="sm:hidden">{short}</span>
-                  <span className="hidden sm:inline">{text}</span>
+                <span className="mt-0.5 shrink-0 text-base leading-none" aria-hidden="true">
+                  {emoji}
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium leading-snug text-[var(--text-secondary)]">{short}</span>
+                  <span className="text-xs leading-relaxed text-[var(--text-tertiary)]">* {text}</span>
                 </span>
               </motion.li>
             ))}
