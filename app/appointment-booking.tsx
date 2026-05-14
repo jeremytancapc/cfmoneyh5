@@ -106,6 +106,24 @@ async function addToCalendar(date: Date, timeSlot: string) {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0);
   const end   = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour slot
 
+  const ua        = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS     = /iPad|iPhone|iPod/.test(ua);
+  const isAndroid = /Android/.test(ua);
+
+  // ── Android: open Google Calendar URL (opens in the GCal app directly) ──
+  if (isAndroid) {
+    const fmtUtc = (d: Date) => d.toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+    const gcal = new URL("https://calendar.google.com/calendar/render");
+    gcal.searchParams.set("action",   "TEMPLATE");
+    gcal.searchParams.set("text",     "CF Money Loan Appointment");
+    gcal.searchParams.set("dates",    `${fmtUtc(start)}/${fmtUtc(end)}`);
+    gcal.searchParams.set("details",  "Please bring your NRIC/FIN and income documents. Please arrive on time to ensure a smoother process.");
+    gcal.searchParams.set("location", "1 North Bridge Road, #01-35 High Street Centre, Singapore 179094");
+    window.open(gcal.toString(), "_blank", "noopener");
+    return;
+  }
+
+  // ── Build .ics content (for iOS + desktop) ──────────────────────────────
   const fmt = (d: Date) =>
     `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}00`;
 
@@ -125,19 +143,20 @@ async function addToCalendar(date: Date, timeSlot: string) {
     "END:VCALENDAR",
   ].join("\r\n");
 
-  const file = new File([ics], "cf-money-appointment.ics", { type: "text/calendar" });
-
-  // Web Share API — on iOS/Android this triggers the native "Add to Calendar" sheet directly.
-  if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: "CF Money Loan Appointment" });
-      return;
-    } catch {
-      // User cancelled or share failed — fall through to download
+  // ── iOS: Web Share API → native "Add to Calendar" sheet ─────────────────
+  if (isIOS) {
+    const file = new File([ics], "cf-money-appointment.ics", { type: "text/calendar" });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "CF Money Loan Appointment" });
+        return;
+      } catch {
+        // User cancelled — fall through to download
+      }
     }
   }
 
-  // Desktop / unsupported browsers: trigger a .ics file download.
+  // ── Desktop fallback: .ics file download ────────────────────────────────
   const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
   const a   = document.createElement("a");
   a.href    = url;

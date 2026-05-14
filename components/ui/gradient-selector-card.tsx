@@ -90,11 +90,17 @@ export function PaymentHistorySelector({
               <button
                 type="button"
                 onClick={() => handleSelect(option)}
+                onMouseDown={(e) => e.preventDefault()}
+                onFocus={() => {
+                  const y = window.scrollY;
+                  requestAnimationFrame(() => window.scrollTo({ top: y }));
+                }}
                 className="flex items-center gap-3 py-0.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/40 rounded-md"
               >
                 <div className="flex flex-col items-center w-5 shrink-0">
                   <motion.div
                     className="relative rounded-full shrink-0"
+                    tabIndex={-1}
                     style={{
                       width: 20,
                       height: 20,
