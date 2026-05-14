@@ -356,6 +356,24 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
         </p>
       </div>
 
+      {/* ── Relationship Manager image ───────────────────────── */}
+      <div
+        style={{
+          opacity: 0,
+          animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 40ms both",
+        }}
+      >
+        <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] sm:h-52">
+          <img
+            src="/images/rm-image.webp"
+            alt="Your Relationship Manager"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: "center 40%" }}
+            loading="lazy"
+          />
+        </div>
+      </div>
+
       {/* ── Date picker — monthly calendar ─────────────────────── */}
       <div
         style={{
