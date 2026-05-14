@@ -101,14 +101,14 @@ function formatCurrency(value: number): string {
 
 const NOTICE_ITEMS = [
   {
-    emoji: "🛡️",
-    short: "No obligation to take the loan.",
-    text: "Lock in this rate now and decide during your appointment.",
+    emoji: "🔒",
+    short: "Lock in this offer now.",
+    text: "No obligation to take the loan, only decide after securing the offer.",
   },
   {
     emoji: "✅",
     short: "Simple 30-minute verification.",
-    text: "Just a quick face-to-face ID check.",
+    text: "A brief in-person ID appointment at our branch.",
   },
   {
     emoji: "💰",
@@ -370,10 +370,13 @@ export function LoanResults({
               }}
             />
             <span
-              className="text-xs font-black tabular-nums"
+              className="text-xs font-semibold tabular-nums"
               style={{ color: "oklch(0.20 0.03 85)" }}
             >
-              Offer expires in <OfferCountdown />
+              Loan offer expires in:{" "}
+              <span className="text-sm font-black tracking-tight">
+                <OfferCountdown />
+              </span>
             </span>
           </motion.div>
         </div>
@@ -405,7 +408,9 @@ export function LoanResults({
                 </span>
                 <span className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium leading-snug text-[var(--text-secondary)]">{short}</span>
-                  <span className="text-xs leading-relaxed text-[var(--text-tertiary)]">* {text}</span>
+                  <span className="inline-flex items-center gap-1 text-xs leading-relaxed text-[var(--text-tertiary)]">
+                    <span className="text-brand-blue font-bold leading-none">→</span>{text}
+                  </span>
                 </span>
               </motion.li>
             ))}
