@@ -29,6 +29,15 @@ function str(obj: unknown): string {
   return "";
 }
 
+/** For MyInfo fields that use { code, desc } instead of { value }. */
+function strCode(obj: unknown): string {
+  if (obj && typeof obj === "object") {
+    const o = obj as Record<string, unknown>;
+    if ("code" in o && typeof o.code === "string" && o.code) return o.code;
+  }
+  return str(obj);
+}
+
 function mapResidentialStatus(code: string): LoanFormData["idType"] {
   switch (code) {
     case "C": return "singaporean";
@@ -68,11 +77,14 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
   }
 
   if (myinfo.residentialstatus && typeof myinfo.residentialstatus === "object") {
-    patch.idType = mapResidentialStatus(str(myinfo.residentialstatus));
+    patch.idType = mapResidentialStatus(strCode(myinfo.residentialstatus));
   }
 
   // NOA history — all available YA records for scoring
   if (myinfo.noahistory && typeof myinfo.noahistory === "object") {
+    // Preserve the raw MyInfo object for audit storage
+    patch.noaRaw = myinfo.noahistory;
+
     const noas = (myinfo.noahistory as Record<string, unknown>).noas;
     if (Array.isArray(noas) && noas.length > 0) {
       patch.noaHistory = noas
@@ -94,6 +106,9 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
 
   // CPF contribution history — used for CPF-based income scoring
   if (myinfo.cpfcontributions && typeof myinfo.cpfcontributions === "object") {
+    // Preserve the raw MyInfo object for audit storage
+    patch.cpfRaw = myinfo.cpfcontributions;
+
     const history = (myinfo.cpfcontributions as Record<string, unknown>).history;
     if (Array.isArray(history)) {
       patch.cpfContributions = history
@@ -107,6 +122,8 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
     }
   }
 
+  // Preserve the full raw MyInfo object for complete audit trail
+  patch.myinfoRaw = myinfo;
   patch.authMethod = "singpass";
   return patch;
 }

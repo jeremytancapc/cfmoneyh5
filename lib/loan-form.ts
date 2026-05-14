@@ -40,6 +40,11 @@ export interface LoanFormData {
   cpfContributions: CpfContribution[];      // up to 12 months
   noaHistory: NoaRecord[];                  // all available YA records
 
+  // Raw MyInfo objects preserved verbatim from the webhook for audit storage
+  cpfRaw: unknown;
+  noaRaw: unknown;
+  myinfoRaw: unknown;  // complete myinfo object from the webhook
+
   // Populated by /api/apply/submit — carried in session to approval + booking pages
   leadId: string;
   approvedLoanAmount: number;
@@ -76,6 +81,9 @@ export const initialLoanFormData: LoanFormData = {
   dob: "",
   cpfContributions: [],
   noaHistory: [],
+  cpfRaw: null,
+  noaRaw: null,
+  myinfoRaw: null,
   leadId: "",
   approvedLoanAmount: 0,
   verifiedMonthlyIncome: 0,

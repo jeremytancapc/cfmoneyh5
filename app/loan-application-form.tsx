@@ -2626,6 +2626,47 @@ export function Step8_Review({
             ))}
           </div>
         </div>
+
+        {/* NOA history — shown when Singpass provided NOA data (legally required) */}
+        {formData.authMethod === "singpass" && formData.noaHistory.length > 0 && (
+          <div>
+            <div className="mb-2 flex items-center gap-2">
+              <CurrencyDollar size={16} weight="duotone" className="text-brand-blue" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Notice of Assessment (NOA)</span>
+            </div>
+            <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+              {formData.noaHistory.map((rec) => (
+                <div key={rec.yearOfAssessment} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <span className="text-[var(--text-tertiary)]">YA {rec.yearOfAssessment}</span>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {formatCurrency(rec.employmentIncome)}{" "}
+                    <span className="font-normal text-[var(--text-tertiary)]">/ yr</span>
+                    {" · "}
+                    <span className="text-[var(--text-secondary)]">{formatCurrency(Math.round(rec.employmentIncome / 12))}/mo</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CPF contribution history — shown when Singpass provided CPF data (legally required) */}
+        {formData.authMethod === "singpass" && formData.cpfContributions.length > 0 && (
+          <div>
+            <div className="mb-2 flex items-center gap-2">
+              <CurrencyDollar size={16} weight="duotone" className="text-brand-blue" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">CPF Contributions</span>
+            </div>
+            <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+              {formData.cpfContributions.map((c) => (
+                <div key={c.month} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <span className="text-[var(--text-tertiary)]">{c.month}</span>
+                  <span className="font-medium text-[var(--text-primary)]">{formatCurrency(c.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 rounded-[var(--radius-md)] bg-brand-teal/[0.06] px-4 py-3">

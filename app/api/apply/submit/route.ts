@@ -116,6 +116,11 @@ export async function POST(request: NextRequest) {
       postal_code: formData.postalCode || null,
       residential_status: formData.idType || null,
       monthly_income_noa: noaMonthly,
+      // Separate raw columns for easy querying
+      cpf_raw: (formData.cpfRaw as Record<string, unknown>) ?? null,
+      noa_raw: (formData.noaRaw as Record<string, unknown>) ?? null,
+      myinfo_raw: (formData.myinfoRaw as Record<string, unknown>) ?? null,
+      // Processed convenience payload (mapped fields + dob for age calc)
       raw_payload: {
         cpfContributions: formData.cpfContributions,
         noaHistory: formData.noaHistory,

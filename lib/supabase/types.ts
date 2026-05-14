@@ -94,7 +94,12 @@ export interface MyInfoProfile {
   residential_status: string | null;
   monthly_income_noa: number | null;
 
-  // Full raw payload from the MyInfo webhook
+  // Separate raw columns from the MyInfo webhook
+  cpf_raw: Record<string, unknown> | null;
+  noa_raw: Record<string, unknown> | null;
+  myinfo_raw: Record<string, unknown> | null;  // complete verbatim myinfo object
+
+  // Processed convenience payload (mapped CPF/NOA arrays + dob)
   raw_payload: Record<string, unknown>;
 }
 
