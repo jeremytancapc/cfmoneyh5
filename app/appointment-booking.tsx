@@ -274,11 +274,11 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
             <p className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
               {formatDisplayDate(selectedDateObj)}
             </p>
-            <p className="mt-1 text-lg font-semibold text-brand-blue">
+            <p className="mt-1 font-display text-2xl font-bold tracking-tight text-brand-blue sm:text-3xl">
               {formatDisplayTime(selectedTime)}
             </p>
             <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-              We recommend arriving 15 mins before your timeslot so that we can facilitate your appointment on time.
+              Please arrive on time to ensure a smoother process.
             </p>
           </div>
 
