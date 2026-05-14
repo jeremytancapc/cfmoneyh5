@@ -82,8 +82,6 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
 
   // NOA history — all available YA records for scoring
   if (myinfo.noahistory && typeof myinfo.noahistory === "object") {
-    // Preserve the raw MyInfo object for audit storage
-    patch.noaRaw = myinfo.noahistory;
 
     const noas = (myinfo.noahistory as Record<string, unknown>).noas;
     if (Array.isArray(noas) && noas.length > 0) {
@@ -106,8 +104,6 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
 
   // CPF contribution history — used for CPF-based income scoring
   if (myinfo.cpfcontributions && typeof myinfo.cpfcontributions === "object") {
-    // Preserve the raw MyInfo object for audit storage
-    patch.cpfRaw = myinfo.cpfcontributions;
 
     const history = (myinfo.cpfcontributions as Record<string, unknown>).history;
     if (Array.isArray(history)) {
@@ -122,8 +118,6 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
     }
   }
 
-  // Preserve the full raw MyInfo object for complete audit trail
-  patch.myinfoRaw = myinfo;
   patch.authMethod = "singpass";
   return patch;
 }
@@ -147,8 +141,10 @@ export async function POST(request: NextRequest) {
   // Merge the existing apply_session cookie (if any) with MyInfo data.
   // The browser cookie is NOT available here (server-to-server webhook call),
   // so we only persist the MyInfo fields. The activate route merges them.
+  // Raw blobs (CPF, NOA, full MyInfo) stay in the server-side store (keyed by
+  // debugRid) and are never put in the cookie to avoid exceeding the 4 KB limit.
   const myinfoPatch = payload.myinfo ? buildMyInfoPatch(payload.myinfo) : {};
-  const sessionData: Partial<LoanFormData> = { ...myinfoPatch };
+  const sessionData: Partial<LoanFormData> = { ...myinfoPatch, singpassRawKey: debugRid };
 
   // Encode the partial session so the activate route can merge + set cookies.
   const activateToken = encodeSession(sessionData);

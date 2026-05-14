@@ -40,10 +40,9 @@ export interface LoanFormData {
   cpfContributions: CpfContribution[];      // up to 12 months
   noaHistory: NoaRecord[];                  // all available YA records
 
-  // Raw MyInfo objects preserved verbatim from the webhook for audit storage
-  cpfRaw: unknown;
-  noaRaw: unknown;
-  myinfoRaw: unknown;  // complete myinfo object from the webhook
+  // UUID key into the server-side auth-callback-store; raw blobs are never put in
+  // the session cookie (they would exceed the 4 KB browser limit).
+  singpassRawKey: string;
 
   // Populated by /api/apply/submit — carried in session to approval + booking pages
   leadId: string;
@@ -81,9 +80,7 @@ export const initialLoanFormData: LoanFormData = {
   dob: "",
   cpfContributions: [],
   noaHistory: [],
-  cpfRaw: null,
-  noaRaw: null,
-  myinfoRaw: null,
+  singpassRawKey: "",
   leadId: "",
   approvedLoanAmount: 0,
   verifiedMonthlyIncome: 0,

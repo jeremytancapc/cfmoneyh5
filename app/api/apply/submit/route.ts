@@ -23,6 +23,7 @@ import { initialLoanFormData } from "@/lib/loan-form";
 import type { LoanFormData } from "@/lib/loan-form";
 import { assessCredit } from "@/lib/credit-score";
 import { createAdminClient } from "@/lib/supabase/client";
+import { peekAuthCallbackPayload } from "@/lib/auth-callback-store";
 
 export const runtime = "nodejs";
 
@@ -106,6 +107,19 @@ export async function POST(request: NextRequest) {
         ? formData.noaHistory[0].employmentIncome / 12
         : null;
 
+    // Look up the raw MyInfo payload from the server-side store (keyed by the
+    // UUID stored in the session as singpassRawKey).  Raw blobs are never stored
+    // in the cookie to avoid exceeding the 4 KB browser limit.
+    type RawCallbackPayload = {
+      myinfo?: Record<string, unknown>;
+    };
+    const rawCallbackPayload = formData.singpassRawKey
+      ? (peekAuthCallbackPayload(formData.singpassRawKey) as RawCallbackPayload | null)
+      : null;
+    const myinfoRaw = rawCallbackPayload?.myinfo ?? null;
+    const cpfRaw = (myinfoRaw?.cpfcontributions as Record<string, unknown>) ?? null;
+    const noaRaw = (myinfoRaw?.noahistory as Record<string, unknown>) ?? null;
+
     await admin.from("myinfo_profiles").insert({
       lead_id: leadId,
       nric: formData.nric || null,
@@ -116,10 +130,10 @@ export async function POST(request: NextRequest) {
       postal_code: formData.postalCode || null,
       residential_status: formData.idType || null,
       monthly_income_noa: noaMonthly,
-      // Separate raw columns for easy querying
-      cpf_raw: (formData.cpfRaw as Record<string, unknown>) ?? null,
-      noa_raw: (formData.noaRaw as Record<string, unknown>) ?? null,
-      myinfo_raw: (formData.myinfoRaw as Record<string, unknown>) ?? null,
+      // Separate raw columns for easy querying (null if store TTL expired)
+      cpf_raw: cpfRaw,
+      noa_raw: noaRaw,
+      myinfo_raw: myinfoRaw,
       // Processed convenience payload (mapped fields + dob for age calc)
       raw_payload: {
         cpfContributions: formData.cpfContributions,
