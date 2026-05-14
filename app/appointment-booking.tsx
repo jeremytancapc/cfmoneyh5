@@ -101,7 +101,7 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
-function downloadAppointmentIcs(date: Date, timeSlot: string) {
+async function addToCalendar(date: Date, timeSlot: string) {
   const [h, m] = timeSlot.split(":").map(Number);
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0);
   const end   = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour slot
@@ -120,15 +120,27 @@ function downloadAppointmentIcs(date: Date, timeSlot: string) {
     `DTEND;TZID=Asia/Singapore:${fmt(end)}`,
     "SUMMARY:CF Money Loan Appointment",
     "LOCATION:1 North Bridge Road\\, #01-35 High Street Centre\\, Singapore 179094",
-    "DESCRIPTION:Please bring your NRIC/FIN and income documents. We recommend arriving 15 minutes early.",
+    "DESCRIPTION:Please bring your NRIC/FIN and income documents. Please arrive on time to ensure a smoother process.",
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
 
-  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
+  const file = new File([ics], "cf-money-appointment.ics", { type: "text/calendar" });
+
+  // Web Share API — on iOS/Android this triggers the native "Add to Calendar" sheet directly.
+  if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "CF Money Loan Appointment" });
+      return;
+    } catch {
+      // User cancelled or share failed — fall through to download
+    }
+  }
+
+  // Desktop / unsupported browsers: trigger a .ics file download.
+  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+  const a   = document.createElement("a");
+  a.href    = url;
   a.download = "cf-money-appointment.ics";
   a.click();
   URL.revokeObjectURL(url);
@@ -284,7 +296,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
 
           <button
             type="button"
-            onClick={() => downloadAppointmentIcs(selectedDateObj, selectedTime)}
+            onClick={() => void addToCalendar(selectedDateObj, selectedTime)}
             className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] sm:w-auto"
           >
             <span aria-hidden="true">📅</span>
