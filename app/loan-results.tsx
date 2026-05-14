@@ -121,7 +121,7 @@ const DETERRENT_ITEMS = [
   {
     icon: Clock,
     heading: "Offer expires in 4 days",
-    body: "This in-principle approval is time-limited. After 4 days it lapses and you will need to submit a full application again.",
+    body: "This in-principle approval is time-limited. If it expires, you will need to submit a full application again.",
   },
   {
     icon: TrendUp,
@@ -145,6 +145,15 @@ interface LoanResultsProps {
 }
 
 /* ── Reconsider Modal ─────────────────────────────────────────────── */
+const SURVEY_REASONS = [
+  { emoji: "🔍", label: "Comparing offers" },
+  { emoji: "⏳", label: "Don't need for now" },
+  { emoji: "💰", label: "Loan amount doesn't match my expectation" },
+  { emoji: "📊", label: "Rates don't match my expectations" },
+];
+
+type ModalStep = "deterrent" | "survey" | "final";
+
 function ReconsiderModal({
   onAccept,
   onClose,
@@ -152,6 +161,14 @@ function ReconsiderModal({
   onAccept: () => void;
   onClose: () => void;
 }) {
+  const [step, setStep] = useState<ModalStep>("deterrent");
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+
+  const handleReasonSelect = (label: string) => {
+    setSelectedReason(label);
+    setStep("final");
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
@@ -168,6 +185,7 @@ function ReconsiderModal({
         style={{ background: "var(--surface-elevated)" }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close button */}
         <button
           type="button"
           onClick={onClose}
@@ -177,63 +195,139 @@ function ReconsiderModal({
           <X size={16} weight="bold" className="text-[var(--text-tertiary)]" />
         </button>
 
-        <div className="flex flex-col gap-2 pr-8">
-          <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
-            Are you sure?
-          </p>
-          <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-            Your application is approved in principle. Here is what you stand to
-            lose by waiting.
-          </p>
-        </div>
+        {/* ── Step 1: Deterrent ─────────────────────────────────── */}
+        {step === "deterrent" && (
+          <>
+            <div className="flex flex-col gap-2 pr-8">
+              <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                Are you sure?
+              </p>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                Your application is approved in principle. Here is what you stand to lose by waiting.
+              </p>
+            </div>
 
-        <ul className="flex flex-col gap-5">
-          {DETERRENT_ITEMS.map(({ icon: Icon, heading, body }, i) => (
-            <li
-              key={i}
-              className="flex items-start gap-4"
-              style={{
-                opacity: 0,
-                animation: `fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 70}ms both`,
-              }}
-            >
-              <div
-                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)]"
-                style={{ background: "oklch(0.78 0.16 178 / 0.10)" }}
+            <ul className="flex flex-col gap-5">
+              {DETERRENT_ITEMS.map(({ icon: Icon, heading, body }, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-4"
+                  style={{
+                    opacity: 0,
+                    animation: `fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 70}ms both`,
+                  }}
+                >
+                  <div
+                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)]"
+                    style={{ background: "oklch(0.78 0.16 178 / 0.10)" }}
+                  >
+                    <Icon size={15} weight="duotone" className="text-brand-teal" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">
+                      {i === 0 ? (
+                        <span className="inline-flex items-baseline gap-1.5 flex-wrap">
+                          Loan offer expires in:
+                          <span className="font-black tracking-tight tabular-nums text-red-500">
+                            <OfferCountdown />
+                          </span>
+                        </span>
+                      ) : heading}
+                    </p>
+                    <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                      {body}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="h-px bg-[var(--border-subtle)]" />
+
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={onAccept}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
               >
-                <Icon size={15} weight="duotone" className="text-brand-teal" />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  {heading}
-                </p>
-                <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {body}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+                <ArrowLeft size={16} weight="bold" />
+                Accept the offer now
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep("survey")}
+                className="text-center text-xs text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--text-secondary)]"
+              >
+                I understand, I still need more time
+              </button>
+            </div>
+          </>
+        )}
 
-        <div className="h-px bg-[var(--border-subtle)]" />
+        {/* ── Step 2: Survey ───────────────────────────────────────── */}
+        {step === "survey" && (
+          <>
+            <div className="flex flex-col gap-2 pr-8" style={{ animation: "fade-up 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
+              <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                What&apos;s your reason?
+              </p>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                Help us understand so we can improve. Your answer won&apos;t affect your application.
+              </p>
+            </div>
 
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={onAccept}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-          >
-            <ArrowLeft size={16} weight="bold" />
-            Accept the offer now
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-center text-xs text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--text-secondary)]"
-          >
-            I understand, I still need more time
-          </button>
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              {SURVEY_REASONS.map(({ emoji, label }, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => handleReasonSelect(label)}
+                  className="flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-3 py-4 text-center transition-all duration-200 hover:border-brand-blue hover:bg-[var(--surface-elevated)] active:scale-[0.97]"
+                  style={{
+                    opacity: 0,
+                    animation: `fade-up 0.35s cubic-bezier(0.16,1,0.3,1) ${i * 60}ms both`,
+                  }}
+                >
+                  <span className="text-2xl leading-none">{emoji}</span>
+                  <span className="text-sm font-semibold leading-snug text-[var(--text-primary)]">{label}</span>
+                </button>
+              ))}
+            </div>
+
+          </>
+        )}
+
+        {/* ── Step 3: Final chance ─────────────────────────────────── */}
+        {step === "final" && (
+          <>
+            <div
+              className="flex flex-col items-center gap-3 pt-2 text-center"
+              style={{ animation: "fade-up 0.35s cubic-bezier(0.16,1,0.3,1) both" }}
+            >
+              <span className="text-4xl">⚡</span>
+              <p className="font-display text-2xl font-black tracking-tight text-brand-blue">
+                Final Chance!
+              </p>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)] max-w-[320px]">
+                Your in-principle approval is reserved. Once it expires, you&apos;ll need to reapply from scratch.
+              </p>
+            </div>
+
+            <div className="h-px bg-[var(--border-subtle)]" />
+
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={onAccept}
+                className="flex h-13 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-bold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                style={{ animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 100ms both" }}
+              >
+                <ArrowRight size={16} weight="bold" />
+                Yes, book my appointment now
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
