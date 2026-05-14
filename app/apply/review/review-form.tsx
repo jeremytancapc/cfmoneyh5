@@ -14,7 +14,7 @@ import {
 } from "@/app/loan-application-form";
 import type { LoanFormData } from "@/lib/loan-form";
 import { calculateMonthlyRepayment } from "@/lib/loan-form";
-import { trackFormStep, trackEvent } from "@/lib/analytics";
+import { trackDisplayStep, trackEvent } from "@/lib/analytics";
 import { LoanLoadingScreen } from "@/app/loan-loading-screen";
 
 interface Props {
@@ -96,10 +96,11 @@ export function ReviewForm({ initialData }: Props) {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
 
+  // history.length + 3 == displayStep (apply page covered steps 1-3).
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-    trackFormStep(step);
-  }, [step]);
+    trackDisplayStep(history.length + 3);
+  }, [history]);
 
   const bottomCtaRef = useRef<HTMLDivElement>(null);
   const [isBottomCtaVisible, setIsBottomCtaVisible] = useState(false);
@@ -123,8 +124,6 @@ export function ReviewForm({ initialData }: Props) {
     if (submitOverlay) return;
     submitNavRef.current = null;
     submitLeadIdRef.current = null;
-    trackEvent("step_10_loading");
-
     const task = (async () => {
       const res = await fetch("/api/apply/submit", {
         method: "POST",
@@ -138,7 +137,7 @@ export function ReviewForm({ initialData }: Props) {
       const result = (await res.json()) as { isEligible: boolean; leadId?: string };
       submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
       submitLeadIdRef.current = typeof result.leadId === "string" ? result.leadId : null;
-      if (result.isEligible) trackEvent("step_11_offer_presented");
+      if (result.isEligible) trackEvent("step_09_offer_presented");
     })();
 
     void task.catch(() => {

@@ -817,7 +817,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
                 setBookingDetails(null);
               }
               console.info(`${BOOK_LOG} showing confirmation step`);
-              trackEvent("step_13_appointment_booked");
+              trackEvent("step_11_appointment_booked");
               setConfirmed(true);
               window.scrollTo({ top: 0, behavior: "instant" });
             } finally {

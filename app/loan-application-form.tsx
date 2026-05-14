@@ -7,7 +7,7 @@ import type { LoanFormData as FormData } from "@/lib/loan-form";
 import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, formatCurrency } from "@/lib/loan-form";
 import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
-import { trackFormStep, trackEvent } from "@/lib/analytics";
+import { trackDisplayStep, trackEvent } from "@/lib/analytics";
 import {
   ArrowRight,
   ArrowLeft,
@@ -366,10 +366,11 @@ export function LoanApplicationForm({
   }, [step, formData]);
 
   // Scroll to top + fire GA4 step event on every step change.
+  // history.length == displayStep (the number shown in the UI to the user).
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-    trackFormStep(step);
-  }, [step]);
+    trackDisplayStep(history.length);
+  }, [history]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -469,8 +470,6 @@ export function LoanApplicationForm({
     if (submitOverlay) return;
     submitNavRef.current = null;
     submitLeadIdRef.current = null;
-    trackEvent("step_10_loading");
-
     const task = (async () => {
       const res = await fetch("/api/apply/submit", {
         method: "POST",
@@ -483,7 +482,7 @@ export function LoanApplicationForm({
       }
       const result = (await res.json()) as { isEligible: boolean; leadId?: string };
       submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
-      if (result.isEligible) trackEvent("step_11_offer_presented");
+      if (result.isEligible) trackEvent("step_09_offer_presented");
       submitLeadIdRef.current = typeof result.leadId === "string" ? result.leadId : null;
     })();
 

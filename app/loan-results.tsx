@@ -273,7 +273,7 @@ export function LoanResults({
   );
 
   const handleAccept = useCallback(() => {
-    trackEvent("step_12_offer_accepted");
+    trackEvent("step_10_offer_accepted");
     onAccept();
   }, [onAccept]);
   const allRemindersChecked = reminderItems.length === 0 || checkedItems.every(Boolean);
