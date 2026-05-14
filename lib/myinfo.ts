@@ -119,12 +119,16 @@ export function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanF
           const row    = h as Record<string, { value?: string | number }>;
           const month  = String(row.month?.value    ?? "");
           const amount = Number(row.amount?.value   ?? 0);
+          // Employer name is truncated to 50 chars in the session cookie to stay
+          // within the 4 KB browser limit. The full name is preserved in the raw
+          // MyInfo payload saved to the DB via the auth-callback-store.
+          const employer = String(row.employer?.value ?? "");
           return month && amount > 0
             ? {
                 month,
                 amount,
-                employer: String(row.employer?.value ?? ""),
-                paidOn:   String(row.date?.value     ?? ""),
+                employer: employer.length > 50 ? employer.slice(0, 50) + "…" : employer,
+                paidOn:   String(row.date?.value ?? ""),
               }
             : null;
         })
