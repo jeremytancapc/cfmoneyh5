@@ -35,3 +35,9 @@ export function consumeAuthCallbackPayload(id: string) {
   store.delete(id);
   return found.payload;
 }
+
+/** Read the payload without removing it (used by submit route so debug page can still access it). */
+export function peekAuthCallbackPayload(id: string) {
+  cleanupExpiredEntries();
+  return store.get(id)?.payload ?? null;
+}

@@ -1,11 +1,19 @@
 export interface CpfContribution {
-  month: string;   // "YYYY-MM"
-  amount: number;
+  month: string;     // "YYYY-MM" — For Month
+  amount: number;    // SGD
+  employer: string;  // employer name
+  paidOn: string;    // "YYYY-MM-DD" — Paid On date
 }
 
 export interface NoaRecord {
-  yearOfAssessment: string;   // "YYYY"
-  employmentIncome: number;   // annual SGD
+  yearOfAssessment: string;    // "YYYY"
+  type: string;                // "ORIGINAL" or "REVISED"
+  taxClearance: string;        // "Y" or "N"
+  assessableIncome: number;    // total assessable income (annual SGD)
+  employmentIncome: number;    // employment breakdown (used for credit scoring)
+  tradeIncome: number;
+  rentIncome: number;
+  interestIncome: number;
 }
 
 export interface LoanFormData {
@@ -39,6 +47,10 @@ export interface LoanFormData {
   dob: string;                              // "YYYY-MM-DD"
   cpfContributions: CpfContribution[];      // up to 12 months
   noaHistory: NoaRecord[];                  // all available YA records
+
+  // UUID key into the server-side auth-callback-store; raw blobs are never put in
+  // the session cookie (they would exceed the 4 KB browser limit).
+  singpassRawKey: string;
 
   // Populated by /api/apply/submit — carried in session to approval + booking pages
   leadId: string;
@@ -76,6 +88,7 @@ export const initialLoanFormData: LoanFormData = {
   dob: "",
   cpfContributions: [],
   noaHistory: [],
+  singpassRawKey: "",
   leadId: "",
   approvedLoanAmount: 0,
   verifiedMonthlyIncome: 0,

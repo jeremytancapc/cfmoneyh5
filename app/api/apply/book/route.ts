@@ -144,11 +144,6 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    // Unique slot conflict — someone else just took this slot
-    if (error.code === "23505") {
-      console.warn(`${LOG} slot conflict (23505)`, { date, time, cfh5Hint: cfh5ApplicationRef(leadId) });
-      return NextResponse.json({ error: "slot_taken" }, { status: 409 });
-    }
     console.error(`${LOG} insert appointment failed`, error);
     return NextResponse.json({ error: "Failed to book appointment" }, { status: 500 });
   }

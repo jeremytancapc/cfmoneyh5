@@ -40,11 +40,6 @@ export function BookingView({ formData }: Props) {
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      if (body.error === "slot_taken") {
-        console.warn(`${LOG} slot_taken (409) — user must pick another time`);
-        alert("Sorry, that slot was just taken. Please choose another time.");
-        return null;
-      }
       console.error(`${LOG} book failed`, { status: res.status, error: body.error, body });
       alert("We couldn’t confirm your appointment. Please try again.");
       return null;
