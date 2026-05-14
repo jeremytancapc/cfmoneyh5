@@ -102,11 +102,11 @@ export function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanF
         })
         .filter((r): r is NoaRecord => r !== null);
 
-      // Pre-fill declared income from latest NOA for form display
-      const latest = patch.noaHistory[0];
-      if (latest && latest.employmentIncome > 0) {
-        patch.monthlyIncome = String(Math.round(latest.employmentIncome / 12));
-      }
+      // Do NOT pre-fill monthlyIncome from NOA.
+      // monthlyIncome is the user's self-declared figure (entered in step 2).
+      // If NOA fails the scoring window, that value must not leak into the
+      // self_declared fallback inside assessCredit — which is exactly what
+      // happens when we write the NOA-derived number here.
     }
   }
 
