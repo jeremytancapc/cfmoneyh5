@@ -185,15 +185,17 @@ function ReconsiderModal({
         style={{ background: "var(--surface-elevated)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-150 hover:bg-[var(--surface-secondary)] active:scale-[0.95]"
-          aria-label="Close"
-        >
-          <X size={16} weight="bold" className="text-[var(--text-tertiary)]" />
-        </button>
+        {/* Close button — hidden on final chance step */}
+        {step !== "final" && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-150 hover:bg-[var(--surface-secondary)] active:scale-[0.95]"
+            aria-label="Close"
+          >
+            <X size={16} weight="bold" className="text-[var(--text-tertiary)]" />
+          </button>
+        )}
 
         {/* ── Step 1: Deterrent ─────────────────────────────────── */}
         {step === "deterrent" && (
@@ -479,7 +481,10 @@ export function LoanResults({
         <motion.div
           className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-4"
           initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
-          {...blurIn(revealStage >= 4, 0, { background: "oklch(0.32 0.14 260 / 0.03)" })}
+          {...blurIn(revealStage >= 4, 0, {
+            background: "oklch(0.32 0.14 260 / 0.03)",
+            boxShadow: "0 4px 24px 0 oklch(0.32 0.14 260 / 0.18), 0 1px 4px 0 oklch(0.32 0.14 260 / 0.12)",
+          })}
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
             To receive your funds:
@@ -502,8 +507,9 @@ export function LoanResults({
                 </span>
                 <span className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium leading-snug text-[var(--text-secondary)]">{short}</span>
-                  <span className="inline-flex items-center gap-1 text-xs leading-relaxed text-[var(--text-tertiary)]">
-                    <span className="text-brand-blue font-bold leading-none">→</span>{text}
+                  <span className="flex items-center gap-1.5 text-xs leading-relaxed text-[var(--text-tertiary)]">
+                    <span className="shrink-0 text-brand-blue font-bold">→</span>
+                    <span>{text}</span>
                   </span>
                 </span>
               </motion.li>

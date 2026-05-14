@@ -405,11 +405,10 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
           <CalendarBlank size={18} weight="duotone" className="text-brand-blue" />
         </div>
         <h2 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-          Book your visit
+          Finalise your loan details
         </h2>
         <p className="text-sm leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
-          Pick a date and time that works for you.<br />
-          We&apos;re open Monday to Saturday, 10:30am&ndash;7:30pm.
+          Book a private session with your Relationship Manager to discuss your personalised loan.
         </p>
       </div>
 

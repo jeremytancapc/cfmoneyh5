@@ -190,6 +190,7 @@ function InputField({
   prefix,
   helper,
   tooltip,
+  validate,
 }: {
   label: string;
   type?: string;
@@ -200,7 +201,10 @@ function InputField({
   prefix?: string;
   helper?: string;
   tooltip?: React.ReactNode;
+  validate?: (v: string) => string | undefined;
 }) {
+  const [touched, setTouched] = useState(false);
+  const validationError = validate && touched && value.trim() ? validate(value) : undefined;
   const [tipVisible, setTipVisible] = useState(false);
   const [tipPos, setTipPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -297,9 +301,11 @@ function InputField({
         )}
       </div>
       <div
-        className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10 ${
-          prefix ? "gap-2 pl-4 pr-4" : ""
-        }`}
+        className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] transition-all duration-200 ${
+          validationError
+            ? "border-red-400 ring-2 ring-red-400/10"
+            : "border-[var(--border-subtle)] focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
+        } ${prefix ? "gap-2 pl-4 pr-4" : ""}`}
       >
         {prefix && (
           <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">
@@ -312,15 +318,17 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
+          onBlur={() => { setTouched(true); onBlur?.(); }}
           className={`min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
             prefix ? "py-2 sm:py-3 pl-0" : "px-4 py-2 sm:py-3"
           }`}
         />
       </div>
-      {helper && (
+      {validationError ? (
+        <span className="text-xs text-red-500">{validationError}</span>
+      ) : helper ? (
         <span className="text-xs text-[var(--text-tertiary)]">{helper}</span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1287,6 +1295,11 @@ export function Step4_Identity({
           value={formData.nric}
           onChange={(v) => updateField("nric", v.toUpperCase())}
           helper="Your NRIC is encrypted and never shared with third parties."
+          validate={(v) => {
+            const clean = v.trim().toUpperCase();
+            if (!/^[STFGM]\d{7}[A-Z]$/.test(clean))
+              return "Enter a valid Singapore NRIC (e.g. S1234567D) or FIN (e.g. F1234567N).";
+          }}
         />
       </div>
     </div>
@@ -1350,6 +1363,14 @@ export function Step6_Contact({
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
 }) {
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  const phoneDigits = formData.mobile.replace(/\s/g, "");
+  const phoneError =
+    phoneTouched && phoneDigits.length > 0 && !/^[89]\d{7}$/.test(phoneDigits)
+      ? "Enter a valid 8-digit Singapore mobile number starting with 8 or 9."
+      : undefined;
+
   return (
     <div>
       <StepHeader
@@ -1372,16 +1393,24 @@ export function Step6_Contact({
               <WhatsappLogo size={13} weight="fill" className="text-white" />
             </div>
           </div>
-          <div className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10">
+          <div className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 ${
+            phoneError
+              ? "border-red-400 ring-2 ring-red-400/10"
+              : "border-[var(--border-subtle)] focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
+          }`}>
             <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">+65</span>
             <input
               type="tel"
               placeholder="9123 4567"
               value={formData.mobile}
               onChange={(e) => updateField("mobile", e.target.value)}
+              onBlur={() => setPhoneTouched(true)}
               className="min-w-0 flex-1 border-0 bg-transparent py-2 sm:py-3 pl-0 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
             />
           </div>
+          {phoneError && (
+            <span className="text-xs text-red-500">{phoneError}</span>
+          )}
         </div>
       </div>
     </div>
