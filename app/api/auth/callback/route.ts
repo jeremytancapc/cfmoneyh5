@@ -80,31 +80,38 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
     patch.idType = mapResidentialStatus(strCode(myinfo.residentialstatus));
   }
 
-  // NOA history — all available YA records for scoring
+  // NOA history — all detailed fields per Singpass data display guidelines.
   if (myinfo.noahistory && typeof myinfo.noahistory === "object") {
-
     const noas = (myinfo.noahistory as Record<string, unknown>).noas;
     if (Array.isArray(noas) && noas.length > 0) {
       patch.noaHistory = noas
         .map((n) => {
           const row = n as Record<string, { value?: string | number }>;
           const ya = String(row.yearofassessment?.value ?? "");
-          const income = Number(row.employment?.value ?? row.amount?.value ?? 0);
-          return ya && income > 0 ? { yearOfAssessment: ya, employmentIncome: income } : null;
+          if (!ya) return null;
+          return {
+            yearOfAssessment: ya,
+            type: String(row.category?.value ?? "ORIGINAL"),
+            taxClearance: String(row.taxclearance?.value ?? "N"),
+            assessableIncome: Number(row.amount?.value ?? 0),
+            employmentIncome: Number(row.employment?.value ?? 0),
+            tradeIncome: Number(row.trade?.value ?? 0),
+            rentIncome: Number(row.rent?.value ?? 0),
+            interestIncome: Number(row.interest?.value ?? 0),
+          };
         })
         .filter((r): r is NoaRecord => r !== null);
 
-      // Pre-fill declared income from latest qualifying NOA for the form display
+      // Pre-fill declared income from latest NOA for form display
       const latest = patch.noaHistory[0];
-      if (latest) {
+      if (latest && latest.employmentIncome > 0) {
         patch.monthlyIncome = String(Math.round(latest.employmentIncome / 12));
       }
     }
   }
 
-  // CPF contribution history — used for CPF-based income scoring
+  // CPF contributions — employer, For Month, Paid On, Amount per Singpass guidelines.
   if (myinfo.cpfcontributions && typeof myinfo.cpfcontributions === "object") {
-
     const history = (myinfo.cpfcontributions as Record<string, unknown>).history;
     if (Array.isArray(history)) {
       patch.cpfContributions = history
@@ -112,7 +119,14 @@ function buildMyInfoPatch(myinfo: Record<string, unknown>): Partial<LoanFormData
           const row = h as Record<string, { value?: string | number }>;
           const month = String(row.month?.value ?? "");
           const amount = Number(row.amount?.value ?? 0);
-          return month && amount > 0 ? { month, amount } : null;
+          return month && amount > 0
+            ? {
+                month,
+                amount,
+                employer: String(row.employer?.value ?? ""),
+                paidOn: String(row.date?.value ?? ""),
+              }
+            : null;
         })
         .filter((r): r is CpfContribution => r !== null);
     }

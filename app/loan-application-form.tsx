@@ -2631,43 +2631,83 @@ export function Step8_Review({
           </div>
         </div>
 
-        {/* NOA history — shown when Singpass provided NOA data (legally required) */}
+        {/* NOA — Singpass data display guidelines: show all detailed fields per YA */}
         {formData.authMethod === "singpass" && formData.noaHistory.length > 0 && (
           <div>
             <div className="mb-2 flex items-center gap-2">
               <CurrencyDollar size={16} weight="duotone" className="text-brand-blue" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Notice of Assessment (NOA)</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Notice of Assessment</span>
             </div>
-            <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-              {formData.noaHistory.map((rec) => (
-                <div key={rec.yearOfAssessment} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="text-[var(--text-tertiary)]">YA {rec.yearOfAssessment}</span>
-                  <span className="font-medium text-[var(--text-primary)]">
-                    {formatCurrency(rec.employmentIncome)}{" "}
-                    <span className="font-normal text-[var(--text-tertiary)]">/ yr</span>
-                    {" · "}
-                    <span className="text-[var(--text-secondary)]">{formatCurrency(Math.round(rec.employmentIncome / 12))}/mo</span>
-                  </span>
-                </div>
-              ))}
+            <p className="mb-2 text-[11px] text-[var(--text-tertiary)]">Data retrieved as at time of Singpass verification.</p>
+            <div className="flex flex-col gap-3">
+              {formData.noaHistory.map((rec) => {
+                const typeLabel = rec.taxClearance === "Y"
+                  ? `${rec.type} Clearance`
+                  : rec.type;
+                return (
+                  <div key={rec.yearOfAssessment} className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-sm">
+                    {/* Header row */}
+                    <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5">
+                      <span className="font-semibold text-[var(--text-primary)]">YA {rec.yearOfAssessment}</span>
+                      <span className="text-xs font-medium text-[var(--text-secondary)]">{typeLabel}</span>
+                    </div>
+                    {/* Assessable income */}
+                    <div className="flex items-center justify-between bg-[var(--surface-secondary)] px-4 py-2.5">
+                      <span className="font-medium text-[var(--text-primary)]">Assessable Income</span>
+                      <span className="font-semibold text-[var(--text-primary)]">{formatCurrency(rec.assessableIncome)}</span>
+                    </div>
+                    {/* Income breakdown */}
+                    {[
+                      { label: "Employment", value: rec.employmentIncome },
+                      { label: "Trade", value: rec.tradeIncome },
+                      { label: "Rent", value: rec.rentIncome },
+                      { label: "Interest", value: rec.interestIncome },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex items-center justify-between border-t border-[var(--border-subtle)] px-4 py-2.5">
+                        <span className="text-[var(--text-tertiary)]">{label}</span>
+                        <span className="text-[var(--text-primary)]">{formatCurrency(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* CPF contribution history — shown when Singpass provided CPF data (legally required) */}
+        {/* CPF — Singpass guidelines: Employer / For Month / Paid On / Amount, ascending */}
         {formData.authMethod === "singpass" && formData.cpfContributions.length > 0 && (
           <div>
             <div className="mb-2 flex items-center gap-2">
               <CurrencyDollar size={16} weight="duotone" className="text-brand-blue" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">CPF Contributions</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">CPF Contribution History</span>
             </div>
-            <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-              {formData.cpfContributions.map((c) => (
-                <div key={c.month} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="text-[var(--text-tertiary)]">{c.month}</span>
-                  <span className="font-medium text-[var(--text-primary)]">{formatCurrency(c.amount)}</span>
-                </div>
-              ))}
+            <p className="mb-2 text-[11px] text-[var(--text-tertiary)]">Data retrieved as at time of Singpass verification.</p>
+            <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-sm overflow-hidden">
+              {/* Column headers */}
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 border-b border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                <span>Employer</span>
+                <span className="text-right">For Month</span>
+                <span className="text-right">Paid On</span>
+                <span className="text-right">Amount</span>
+              </div>
+              {/* Rows — sorted ascending by paidOn then month (oldest first) */}
+              {[...formData.cpfContributions]
+                .sort((a, b) => {
+                  const d = a.paidOn.localeCompare(b.paidOn);
+                  return d !== 0 ? d : a.month.localeCompare(b.month);
+                })
+                .map((c, i) => (
+                  <div
+                    key={`${c.paidOn}-${c.month}`}
+                    className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2.5 ${i > 0 ? "border-t border-[var(--border-subtle)]" : ""}`}
+                  >
+                    <span className="truncate text-[var(--text-secondary)] text-xs">{c.employer || "—"}</span>
+                    <span className="text-right tabular-nums text-[var(--text-primary)]">{c.month}</span>
+                    <span className="text-right tabular-nums text-[var(--text-tertiary)]">{c.paidOn || "—"}</span>
+                    <span className="text-right tabular-nums font-medium text-[var(--text-primary)]">{formatCurrency(c.amount)}</span>
+                  </div>
+                ))}
             </div>
           </div>
         )}

@@ -1,11 +1,19 @@
 export interface CpfContribution {
-  month: string;   // "YYYY-MM"
-  amount: number;
+  month: string;     // "YYYY-MM" — For Month
+  amount: number;    // SGD
+  employer: string;  // employer name
+  paidOn: string;    // "YYYY-MM-DD" — Paid On date
 }
 
 export interface NoaRecord {
-  yearOfAssessment: string;   // "YYYY"
-  employmentIncome: number;   // annual SGD
+  yearOfAssessment: string;    // "YYYY"
+  type: string;                // "ORIGINAL" or "REVISED"
+  taxClearance: string;        // "Y" or "N"
+  assessableIncome: number;    // total assessable income (annual SGD)
+  employmentIncome: number;    // employment breakdown (used for credit scoring)
+  tradeIncome: number;
+  rentIncome: number;
+  interestIncome: number;
 }
 
 export interface LoanFormData {
