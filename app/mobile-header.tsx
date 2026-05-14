@@ -7,7 +7,12 @@ export function MobileHeader() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
+    const onScroll = () => {
+      const y = window.scrollY;
+      // Hysteresis: engage at 60px, disengage only below 20px to prevent
+      // the header height-change from flipping the state back and forth.
+      setScrolled((prev) => (prev ? y > 20 : y > 60));
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);

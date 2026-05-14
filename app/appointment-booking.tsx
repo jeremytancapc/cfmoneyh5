@@ -101,6 +101,39 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
+function downloadAppointmentIcs(date: Date, timeSlot: string) {
+  const [h, m] = timeSlot.split(":").map(Number);
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0);
+  const end   = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour slot
+
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}00`;
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//CF Money//Appointment//EN",
+    "BEGIN:VEVENT",
+    `UID:cfmoney-appt-${start.getTime()}@cfmoney.sg`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART;TZID=Asia/Singapore:${fmt(start)}`,
+    `DTEND;TZID=Asia/Singapore:${fmt(end)}`,
+    "SUMMARY:CF Money Loan Appointment",
+    "LOCATION:1 North Bridge Road\\, #01-35 High Street Centre\\, Singapore 179094",
+    "DESCRIPTION:Please bring your NRIC/FIN and income documents. We recommend arriving 15 minutes early.",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = "cf-money-appointment.ics";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
@@ -248,6 +281,15 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
               We recommend arriving 15 mins before your timeslot so that we can facilitate your appointment on time.
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => downloadAppointmentIcs(selectedDateObj, selectedTime)}
+            className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] sm:w-auto"
+          >
+            <span aria-hidden="true">📅</span>
+            Add to Calendar
+          </button>
         </div>
 
         {/* ── What to bring ───────────────────────────────────────── */}
