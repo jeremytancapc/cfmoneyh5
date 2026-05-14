@@ -42,9 +42,12 @@ export function TextAnimation({
   const shadowNone = shadowColors.map(() => "0 0 transparent").join(", ");
   const translateEnd = `calc(${step} * ${layers} / -2)`;
 
-  const glow = glowColor ?? color;
-  const filterFull = `drop-shadow(0 0 10px ${glow}99) drop-shadow(0 0 22px ${glow}55)`;
-  const filterLow  = `drop-shadow(0 0  3px ${glow}33)`;
+  const filterFull = glowColor
+    ? `drop-shadow(0 0 10px ${glowColor}99) drop-shadow(0 0 22px ${glowColor}55)`
+    : "none";
+  const filterLow  = glowColor
+    ? `drop-shadow(0 0  3px ${glowColor}33)`
+    : "none";
 
   return (
     <>

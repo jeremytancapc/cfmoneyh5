@@ -52,23 +52,161 @@ function formatCountdown(ms: number): string {
   return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-function OfferCountdown() {
+const BLANK_PARTS = { days: 0, hrs: 0, mins: 0, secs: 0, expired: false };
+
+function useCountdownParts() {
   const expiryRef = useRef<Date | null>(null);
-  if (!expiryRef.current) expiryRef.current = computeExpiry(new Date());
 
-  const [display, setDisplay] = useState(() =>
-    formatCountdown(expiryRef.current!.getTime() - Date.now())
-  );
-
-  useEffect(() => {
-    const tick = () =>
-      setDisplay(formatCountdown(expiryRef.current!.getTime() - Date.now()));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+  const getParts = useCallback(() => {
+    if (!expiryRef.current) return BLANK_PARTS;
+    const ms = expiryRef.current.getTime() - Date.now();
+    if (ms <= 0) return { days: 0, hrs: 0, mins: 0, secs: 0, expired: true };
+    const totalSec = Math.floor(ms / 1000);
+    return {
+      days: Math.floor(totalSec / 86400),
+      hrs:  Math.floor((totalSec % 86400) / 3600),
+      mins: Math.floor((totalSec % 3600) / 60),
+      secs: totalSec % 60,
+      expired: false,
+    };
   }, []);
 
-  return <>{display}</>;
+  // Initialise with zeros so server and client HTML match, then hydrate on mount.
+  const [parts, setParts] = useState(BLANK_PARTS);
+
+  useEffect(() => {
+    expiryRef.current = computeExpiry(new Date());
+    setParts(getParts());
+    const id = setInterval(() => setParts(getParts()), 1000);
+    return () => clearInterval(id);
+  }, [getParts]);
+
+  return { parts, expiry: expiryRef.current ?? computeExpiry(new Date()) };
+}
+
+const CONFETTI_PIECES = Array.from({ length: 32 }, (_, i) => {
+  const zone = i / 32;
+  const jitter = ((i * 53.7 + 0.3) % 1) * (1 / 32);
+  const left = Math.min(98, Math.max(1, (zone + jitter) * 100));
+
+  const a = ((i * 97.3)  + 0.1) % 1;
+  const b = ((i * 61.8)  + 0.4) % 1;
+  const c = ((i * 41.2)  + 0.7) % 1;
+  const d = ((i * 29.6)  + 0.9) % 1;
+
+  const COLORS = ["#0033AA", "#06DEC0", "#f59e0b", "#e879f9", "#34d399", "#fb923c", "#60a5fa", "#f43f5e"];
+  return {
+    color: COLORS[i % COLORS.length],
+    left: `${left.toFixed(1)}%`,
+    width:    `${(a * 7 + 5).toFixed(1)}px`,
+    height:   `${(b * 7 + 6).toFixed(1)}px`,
+    delay:    `${(c * 4).toFixed(2)}s`,
+    duration: `${(d * 2 + 4).toFixed(2)}s`,   // slower: 4–6s
+    rotate:   `${Math.round(a * 360)}deg`,
+    drift:    `${((b - 0.5) * 50).toFixed(1)}px`,
+    shape: i % 3 === 0 ? "50%" : i % 3 === 1 ? "3px" : "0%",
+  };
+});
+
+function ConfettiBanner() {
+  return (
+    <>
+      <style>{`
+        @keyframes confetti-fall {
+          0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+          60%  { opacity: 0.9; }
+          85%  { opacity: 0; }
+          100% { transform: translateY(55vh) translateX(var(--drift)) rotate(var(--rot)); opacity: 0; }
+        }
+      `}</style>
+      <div
+        className="pointer-events-none overflow-hidden"
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          maskImage: "linear-gradient(to bottom, black 0%, black 15%, transparent 50%)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 15%, transparent 50%)",
+        }}
+      >
+        {CONFETTI_PIECES.map((p, i) => (
+          <span
+            key={i}
+            style={{
+              position: "absolute",
+              top: "-12px",
+              left: p.left,
+              width: p.width,
+              height: p.height,
+              background: p.color,
+              borderRadius: p.shape,
+              opacity: 0,
+              ["--drift" as string]: p.drift,
+              ["--rot" as string]: p.rotate,
+              animation: `confetti-fall ${p.duration} ${p.delay} ease-in infinite`,
+            }}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function OfferCountdown() {
+  const { parts } = useCountdownParts();
+  if (parts.expired) return <>Offer expired</>;
+  if (parts.days > 0) return <>{parts.days}d {parts.hrs}h {parts.mins}m {String(parts.secs).padStart(2, "0")}s</>;
+  return <>{String(parts.hrs).padStart(2, "0")}:{String(parts.mins).padStart(2, "0")}:{String(parts.secs).padStart(2, "0")}</>;
+}
+
+const FULL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function FlipClockBadge() {
+  const { parts, expiry } = useCountdownParts();
+  const expiryLabel = `ENDS ${expiry.getDate()} ${FULL_MONTHS[expiry.getMonth()].slice(0,3).toUpperCase()} ${expiry.getFullYear()}`;
+
+  const tiles = [
+    { value: parts.days,                              label: "Day"  },
+    { value: parts.hrs,                               label: "Hour" },
+    { value: parts.mins,                              label: "Min"  },
+    { value: parts.secs,                              label: "Sec"  },
+  ];
+
+  if (parts.expired) return (
+    <div className="flex justify-center">
+      <span className="text-sm font-semibold text-red-500">Offer expired</span>
+    </div>
+  );
+
+  return (
+    <div
+      className="w-full rounded-[var(--radius-lg)] px-5 py-5 flex flex-col items-center gap-4"
+      style={{ background: "#111827" }}
+    >
+      <p className="text-[11px] font-bold tracking-[0.18em] text-white/60 uppercase">{expiryLabel}</p>
+
+      <div className="flex items-stretch gap-3">
+        {tiles.map(({ value, label }) => (
+          <div
+            key={label}
+            className="flex flex-1 flex-col items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-4"
+            style={{ background: "#1f2937", minWidth: 64 }}
+          >
+            <span
+              className="font-display text-4xl font-black tabular-nums leading-none"
+              style={{ color: "#f59e0b" }}
+            >
+              {String(value).padStart(2, "0")}
+            </span>
+            <span className="text-[11px] font-medium text-white/50 tracking-wide">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[11px] font-semibold tracking-[0.12em] text-white/40 uppercase">Time Remaining</p>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -403,13 +541,13 @@ export function LoanResults({
         from the very first render so nothing shifts as stages reveal.
         Visibility is driven by motion's animate prop, not conditional rendering.
       */}
-      <div className="flex flex-col gap-8">
+      <div className="relative z-[1] flex flex-col gap-8">
+        <ConfettiBanner />
 
         {/* ── Stage 0: "Approved in Principle" layered-shadow reveal ── */}
         <TextAnimation
           text="Approved in Principle!"
           color="#0033AA"
-          glowColor="#0033AA"
           fontSize="clamp(2.5rem, 10vw, 3.75rem)"
           animationDuration="900ms"
         />
@@ -437,52 +575,21 @@ export function LoanResults({
           </span>
         </motion.div>
 
-        {/* ── Stage 3: "Offer valid" urgency badge — swipe in ─────── */}
-        {/*
-          overflow-hidden clips the horizontal slide without affecting vertical
-          space, so the row height is reserved from mount.
-        */}
-        <div
-          className="flex justify-center -mt-4 overflow-hidden"
-          style={{ pointerEvents: revealStage >= 3 ? "auto" : "none" }}
+        {/* ── Stage 3: Flip-clock countdown ───────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+          animate={revealStage >= 3 ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 16, filter: "blur(8px)" }}
+          transition={{ type: "spring", stiffness: 180, damping: 22 }}
         >
-          <motion.div
-            className="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5"
-            style={{
-              background: "oklch(0.91 0.19 88)",
-              border: "1px solid oklch(0.25 0.03 85)",
-            }}
-            initial={{ opacity: 0, x: "-120%" }}
-            animate={revealStage >= 3 ? { opacity: 1, x: 0 } : { opacity: 0, x: "-120%" }}
-            transition={{ type: "spring", stiffness: 200, damping: 22 }}
-          >
-            <Clock
-              size={17}
-              weight="duotone"
-              style={{
-                color: "oklch(0.22 0.03 85)",
-                flexShrink: 0,
-                animation: "clock-tick 3s steps(12, end) infinite",
-              }}
-            />
-            <span
-              className="text-xs font-semibold tabular-nums"
-              style={{ color: "oklch(0.20 0.03 85)" }}
-            >
-              Loan offer expires in:{" "}
-              <span className="text-sm font-black tracking-tight">
-                <OfferCountdown />
-              </span>
-            </span>
-          </motion.div>
-        </div>
+          <FlipClockBadge />
+        </motion.div>
 
         {/* ── Stage 4: Notice card ────────────────────────────────── */}
         <motion.div
           className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-4"
           initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
           {...blurIn(revealStage >= 4, 0, {
-            background: "oklch(0.32 0.14 260 / 0.03)",
+            background: "var(--surface-elevated)",
             boxShadow: "0 4px 24px 0 oklch(0.32 0.14 260 / 0.18), 0 1px 4px 0 oklch(0.32 0.14 260 / 0.12)",
           })}
         >
@@ -559,11 +666,11 @@ export function LoanResults({
 
       {/* ── Floating CTA — visible on mobile when Accept button is off-screen ── */}
       {revealStage >= 4 && !isCtaVisible && (
-        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-sm">
+        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
           <button
             type="button"
             onClick={scrollToCta}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal px-12 text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           >
             Secure Offer
             <ArrowDown size={16} weight="bold" />
