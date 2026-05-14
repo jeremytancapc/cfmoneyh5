@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { LoanLoadingScreen } from "@/app/loan-loading-screen";
 import {
   Step4_Identity,
   Step6_Contact,
@@ -26,6 +27,8 @@ export function ReviewForm({ initialData }: Props) {
   const router = useRouter();
   const [formData, setFormData] = useState<LoanFormData>(initialData);
   const [saving, setSaving] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<"idle" | "loading" | "done">("idle");
+  const [submitDestination, setSubmitDestination] = useState<string | null>(null);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -127,6 +130,7 @@ export function ReviewForm({ initialData }: Props) {
 
   async function submitApplication() {
     setSaving(true);
+    setSubmitPhase("loading");
     try {
       // Post formData directly to the submit route so the latest values are
       // used without relying on a prior cookie-save round trip.
@@ -137,10 +141,12 @@ export function ReviewForm({ initialData }: Props) {
       });
       if (!res.ok) {
         console.error("Submit failed", await res.text());
+        setSubmitPhase("idle");
         return;
       }
       const result = await res.json() as { isEligible: boolean };
-      router.push(result.isEligible ? "/apply/approval" : "/apply/pending");
+      setSubmitDestination(result.isEligible ? "/apply/approval" : "/apply/pending");
+      setSubmitPhase("done");
     } finally {
       setSaving(false);
     }
@@ -176,6 +182,16 @@ export function ReviewForm({ initialData }: Props) {
   const singpassFlow = formData.authMethod === "singpass";
   const totalDisplay = singpassFlow ? 7 : 8;
   const displayStep = history.length + 3; // offset: apply page was steps 1-3
+
+  if (submitPhase === "loading" || submitPhase === "done") {
+    return (
+      <LoanLoadingScreen
+        onComplete={() => {
+          if (submitDestination) router.push(submitDestination);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh">

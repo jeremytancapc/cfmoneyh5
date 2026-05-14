@@ -421,7 +421,7 @@ export function LoanApplicationForm({
         return (
           formData.idType !== "" &&
           formData.fullName.trim().length > 1 &&
-          formData.nric.trim().length > 3
+          /^[STFGM]\d{7}[A-Z]$/.test(formData.nric.trim().toUpperCase())
         );
       case 5:
         return formData.mobile.trim().length >= 8;
