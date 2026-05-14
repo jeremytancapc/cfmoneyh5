@@ -14,8 +14,7 @@ import {
   TrendUp,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { ContainerTextFlip } from "@/components/ui/modern-animated-multi-words";
-
+import { TextAnimation } from "@/components/ui/text-animation";
 // ── Offer expiry helpers ──────────────────────────────────────────────────────
 
 const SG_HOLIDAYS = new Set([
@@ -313,14 +312,14 @@ export function LoanResults({
       */}
       <div className="flex flex-col gap-8">
 
-        {/* ── Stage 0: "Approved in Principle" animated hero ─────── */}
-        <div>
-          <ContainerTextFlip
-            words={["Approved in Principle"]}
-            variant="primary"
-            className="font-display"
-          />
-        </div>
+        {/* ── Stage 0: "Approved in Principle" layered-shadow reveal ── */}
+        <TextAnimation
+          text="Approved in Principle!"
+          color="#0033AA"
+          glowColor="#0033AA"
+          fontSize="clamp(2.5rem, 10vw, 3.75rem)"
+          animationDuration="900ms"
+        />
 
         {/* ── Stage 1: Loan amount ────────────────────────────────── */}
         <motion.p
@@ -357,8 +356,8 @@ export function LoanResults({
           <motion.div
             className="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5"
             style={{
-              background: "oklch(0.72 0.18 50 / 0.15)",
-              border: "1px solid oklch(0.72 0.18 50 / 0.40)",
+              background: "oklch(0.82 0.18 85 / 0.18)",
+              border: "1px solid oklch(0.75 0.20 85 / 0.45)",
             }}
             initial={{ opacity: 0, x: "-120%" }}
             animate={revealStage >= 3 ? { opacity: 1, x: 0 } : { opacity: 0, x: "-120%" }}
@@ -368,14 +367,14 @@ export function LoanResults({
               size={13}
               weight="duotone"
               style={{
-                color: "oklch(0.55 0.20 50)",
+                color: "oklch(0.52 0.20 85)",
                 flexShrink: 0,
                 animation: "clock-tick 3s steps(12, end) infinite",
               }}
             />
             <span
               className="text-xs font-semibold tabular-nums"
-              style={{ color: "oklch(0.45 0.20 50)" }}
+              style={{ color: "oklch(0.42 0.20 85)" }}
             >
               Offer expires in <OfferCountdown />
             </span>

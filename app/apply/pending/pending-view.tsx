@@ -3,9 +3,7 @@
 import Image from "next/image";
 import {
   HourglassMedium,
-  Phone,
   WhatsappLogo,
-  EnvelopeSimple,
   Info,
   CheckCircle,
 } from "@phosphor-icons/react";
@@ -150,39 +148,17 @@ export function PendingView({ formData }: Props) {
             {/* Contact options */}
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Get in touch</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <a
-                  href="tel:+6567778080"
-                  className="flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
-                >
-                  <Phone size={15} weight="duotone" className="shrink-0 text-brand-blue" />
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">Call us</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">6777 8080</p>
-                  </div>
-                </a>
-
+              <div className="flex">
                 <a
                   href="https://wa.me/6560119380?text=Hi%2C%20I%20would%20like%20to%20follow%20up%20on%20my%20loan%20application"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
                 >
                   <WhatsappLogo size={15} weight="duotone" className="shrink-0 text-brand-blue" />
                   <div>
                     <p className="text-xs font-semibold text-[var(--text-primary)]">WhatsApp</p>
                     <p className="text-xs text-[var(--text-tertiary)]">6011 9380</p>
-                  </div>
-                </a>
-
-                <a
-                  href="mailto:info@cfmoney.sg"
-                  className="flex items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 transition-all duration-200 hover:border-[var(--border-medium)] active:scale-[0.98]"
-                >
-                  <EnvelopeSimple size={15} weight="duotone" className="shrink-0 text-brand-blue" />
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">Email</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">info@cfmoney.sg</p>
                   </div>
                 </a>
               </div>

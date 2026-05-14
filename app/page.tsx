@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { LoanApplicationForm, MobileHeader } from "./loan-application-form";
+import { LoanApplicationForm } from "./loan-application-form";
+import { MobileHeader } from "./mobile-header";
 import { SidebarTrustFeatures } from "./sidebar-trust-features";
 
 export default function HomePage() {
