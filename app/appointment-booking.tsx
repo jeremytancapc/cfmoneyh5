@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import type { LoanFormData as FormData } from "@/lib/loan-form";
 import {
   CalendarBlank,
   MapPin,
   Clock,
-  ArrowSquareOut,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
@@ -175,65 +174,16 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  const dateScrollRef = useRef<HTMLDivElement>(null);
   const confirmBtnRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ startX: number; startScroll: number; pointerId: number; dragging: boolean } | null>(null);
-  const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
+  const timeSectionRef = useRef<HTMLDivElement>(null);
 
-  const updateFades = useCallback(() => {
-    const el = dateScrollRef.current;
-    if (!el) return;
-    setShowLeftFade(el.scrollLeft > 4);
-    setShowRightFade(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    const el = dateScrollRef.current;
-    if (!el) return;
-    updateFades();
-    el.addEventListener("scroll", updateFades, { passive: true });
-    return () => el.removeEventListener("scroll", updateFades);
-  }, [updateFades]);
-
-  const scrollDates = useCallback((direction: "left" | "right") => {
-    const el = dateScrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction === "right" ? 200 : -200, behavior: "smooth" });
-  }, []);
-
-  // Only capture the pointer (and suppress the click) once the drag crosses a
-  // 6px threshold — short taps never trigger it so button clicks work normally.
-  const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dateScrollRef.current) return;
-    dragState.current = {
-      startX: e.clientX,
-      startScroll: dateScrollRef.current.scrollLeft,
-      pointerId: e.pointerId,
-      dragging: false,
-    };
-  }, []);
-
-  const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const el = dateScrollRef.current;
-    if (!dragState.current || !el) return;
-    const dx = e.clientX - dragState.current.startX;
-    if (!dragState.current.dragging) {
-      if (Math.abs(dx) < 6) return;
-      dragState.current.dragging = true;
-      el.setPointerCapture(dragState.current.pointerId);
-    }
-    el.scrollLeft = dragState.current.startScroll - dx;
-  }, []);
-
-  const onDragEnd = useCallback(() => {
-    dragState.current = null;
-  }, []);
-
-  // Swallow the synthetic click that bubbles up after a completed drag.
-  const onClickCapture = useCallback((e: React.MouseEvent) => {
-    if (dragState.current?.dragging) e.stopPropagation();
-  }, []);
+  // Calendar month state — 1st of the displayed month
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   const today = useMemo(() => {
     const d = new Date();
@@ -241,27 +191,27 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
     return d;
   }, []);
 
-  // Generate the next 28 days as candidates
-  const availableDates = useMemo(() => {
-    const dates: Date[] = [];
-    for (let i = 0; i < 28; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      dates.push(d);
-    }
-    return dates;
+  // Generate the next 14 days as the booking window
+  const maxDate = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + 14);
+    return d;
   }, [today]);
 
-  // Current time for filtering past slots on today
-  const nowHour = new Date().getHours();
-  const nowMinute = new Date().getMinutes();
-
+  // Current time for filtering slots on today (2-hour advance required)
   const isSlotDisabled = (slot: string): boolean => {
     if (!selectedDate) return false;
     if (selectedDate !== toISODate(today)) return false;
     const [h, m] = slot.split(":").map(Number);
-    // Disable if the slot start is in the past (with 30-min buffer)
-    return h < nowHour || (h === nowHour && m <= nowMinute);
+    const slotMinutes = h * 60 + m;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return slotMinutes < nowMinutes + 120; // 2-hour buffer
+  };
+
+  const isDateInWindow = (date: Date): boolean => {
+    const t = date.getTime();
+    return t >= today.getTime() && t <= maxDate.getTime();
   };
 
   const selectedDateObj = useMemo(() => {
@@ -303,8 +253,8 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
         {/* ── What to bring ───────────────────────────────────────── */}
         <WhatToBring idType={formData.idType} />
 
-        {/* Office details */}
-        <div className="flex flex-col gap-4 text-left">
+        {/* Office details — hidden on desktop (shown in sidebar) */}
+        <div className="flex flex-col gap-4 text-left lg:hidden">
           {/* Landscape shopfront image */}
           <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
             <img
@@ -317,31 +267,25 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
           </div>
 
           <div className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                Our office
-              </h3>
+            <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+              Our office
+            </h3>
+
+            <div className="flex items-start gap-3">
+              <MapPin size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
               <a
                 href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                className="group flex flex-col transition-opacity duration-200 hover:opacity-75"
               >
-                View on Google Maps
-                <ArrowSquareOut size={14} weight="bold" />
-              </a>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <MapPin size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   1 North Bridge Road, High Street Centre
                 </p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   #01-35, Singapore 179094
                 </p>
-              </div>
+              </a>
             </div>
 
             <div className="flex items-start gap-3">
@@ -412,137 +356,164 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
         </p>
       </div>
 
-      {/* ── Date picker ────────────────────────────────────────── */}
+      {/* ── Date picker — monthly calendar ─────────────────────── */}
       <div
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 80ms both",
         }}
       >
-        {/* Label row with scroll arrows */}
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-medium text-[var(--text-primary)]">Select a date</p>
-          <div className="flex gap-1.5">
+        <p className="mb-3 text-base font-bold text-[var(--text-primary)]">Select a date</p>
+
+        {/* Calendar card */}
+        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
+          {/* Month header */}
+          <div className="flex items-center justify-between px-4 py-3" style={{ background: "var(--brand-blue-hex)" }}>
             <button
               type="button"
-              onClick={() => scrollDates("left")}
-              aria-label="Scroll dates left"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)] active:scale-[0.92]"
+              aria-label="Previous month"
+              onClick={() => {
+                const d = new Date(calendarMonth);
+                d.setMonth(d.getMonth() - 1);
+                setCalendarMonth(d);
+              }}
+              disabled={
+                calendarMonth.getFullYear() === today.getFullYear() &&
+                calendarMonth.getMonth() === today.getMonth()
+              }
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
             >
               <ArrowLeft size={13} weight="bold" />
             </button>
+
+            <p className="text-sm font-semibold text-white">
+              {["January","February","March","April","May","June","July","August","September","October","November","December"][calendarMonth.getMonth()]}{" "}
+              {calendarMonth.getFullYear()}
+            </p>
+
             <button
               type="button"
-              onClick={() => scrollDates("right")}
-              aria-label="Scroll dates right"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)] active:scale-[0.92]"
+              aria-label="Next month"
+              onClick={() => {
+                const d = new Date(calendarMonth);
+                d.setMonth(d.getMonth() + 1);
+                setCalendarMonth(d);
+              }}
+              disabled={(() => {
+                // Disable if no valid dates exist in next month
+                const nextMonth = new Date(calendarMonth);
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const firstOfNext = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
+                return firstOfNext > maxDate;
+              })()}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
             >
               <ArrowRight size={13} weight="bold" />
             </button>
           </div>
-        </div>
-        {/* Scroll strip with fade edges */}
-        <div className="relative">
-          <div
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-[var(--surface-primary)] to-transparent transition-opacity duration-200"
-            style={{ opacity: showLeftFade ? 1 : 0 }}
-          />
-          <div
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l from-[var(--surface-primary)] to-transparent transition-opacity duration-200"
-            style={{ opacity: showRightFade ? 1 : 0 }}
-          />
-        <div
-          ref={dateScrollRef}
-          className="date-scroll flex gap-2 pb-2"
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          onClickCapture={onClickCapture}
-        >
-          {availableDates.map((date, i) => {
-            const iso = toISODate(date);
-            const disabled = isDisabledDate(date);
-            const isSelected = selectedDate === iso;
-            const isToday = iso === toISODate(today);
 
-            return (
-              <button
-                key={iso}
-                type="button"
-                disabled={disabled}
-                onClick={() => {
-                  setSelectedDate(iso);
-                  setSelectedTime(null);
-                }}
-                className="flex shrink-0 flex-col items-center gap-1 rounded-[var(--radius-md)] border px-3 py-2.5 transition-all duration-200 active:scale-[0.96]"
-                style={{
-                  minWidth: 56,
-                  borderColor: isSelected
-                    ? "var(--brand-blue-hex)"
-                    : "var(--border-subtle)",
-                  background: isSelected
-                    ? "var(--brand-blue-hex)"
-                    : "transparent",
-                  opacity: disabled ? 0.3 : 1,
-                  pointerEvents: disabled ? "none" : "auto",
-                  animationDelay: `${i * 40}ms`,
-                }}
-              >
-                {isToday ? (
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-wider"
-                    style={{
-                      color: isSelected ? "var(--text-on-brand)" : "var(--brand-teal-hex)",
+          {/* Day-of-week headers — Mon first */}
+          <div className="grid grid-cols-7 border-b border-[var(--border-subtle)]">
+            {["Mo","Tu","We","Th","Fr","Sa","Su"].map((d) => (
+              <div key={d} className="py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Day grid */}
+          <div className="grid grid-cols-7 p-2 gap-1">
+            {(() => {
+              const year = calendarMonth.getFullYear();
+              const month = calendarMonth.getMonth();
+              const firstDay = new Date(year, month, 1);
+              // Monday-first offset: Sun=0→6, Mon=1→0, …
+              const startOffset = (firstDay.getDay() + 6) % 7;
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const todayIso = toISODate(today);
+              const cells: React.ReactNode[] = [];
+
+              // Blank leading cells
+              for (let i = 0; i < startOffset; i++) {
+                cells.push(<div key={`blank-${i}`} />);
+              }
+
+              for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const iso = toISODate(date);
+                const inWindow = isDateInWindow(date);
+                const isHolidayOrSunday = isDisabledDate(date);
+                const disabled = !inWindow || isHolidayOrSunday;
+                const isSelected = selectedDate === iso;
+                const isToday = iso === todayIso;
+                const showRedDot = isHolidayOrSunday && inWindow && !isSelected;
+
+                cells.push(
+                  <button
+                    key={iso}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setSelectedDate(iso);
+                      setSelectedTime(null);
+                      setTimeout(() => {
+                        const el = timeSectionRef.current;
+                        if (!el) return;
+                        const top = el.getBoundingClientRect().top + window.scrollY - 72;
+                        window.scrollTo({ top, behavior: "smooth" });
+                      }, 50);
                     }}
-                  >
-                    Today
-                  </span>
-                ) : (
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-wider"
+                    className="relative flex aspect-square items-center justify-center rounded-[var(--radius-sm)] text-sm font-medium transition-all duration-150 active:scale-[0.93]"
                     style={{
+                      background: isSelected ? "var(--brand-blue-hex)" : "transparent",
                       color: isSelected
-                        ? "var(--text-on-brand)"
-                        : "var(--text-tertiary)",
+                        ? "#fff"
+                        : disabled
+                          ? "var(--text-tertiary)"
+                          : "var(--text-primary)",
+                      opacity: disabled && !inWindow ? 0.2 : disabled ? 0.35 : 1,
+                      pointerEvents: disabled ? "none" : "auto",
+                      fontWeight: isToday ? 800 : 500,
                     }}
                   >
-                    {DAY_LABELS[date.getDay()]}
-                  </span>
-                )}
-                <span
-                  className="font-display text-lg font-bold leading-none tabular-nums"
-                  style={{
-                    color: isSelected
-                      ? "var(--text-on-brand)"
-                      : "var(--text-primary)",
-                  }}
-                >
-                  {date.getDate()}
-                </span>
-                {(date.getDate() === 1 || i === 0) && (
-                  <span
-                    className="text-[9px] font-medium uppercase tracking-wider"
-                    style={{
-                      color: isSelected
-                        ? "oklch(0.98 0.005 260 / 0.7)"
-                        : "var(--text-tertiary)",
-                    }}
-                  >
-                    {MONTH_LABELS[date.getMonth()]}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                    {day}
+                    {isToday && !isSelected && (
+                      <span
+                        className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                        style={{ background: "var(--brand-teal-hex)" }}
+                      />
+                    )}
+                    {showRedDot && (
+                      <span
+                        className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                        style={{ background: "#ef4444" }}
+                      />
+                    )}
+                  </button>
+                );
+              }
+              return cells;
+            })()}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-3 border-t border-[var(--border-subtle)] px-4 py-2.5">
+            <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
+              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--brand-teal-hex)" }} />
+              Today
+            </span>
+            <span className="flex items-center gap-1.5 text-[10px]" style={{ color: "#ef4444" }}>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+              Sundays &amp; public holidays unavailable
+            </span>
+          </div>
         </div>
-        </div>{/* end gradient wrapper */}
       </div>
 
       {/* ── Time slots ─────────────────────────────────────────── */}
       {selectedDate && (
-        <div className="animate-slide-in flex flex-col gap-3">
-          <p className="text-sm font-medium text-[var(--text-primary)]">
+        <div ref={timeSectionRef} className="animate-slide-in flex flex-col gap-3">
+          <p className="text-base font-bold text-[var(--text-primary)]">
             Select a time
           </p>
           {/* Scrollable confined list — outer div clips corners, inner scrolls */}
@@ -657,9 +628,9 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
         </div>
       )}
 
-      {/* ── Office location ────────────────────────────────────── */}
+      {/* ── Office location — hidden on desktop (shown in sidebar) */}
       <div
-        className="flex flex-col gap-3 pt-2"
+        className="flex flex-col gap-3 pt-2 lg:hidden"
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 160ms both",
@@ -679,15 +650,6 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
                 loading="lazy"
               />
             </div>
-            <a
-              href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-            >
-              View on Google Maps
-              <ArrowSquareOut size={14} weight="bold" />
-            </a>
           </div>
 
           {/* Address + hours */}
@@ -704,14 +666,19 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
                 weight="duotone"
                 className="mt-0.5 shrink-0 text-brand-blue"
               />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+              <a
+                href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col transition-opacity duration-200 hover:opacity-75"
+              >
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   1 North Bridge Road, High Street Centre
                 </p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   #01-35, Singapore 179094
                 </p>
-              </div>
+              </a>
             </div>
 
             <div className="flex items-start gap-3">
