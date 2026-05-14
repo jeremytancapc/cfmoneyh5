@@ -7,6 +7,7 @@ import type { LoanFormData as FormData } from "@/lib/loan-form";
 import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, formatCurrency } from "@/lib/loan-form";
 import { createPortal } from "react-dom";
 import { LoanLoadingScreen } from "./loan-loading-screen";
+import { trackDisplayStep, trackEvent } from "@/lib/analytics";
 import {
   ArrowRight,
   ArrowLeft,
@@ -364,10 +365,12 @@ export function LoanApplicationForm({
     }
   }, [step, formData]);
 
-  // Scroll to top after every step change, once new content is in the DOM.
+  // Scroll to top + fire GA4 step event on every step change.
+  // history.length == displayStep (the number shown in the UI to the user).
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-  }, [step]);
+    trackDisplayStep(history.length);
+  }, [history]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -467,7 +470,6 @@ export function LoanApplicationForm({
     if (submitOverlay) return;
     submitNavRef.current = null;
     submitLeadIdRef.current = null;
-
     const task = (async () => {
       const res = await fetch("/api/apply/submit", {
         method: "POST",
@@ -480,6 +482,7 @@ export function LoanApplicationForm({
       }
       const result = (await res.json()) as { isEligible: boolean; leadId?: string };
       submitNavRef.current = result.isEligible ? "/apply/approval" : "/apply/pending";
+      if (result.isEligible) trackEvent("step_09_offer_presented");
       submitLeadIdRef.current = typeof result.leadId === "string" ? result.leadId : null;
     })();
 
@@ -794,7 +797,8 @@ export function Step1_LoanDetails({
 
       <div className="flex flex-col gap-5 sm:gap-6">
         <div>
-          <div className="mb-1 flex justify-end">
+          <div className="mb-1 flex justify-between items-center">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Loan Amount</label>
             <div
               className="flex items-baseline gap-0.5 border-b-2 pb-0.5 transition-colors duration-150"
               style={{ borderColor: amountFocused ? "var(--brand-blue-hex)" : "var(--border-medium)" }}
@@ -844,7 +848,7 @@ export function Step1_LoanDetails({
         <div>
           <div className="mb-1 flex items-end justify-between">
             <label className="text-sm font-medium text-[var(--text-primary)]">
-              Pick your tenure
+              Loan Tenure
             </label>
             <div
               className="flex items-baseline gap-1.5 border-b-2 pb-0.5 transition-colors duration-150"
