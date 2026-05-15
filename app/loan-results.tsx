@@ -250,7 +250,7 @@ const NOTICE_ITEMS = [
   },
   {
     emoji: "💰",
-    short: "Same-day cash or transfer.",
+    short: "Same-day PayNow transfer to your bank account.",
     text: "Funds will be disbursed to you on the spot.",
   },
 ];
