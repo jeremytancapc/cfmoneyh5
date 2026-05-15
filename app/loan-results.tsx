@@ -240,17 +240,17 @@ function formatCurrency(value: number): string {
 const NOTICE_ITEMS = [
   {
     emoji: "🔒",
-    short: "Lock in this offer now.",
+    short: "Lock in this offer now",
     text: "No obligation to take the loan, only decide later.",
   },
   {
     emoji: "✅",
-    short: "Simple 30-minute verification.",
+    short: "Simple 30-minute verification",
     text: "A brief in-person discussion at our branch office.",
   },
   {
     emoji: "💰",
-    short: "Same-day PayNow transfer to your bank account.",
+    short: "Same-day PayNow transfer",
     text: "Funds will be disbursed to you on the spot.",
   },
 ];
