@@ -14,7 +14,7 @@ import {
   Car,
   X,
   CaretDown,
-  Export,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD, local dates)
@@ -281,17 +281,18 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
     const thingsToBringLines = WHAT_TO_BRING[idKey].map((item) => `• ${item}`).join("\n");
 
     const appointmentMessage = [
-      "📅 CF Money Appointment",
+      "[ CF Money Appointment ]",
       "",
       `Date: ${formatDisplayDate(selectedDateObj)}`,
       `Time: ${formatDisplayTime(selectedTime)}`,
       "",
-      "📍 1 North Bridge Road, High Street Centre",
+      "-- Location --",
+      "1 North Bridge Road, High Street Centre",
       "#01-35, Singapore 179094",
       "City Hall MRT (Exit B) or Clarke Quay MRT (Exit E)",
       "https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6",
       "",
-      "🗂 Things to bring:",
+      "-- Things to bring --",
       thingsToBringLines,
     ].join("\n");
 
@@ -330,10 +331,10 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
             <button
               type="button"
               onClick={handleShare}
-              className="mx-auto mt-3 flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              className="mx-auto mt-3 mb-[-16px] flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
             >
-              <Export size={16} weight="bold" />
-              Save appointment details
+              <DownloadSimple size={16} weight="bold" />
+              Save details on WhatsApp
             </button>
           </div>
 
