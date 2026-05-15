@@ -305,10 +305,10 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
     };
 
     return (
-      <div className="animate-fade-up flex flex-col gap-8 pt-6 text-center sm:pt-0 sm:text-left">
+      <div className="animate-fade-up flex flex-col gap-8 pt-6 text-center sm:pt-0">
         {/* Success state */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-center gap-2 sm:justify-start">
+          <div className="flex items-center justify-center gap-2">
             <CheckCircle
               size={18}
               weight="duotone"
@@ -408,7 +408,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
 
         <div className="h-px bg-[var(--border-subtle)]" />
 
-        <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+        <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)] text-center">
           <p>We look forward to meeting you.</p>
         </div>
       </div>
