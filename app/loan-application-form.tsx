@@ -2063,7 +2063,7 @@ export function Step9_MoneylenderLoans({
       <StepHeader
         icon={ChartLineUp}
         title="Existing moneylender loans?"
-        subtitle="Include all outstanding licensed moneylender balances."
+        subtitle="Licensed moneylender balances only (exclude banks)."
       />
 
       <div className="flex flex-col gap-4">
