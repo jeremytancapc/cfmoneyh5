@@ -246,7 +246,7 @@ const NOTICE_ITEMS = [
   {
     emoji: "✅",
     short: "Simple 30-minute verification.",
-    text: "A brief in-person ID appointment at our branch.",
+    text: "A brief in-person discussion at our branch office.",
   },
   {
     emoji: "💰",
