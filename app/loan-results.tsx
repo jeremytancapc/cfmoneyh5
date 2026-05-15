@@ -241,7 +241,7 @@ const NOTICE_ITEMS = [
   {
     emoji: "🔒",
     short: "Lock in this offer now.",
-    text: "No obligation to take the loan, only decide after securing the offer.",
+    text: "No obligation to take the loan, only decide later.",
   },
   {
     emoji: "✅",
