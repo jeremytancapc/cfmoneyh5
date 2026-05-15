@@ -666,11 +666,14 @@ export function LoanResults({
 
       {/* ── Floating CTA — visible on mobile when Accept button is off-screen ── */}
       {revealStage >= 4 && !isCtaVisible && (
-        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <div
+          className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40"
+          style={{ animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 850ms both" }}
+        >
           <button
             type="button"
             onClick={scrollToCta}
-            className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal px-12 text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal px-12 text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] whitespace-nowrap"
           >
             Secure Offer
             <ArrowDown size={16} weight="bold" />
