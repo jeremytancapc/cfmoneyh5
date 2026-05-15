@@ -101,68 +101,15 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
-async function addToCalendar(date: Date, timeSlot: string) {
-  const [h, m] = timeSlot.split(":").map(Number);
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0);
-  const end   = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour slot
-
-  const ua        = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  const isIOS     = /iPad|iPhone|iPod/.test(ua);
-  const isAndroid = /Android/.test(ua);
-
-  // ── Android: open Google Calendar URL (opens in the GCal app directly) ──
-  if (isAndroid) {
-    const fmtUtc = (d: Date) => d.toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
-    const gcal = new URL("https://calendar.google.com/calendar/render");
-    gcal.searchParams.set("action",   "TEMPLATE");
-    gcal.searchParams.set("text",     "CF Money Loan Appointment");
-    gcal.searchParams.set("dates",    `${fmtUtc(start)}/${fmtUtc(end)}`);
-    gcal.searchParams.set("details",  "Please bring your NRIC/FIN and income documents. Please arrive on time to ensure a smoother process.");
-    gcal.searchParams.set("location", "1 North Bridge Road, #01-35 High Street Centre, Singapore 179094");
-    window.open(gcal.toString(), "_blank", "noopener");
-    return;
-  }
-
-  // ── Build .ics content (for iOS + desktop) ──────────────────────────────
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}00`;
-
-  const ics = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//CF Money//Appointment//EN",
-    "BEGIN:VEVENT",
-    `UID:cfmoney-appt-${start.getTime()}@cfmoney.sg`,
-    `DTSTAMP:${fmt(new Date())}`,
-    `DTSTART;TZID=Asia/Singapore:${fmt(start)}`,
-    `DTEND;TZID=Asia/Singapore:${fmt(end)}`,
-    "SUMMARY:CF Money Loan Appointment",
-    "LOCATION:1 North Bridge Road\\, #01-35 High Street Centre\\, Singapore 179094",
-    "DESCRIPTION:Please bring your NRIC/FIN and income documents. Please arrive on time to ensure a smoother process.",
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n");
-
-  // ── iOS: Web Share API → native "Add to Calendar" sheet ─────────────────
-  if (isIOS) {
-    const file = new File([ics], "cf-money-appointment.ics", { type: "text/calendar" });
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "CF Money Loan Appointment" });
-        return;
-      } catch {
-        // User cancelled — fall through to download
-      }
-    }
-  }
-
-  // ── Desktop fallback: .ics file download ────────────────────────────────
-  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
-  const a   = document.createElement("a");
-  a.href    = url;
-  a.download = "cf-money-appointment.ics";
-  a.click();
-  URL.revokeObjectURL(url);
+function addToCalendar(date: Date, timeSlot: string) {
+  const y  = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  const d  = String(date.getDate()).padStart(2, "0");
+  // Navigating to this endpoint serves Content-Type: text/calendar with
+  // Content-Disposition: inline, which triggers the native "Add to Calendar"
+  // dialog on iOS Safari and the OS calendar handler on Android — no UA
+  // sniffing, no share sheets, no blob URLs.
+  window.location.href = `/api/apply/calendar?date=${y}-${mo}-${d}&time=${encodeURIComponent(timeSlot)}`;
 }
 
 interface AppointmentBookingProps {
@@ -315,7 +262,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
 
           <button
             type="button"
-            onClick={() => void addToCalendar(selectedDateObj, selectedTime)}
+            onClick={() => addToCalendar(selectedDateObj, selectedTime)}
             className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] sm:w-auto"
           >
             <span aria-hidden="true">📅</span>
