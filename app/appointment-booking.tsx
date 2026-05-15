@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { LoanFormData as FormData } from "@/lib/loan-form";
 import {
   CalendarBlank,
@@ -11,6 +12,8 @@ import {
   ArrowLeft,
   Train,
   Car,
+  X,
+  CaretDown,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD, local dates)
@@ -184,9 +187,48 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
+  const [locationTooltip, setLocationTooltip] = useState(false);
 
+  type PopupPos = { top: number; left: number; width: number };
+  const [calendarPos, setCalendarPos] = useState<PopupPos | null>(null);
+  const [timePos, setTimePos] = useState<PopupPos | null>(null);
+
+  const dateTriggerRef = useRef<HTMLButtonElement>(null);
+  const timeTriggerRef = useRef<HTMLButtonElement>(null);
   const confirmBtnRef = useRef<HTMLDivElement>(null);
-  const timeSectionRef = useRef<HTMLDivElement>(null);
+
+  const CALENDAR_HEIGHT_EST = 370;
+  const TIME_HEIGHT_EST = 280;
+  const POPUP_GAP = 6;
+
+  const openCalendarPopup = () => {
+    const el = dateTriggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - POPUP_GAP;
+    const top =
+      spaceBelow >= CALENDAR_HEIGHT_EST
+        ? rect.bottom + POPUP_GAP
+        : Math.max(8, rect.top - POPUP_GAP - CALENDAR_HEIGHT_EST);
+    setCalendarPos({ top, left: rect.left, width: rect.width });
+    setCalendarOpen(true);
+    setTimeDropdownOpen(false);
+  };
+
+  const openTimePopup = () => {
+    const el = timeTriggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - POPUP_GAP;
+    const top =
+      spaceBelow >= TIME_HEIGHT_EST
+        ? rect.bottom + POPUP_GAP
+        : Math.max(8, rect.top - POPUP_GAP - TIME_HEIGHT_EST);
+    setTimePos({ top, left: rect.left, width: rect.width });
+    setTimeDropdownOpen(true);
+  };
 
   // Calendar month state — 1st of the displayed month
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
@@ -394,277 +436,390 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
         </div>
       </div>
 
-      {/* ── Date picker — monthly calendar ─────────────────────── */}
+      {/* ── Date & Time picker (dropdown style) ─────────────────── */}
       <div
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 80ms both",
         }}
       >
-        <p className="mb-3 text-base font-bold text-[var(--text-primary)]">Select a date</p>
-
-        {/* Calendar card */}
-        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
-          {/* Month header */}
-          <div className="flex items-center justify-between px-4 py-3" style={{ background: "var(--brand-blue-hex)" }}>
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => {
-                const d = new Date(calendarMonth);
-                d.setMonth(d.getMonth() - 1);
-                setCalendarMonth(d);
-              }}
-              disabled={
-                calendarMonth.getFullYear() === today.getFullYear() &&
-                calendarMonth.getMonth() === today.getMonth()
-              }
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ArrowLeft size={13} weight="bold" />
-            </button>
-
-            <p className="text-sm font-semibold text-white">
-              {["January","February","March","April","May","June","July","August","September","October","November","December"][calendarMonth.getMonth()]}{" "}
-              {calendarMonth.getFullYear()}
-            </p>
-
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => {
-                const d = new Date(calendarMonth);
-                d.setMonth(d.getMonth() + 1);
-                setCalendarMonth(d);
-              }}
-              disabled={(() => {
-                // Disable if no valid dates exist in next month
-                const nextMonth = new Date(calendarMonth);
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                const firstOfNext = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
-                return firstOfNext > maxDate;
-              })()}
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ArrowRight size={13} weight="bold" />
-            </button>
-          </div>
-
-          {/* Day-of-week headers — Mon first */}
-          <div className="grid grid-cols-7 border-b border-[var(--border-subtle)]">
-            {["Mo","Tu","We","Th","Fr","Sa","Su"].map((d) => (
-              <div key={d} className="py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Day grid */}
-          <div className="grid grid-cols-7 p-2 gap-1">
-            {(() => {
-              const year = calendarMonth.getFullYear();
-              const month = calendarMonth.getMonth();
-              const firstDay = new Date(year, month, 1);
-              // Monday-first offset: Sun=0→6, Mon=1→0, …
-              const startOffset = (firstDay.getDay() + 6) % 7;
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
-              const todayIso = toISODate(today);
-              const cells: React.ReactNode[] = [];
-
-              // Blank leading cells
-              for (let i = 0; i < startOffset; i++) {
-                cells.push(<div key={`blank-${i}`} />);
-              }
-
-              for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month, day);
-                const iso = toISODate(date);
-                const inWindow = isDateInWindow(date);
-                const isHolidayOrSunday = isDisabledDate(date);
-                const disabled = !inWindow || isHolidayOrSunday;
-                const isSelected = selectedDate === iso;
-                const isToday = iso === todayIso;
-                const showRedDot = isHolidayOrSunday && inWindow && !isSelected;
-
-                cells.push(
-                  <button
-                    key={iso}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => {
-                      setSelectedDate(iso);
-                      setSelectedTime(null);
-                      setTimeout(() => {
-                        const el = timeSectionRef.current;
-                        if (!el) return;
-                        const top = el.getBoundingClientRect().top + window.scrollY - 72;
-                        window.scrollTo({ top, behavior: "smooth" });
-                      }, 50);
-                    }}
-                    className="relative flex aspect-square items-center justify-center rounded-[var(--radius-sm)] text-sm font-medium transition-all duration-150 active:scale-[0.93]"
-                    style={{
-                      background: isSelected ? "var(--brand-blue-hex)" : "transparent",
-                      color: isSelected
-                        ? "#fff"
-                        : disabled
-                          ? "var(--text-tertiary)"
-                          : "var(--text-primary)",
-                      opacity: disabled && !inWindow ? 0.2 : disabled ? 0.35 : 1,
-                      pointerEvents: disabled ? "none" : "auto",
-                      fontWeight: isToday ? 800 : 500,
-                    }}
-                  >
-                    {day}
-                    {isToday && !isSelected && (
-                      <span
-                        className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
-                        style={{ background: "var(--brand-teal-hex)" }}
-                      />
-                    )}
-                    {showRedDot && (
-                      <span
-                        className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
-                        style={{ background: "#ef4444" }}
-                      />
-                    )}
-                  </button>
-                );
-              }
-              return cells;
-            })()}
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-3 border-t border-[var(--border-subtle)] px-4 py-2.5">
-            <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--brand-teal-hex)" }} />
-              Today
+        {/* Location blurb */}
+        <div className="mb-4 -mt-4">
+          <p className="text-base font-bold text-[var(--text-primary)]">Location</p>
+          <div className="text-sm font-medium text-[var(--text-primary)]">
+            <span className="inline-flex items-center gap-1.5">
+              High Street Centre
+              {/* Tooltip trigger */}
+              <span className="relative inline-flex">
+                <button
+                  type="button"
+                  aria-label="More location details"
+                  onClick={() => setLocationTooltip((v) => !v)}
+                  onMouseEnter={() => setLocationTooltip(true)}
+                  onMouseLeave={() => setLocationTooltip(false)}
+                  className="flex h-4 w-4 items-center justify-center rounded-full border border-[var(--border-medium)] text-[10px] font-bold text-[var(--text-tertiary)] transition-colors duration-150 hover:border-brand-blue hover:text-brand-blue"
+                >
+                  ?
+                </button>
+                {locationTooltip && (
+                  <div className="absolute left-1/2 top-[calc(100%+6px)] z-50 w-[240px] -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 shadow-lg">
+                    <p className="text-sm text-[var(--text-secondary)]">Near Funan IT Mall, Parliament House &amp; Boat Quay</p>
+                    <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-[var(--border-subtle)]" />
+                  </div>
+                )}
+              </span>
             </span>
-            <span className="flex items-center gap-1.5 text-[10px]" style={{ color: "#ef4444" }}>
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
-              Sundays &amp; public holidays unavailable
-            </span>
+            <br />
+            <span className="font-normal text-[var(--text-secondary)]">(City Hall MRT / Clarke Quay MRT)</span>
           </div>
         </div>
-      </div>
 
-      {/* ── Time slots ─────────────────────────────────────────── */}
-      {selectedDate && (
-        <div ref={timeSectionRef} className="animate-slide-in flex flex-col gap-3">
-          <p className="text-base font-bold text-[var(--text-primary)]">
-            Select a time
-          </p>
-          {/* Scrollable confined list — outer div clips corners, inner scrolls */}
-          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
-          <div
-            className="overflow-y-auto"
-            style={{ maxHeight: 280 }}
-          >
-            {(() => {
-              const bookedIdx = fullyBookedIndex(selectedDate);
-              const limitedSet = limitedSlotIndices(selectedDate, bookedIdx);
-              return TIME_SLOTS.map((slot, i) => {
-              const pastDisabled = isSlotDisabled(slot);
-              const isFullyBooked = !pastDisabled && i === bookedIdx;
-              const disabled = pastDisabled || isFullyBooked;
-              const isSelected = selectedTime === slot;
-              const isLimited = !disabled && limitedSet.has(i);
+        <p className="mb-3 text-base font-bold text-[var(--text-primary)]">Select a date &amp; time</p>
 
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    setSelectedTime(slot);
-                    setTimeout(() => {
-                      const el = confirmBtnRef.current;
-                      if (!el) return;
-                      const rect = el.getBoundingClientRect();
-                      const gap = 12;
-                      const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
-                      window.scrollTo({ top: targetScrollY, behavior: "smooth" });
-                    }, 0);
+        <div className="flex flex-col gap-3">
+
+          {/* ── Date trigger + calendar popup ───────────────────── */}
+          <div className="relative">
+            <button
+              ref={dateTriggerRef}
+              type="button"
+              onClick={() => { calendarOpen ? setCalendarOpen(false) : openCalendarPopup(); }}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-left text-sm transition-colors duration-150"
+            >
+              <CalendarBlank size={18} weight="duotone" className="shrink-0 text-brand-blue" />
+              <span
+                className="flex-1 text-sm"
+                style={{
+                  color: "var(--text-primary)",
+                  fontWeight: selectedDate ? 500 : 400,
+                }}
+              >
+                {selectedDate && selectedDateObj
+                  ? `${DAY_LABELS[selectedDateObj.getDay()]}, ${selectedDateObj.getDate()} ${MONTH_LABELS[selectedDateObj.getMonth()]}`
+                  : "Choose a preferred date"}
+              </span>
+              {selectedDate ? (
+                <span
+                  role="button"
+                  aria-label="Clear date"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDate(null);
+                    setSelectedTime(null);
+                    setCalendarOpen(false);
+                    setTimeDropdownOpen(false);
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors duration-150 active:scale-[0.99]"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-[var(--surface-secondary)]"
+                >
+                  <X size={14} className="text-[var(--text-tertiary)]" />
+                </span>
+              ) : (
+                <CaretDown
+                  size={14}
+                  className="shrink-0 text-[var(--text-tertiary)] transition-transform duration-200"
+                  style={{ transform: calendarOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              )}
+            </button>
+
+            {/* Calendar popup — portalled into body to escape transform stacking contexts */}
+            {calendarOpen && calendarPos && createPortal(
+              <>
+                <div className="fixed inset-0 z-[9998]" onClick={() => setCalendarOpen(false)} />
+                <div
+                  className="fixed z-[9999] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-xl"
+                  style={{ top: calendarPos.top, left: calendarPos.left, width: calendarPos.width }}
+                >
+
+                  {/* Month header */}
+                  <div className="flex items-center justify-between px-4 py-3" style={{ background: "var(--brand-blue-hex)" }}>
+                    <button
+                      type="button"
+                      aria-label="Previous month"
+                      onClick={() => {
+                        const d = new Date(calendarMonth);
+                        d.setMonth(d.getMonth() - 1);
+                        setCalendarMonth(d);
+                      }}
+                      disabled={
+                        calendarMonth.getFullYear() === today.getFullYear() &&
+                        calendarMonth.getMonth() === today.getMonth()
+                      }
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ArrowLeft size={13} weight="bold" />
+                    </button>
+
+                    <p className="text-sm font-semibold text-white">
+                      {["January","February","March","April","May","June","July","August","September","October","November","December"][calendarMonth.getMonth()]}{" "}
+                      {calendarMonth.getFullYear()}
+                    </p>
+
+                    <button
+                      type="button"
+                      aria-label="Next month"
+                      onClick={() => {
+                        const d = new Date(calendarMonth);
+                        d.setMonth(d.getMonth() + 1);
+                        setCalendarMonth(d);
+                      }}
+                      disabled={(() => {
+                        const nextMonth = new Date(calendarMonth);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        const firstOfNext = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
+                        return firstOfNext > maxDate;
+                      })()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ArrowRight size={13} weight="bold" />
+                    </button>
+                  </div>
+
+                  {/* Day-of-week headers */}
+                  <div className="grid grid-cols-7 border-b border-[var(--border-subtle)]">
+                    {["Mo","Tu","We","Th","Fr","Sa","Su"].map((d) => (
+                      <div key={d} className="py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day grid */}
+                  <div className="grid grid-cols-7 p-2 gap-1">
+                    {(() => {
+                      const year = calendarMonth.getFullYear();
+                      const month = calendarMonth.getMonth();
+                      const firstDay = new Date(year, month, 1);
+                      const startOffset = (firstDay.getDay() + 6) % 7;
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const todayIso = toISODate(today);
+                      const cells: React.ReactNode[] = [];
+
+                      for (let i = 0; i < startOffset; i++) {
+                        cells.push(<div key={`blank-${i}`} />);
+                      }
+
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const date = new Date(year, month, day);
+                        const iso = toISODate(date);
+                        const inWindow = isDateInWindow(date);
+                        const isHolidayOrSunday = isDisabledDate(date);
+                        const disabled = !inWindow || isHolidayOrSunday;
+                        const isSelected = selectedDate === iso;
+                        const isToday = iso === todayIso;
+                        const showRedDot = isHolidayOrSunday && inWindow && !isSelected;
+
+                        cells.push(
+                          <button
+                            key={iso}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setSelectedDate(iso);
+                              setSelectedTime(null);
+                              setCalendarOpen(false);
+                            }}
+                            className="relative flex aspect-square items-center justify-center rounded-[var(--radius-sm)] text-sm font-medium transition-all duration-150 active:scale-[0.93]"
+                            style={{
+                              background: isSelected ? "var(--brand-blue-hex)" : "transparent",
+                              color: isSelected
+                                ? "#fff"
+                                : disabled
+                                  ? "var(--text-tertiary)"
+                                  : "var(--text-primary)",
+                              opacity: disabled && !inWindow ? 0.2 : disabled ? 0.35 : 1,
+                              pointerEvents: disabled ? "none" : "auto",
+                              fontWeight: isToday ? 800 : 500,
+                            }}
+                          >
+                            {day}
+                            {isToday && !isSelected && (
+                              <span
+                                className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                                style={{ background: "var(--brand-teal-hex)" }}
+                              />
+                            )}
+                            {showRedDot && (
+                              <span
+                                className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                                style={{ background: "#ef4444" }}
+                              />
+                            )}
+                          </button>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex items-center gap-3 border-t border-[var(--border-subtle)] px-4 py-2.5">
+                    <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--brand-teal-hex)" }} />
+                      Today
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[10px]" style={{ color: "#ef4444" }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+                      Sundays &amp; public holidays unavailable
+                    </span>
+                  </div>
+
+                </div>
+              </>,
+              document.body
+            )}
+          </div>
+
+          {/* ── Time trigger + dropdown ──────────────────────────── */}
+          {selectedDate && (
+            <div className="relative">
+              <button
+                ref={timeTriggerRef}
+                type="button"
+                onClick={() => { timeDropdownOpen ? setTimeDropdownOpen(false) : openTimePopup(); }}
+                className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-left text-sm transition-colors duration-150"
+              >
+                <CalendarBlank size={18} weight="duotone" className="shrink-0 text-brand-blue" />
+                <span
+                  className="flex-1 text-sm"
                   style={{
-                    background: isSelected
-                      ? "var(--brand-blue-hex)"
-                      : isFullyBooked
-                        ? "var(--surface-secondary)"
-                        : "var(--surface-elevated)",
-                    opacity: pastDisabled ? 0.35 : 1,
-                    pointerEvents: disabled ? "none" : "auto",
-                    borderBottom: i < TIME_SLOTS.length - 1
-                      ? "1px solid var(--border-subtle)"
-                      : "none",
+                  color: "var(--text-primary)",
+                  fontWeight: selectedTime ? 500 : 400,
                   }}
                 >
-                  {/* Availability dot */}
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{
-                      background: isSelected
-                        ? "rgba(255,255,255,0.6)"
-                        : pastDisabled
-                          ? "var(--border-medium)"
-                          : isFullyBooked
-                            ? "#d1495b"
-                            : isLimited
-                              ? "#e07b4a"
-                              : "#4caf7d",
-                    }}
-                  />
-                  {/* Time label */}
-                  <span
-                    className="flex-1 text-left"
-                    style={{
-                      color: isSelected
-                        ? "#ffffff"
-                        : isFullyBooked
-                          ? "var(--text-tertiary)"
-                          : "var(--text-primary)",
-                      textDecoration: isFullyBooked ? "line-through" : "none",
-                    }}
+                  {selectedTime ? formatDisplayTime(selectedTime) : "Choose a preferred time"}
+                </span>
+                <CaretDown
+                  size={14}
+                  className="shrink-0 text-[var(--text-tertiary)] transition-transform duration-200"
+                  style={{ transform: timeDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              </button>
+
+              {/* Time dropdown — portalled into body to escape transform stacking contexts */}
+              {timeDropdownOpen && timePos && createPortal(
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setTimeDropdownOpen(false)} />
+                  <div
+                    className="fixed z-[9999] overflow-hidden overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-xl"
+                    style={{ top: timePos.top, left: timePos.left, width: timePos.width, maxHeight: 280 }}
                   >
-                    {formatDisplayTime(slot)}
-                  </span>
-                  {/* Status badge */}
-                  {isFullyBooked && (
-                    <span
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{
-                        background: "oklch(0.65 0.18 15 / 0.08)",
-                        color: "#a83240",
-                      }}
-                    >
-                      Fully booked
-                    </span>
-                  )}
-                  {isLimited && !isSelected && (
-                    <span
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{
-                        background: "oklch(0.65 0.13 40 / 0.10)",
-                        color: "#c45c1a",
-                      }}
-                    >
-                      limited spots remain
-                    </span>
-                  )}
-                  {isSelected && (
-                    <span className="shrink-0 text-xs font-semibold text-white/70">
-                      Selected
-                    </span>
-                  )}
-                </button>
-              );
-            });
-            })()}
-          </div>
-          </div>{/* end outer clip wrapper */}
+                    {(() => {
+                      const bookedIdx = fullyBookedIndex(selectedDate);
+                      const limitedSet = limitedSlotIndices(selectedDate, bookedIdx);
+                      return TIME_SLOTS.map((slot, i) => {
+                        const pastDisabled = isSlotDisabled(slot);
+                        const isFullyBooked = !pastDisabled && i === bookedIdx;
+                        const disabled = pastDisabled || isFullyBooked;
+                        const isSelected = selectedTime === slot;
+                        const isLimited = !disabled && limitedSet.has(i);
+
+                        return (
+                          <button
+                            key={slot}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setSelectedTime(slot);
+                              setTimeDropdownOpen(false);
+                              setTimeout(() => {
+                                const el = confirmBtnRef.current;
+                                if (!el) return;
+                                const rect = el.getBoundingClientRect();
+                                const gap = 12;
+                                const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
+                                window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+                              }, 0);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors duration-150 active:scale-[0.99]"
+                            style={{
+                              background: isSelected
+                                ? "var(--brand-blue-hex)"
+                                : isFullyBooked
+                                  ? "var(--surface-secondary)"
+                                  : "var(--surface-elevated)",
+                              opacity: pastDisabled ? 0.35 : 1,
+                              pointerEvents: disabled ? "none" : "auto",
+                              borderBottom: i < TIME_SLOTS.length - 1
+                                ? "1px solid var(--border-subtle)"
+                                : "none",
+                            }}
+                          >
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{
+                                background: isSelected
+                                  ? "rgba(255,255,255,0.6)"
+                                  : pastDisabled
+                                    ? "var(--border-medium)"
+                                    : isFullyBooked
+                                      ? "#d1495b"
+                                      : isLimited
+                                        ? "#e07b4a"
+                                        : "#4caf7d",
+                              }}
+                            />
+                            <span
+                              className="flex-1 text-left"
+                              style={{
+                                color: isSelected
+                                  ? "#ffffff"
+                                  : isFullyBooked
+                                    ? "var(--text-tertiary)"
+                                    : "var(--text-primary)",
+                                textDecoration: isFullyBooked ? "line-through" : "none",
+                              }}
+                            >
+                              {formatDisplayTime(slot)}
+                            </span>
+                            {isFullyBooked && (
+                              <span
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                style={{
+                                  background: "oklch(0.65 0.18 15 / 0.08)",
+                                  color: "#a83240",
+                                }}
+                              >
+                                Fully booked
+                              </span>
+                            )}
+                            {isLimited && !isSelected && (
+                              <span
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                style={{
+                                  background: "oklch(0.65 0.13 40 / 0.10)",
+                                  color: "#c45c1a",
+                                }}
+                              >
+                                limited spots remain
+                              </span>
+                            )}
+                            {isSelected && (
+                              <span className="shrink-0 text-xs font-semibold text-white/70">
+                                Selected
+                              </span>
+                            )}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </>,
+                document.body
+              )}
+            </div>
+          )}
+
+          {/* Hours hint — changes once a date is chosen */}
+          <p className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+            <Clock size={12} className="shrink-0" />
+            {selectedDate
+              ? "Appointment slots open from 10:30am – 7pm"
+              : "Open Mondays – Saturdays"}
+          </p>
+
         </div>
-      )}
+      </div>
 
       {/* ── Office location — hidden on desktop (shown in sidebar) */}
       <div
