@@ -284,7 +284,7 @@ interface LoanResultsProps {
 
 /* ── Reconsider Modal ─────────────────────────────────────────────── */
 const SURVEY_REASONS = [
-  { emoji: "🔍", label: "Comparing offers" },
+  { emoji: "🔍", label: "Shopping around" },
   { emoji: "⏳", label: "Don't need for now" },
   { emoji: "💰", label: "Loan amount doesn't match my expectation" },
   { emoji: "📊", label: "Rates don't match my expectations" },
@@ -409,7 +409,7 @@ function ReconsiderModal({
           <>
             <div className="flex flex-col gap-2 pr-8" style={{ animation: "fade-up 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
               <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                What&apos;s your reason?
+                No worries, mind sharing why?
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
                 Help us understand so we can improve. Your answer won&apos;t affect your application.
