@@ -14,6 +14,7 @@ import {
   Car,
   X,
   CaretDown,
+  Export,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD, local dates)
@@ -276,6 +277,32 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
   const canConfirm = selectedDate !== null && selectedTime !== null;
 
   if (confirmed && selectedDateObj && selectedTime) {
+    const idKey = formData.idType === "foreigner" ? "foreigner" : "sg_pr";
+    const thingsToBringLines = WHAT_TO_BRING[idKey].map((item) => `• ${item}`).join("\n");
+
+    const appointmentMessage = [
+      "📅 CF Money Appointment",
+      "",
+      `Date: ${formatDisplayDate(selectedDateObj)}`,
+      `Time: ${formatDisplayTime(selectedTime)}`,
+      "",
+      "📍 1 North Bridge Road, High Street Centre",
+      "#01-35, Singapore 179094",
+      "City Hall MRT (Exit B) or Clarke Quay MRT (Exit E)",
+      "https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6",
+      "",
+      "🗂 Things to bring:",
+      thingsToBringLines,
+    ].join("\n");
+
+    const handleShare = () => {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        navigator.share({ text: appointmentMessage }).catch(() => {});
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(appointmentMessage)}`, "_blank");
+      }
+    };
+
     return (
       <div className="animate-fade-up flex flex-col gap-8 pt-6 text-center sm:pt-0 sm:text-left">
         {/* Success state */}
@@ -300,16 +327,16 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
             <p className="mt-1 text-xs text-[var(--text-tertiary)]">
               Kindly arrive on time so we can serve you promptly.
             </p>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="mx-auto mt-3 flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            >
+              <Export size={16} weight="bold" />
+              Save appointment details
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => addToCalendar(selectedDateObj, selectedTime)}
-            className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] sm:w-auto"
-          >
-            <span aria-hidden="true">📅</span>
-            Add to Calendar
-          </button>
         </div>
 
         {/* ── What to bring ───────────────────────────────────────── */}
@@ -811,7 +838,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
           )}
 
           {/* Hours hint — changes once a date is chosen */}
-          <p className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+          <p className="flex items-center justify-center gap-1.5 text-xs text-[var(--text-tertiary)]">
             <Clock size={12} className="shrink-0" />
             {selectedDate
               ? "Appointment slots open from 10:30am – 7pm"

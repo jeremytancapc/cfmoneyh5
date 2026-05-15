@@ -513,9 +513,7 @@ export function LoanResults({
   const scrollToCta = useCallback(() => {
     const el = ctaRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const targetY = window.scrollY + rect.bottom - window.innerHeight + 24;
-    window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
   // 0 = hero only  1 = amount  2 = tenure row  3 = badge  4 = notice + CTA
@@ -542,7 +540,7 @@ export function LoanResults({
         Visibility is driven by motion's animate prop, not conditional rendering.
       */}
       <div className="relative z-[1] flex flex-col gap-8">
-        <ConfettiBanner />
+        {/* ConfettiBanner removed */}
 
         {/* ── Stage 0: "Approved in Principle" layered-shadow reveal ── */}
         <TextAnimation
