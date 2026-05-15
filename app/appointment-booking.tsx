@@ -298,7 +298,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
               {formatDisplayTime(selectedTime)}
             </p>
             <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-              Please arrive on time to ensure a smoother process.
+              Kindly arrive on time so we can serve you promptly.
             </p>
           </div>
 
@@ -823,7 +823,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
 
       {/* ── Office location — hidden on desktop (shown in sidebar) */}
       <div
-        className="flex flex-col gap-3 pt-2 lg:hidden"
+        className="hidden"
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 160ms both",
@@ -933,9 +933,9 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
           }}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
-          Confirm Appointment
-          <ArrowRight size={16} weight="bold" />
+          Book Appointment
         </button>
+        <div className="pb-6" />
         {!canConfirm && (
           <p className="mt-2 text-center text-xs text-[var(--text-tertiary)]">
             {!selectedDate
