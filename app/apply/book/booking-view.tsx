@@ -46,13 +46,14 @@ export function BookingView({ formData }: Props) {
     }
 
     const json = (await res.json()) as BookingConfirmation;
-    console.info(`${LOG} success`, {
+    console.info(`${LOG} success — redirecting to /apply/booked`, {
       appointmentId: json.appointmentId,
       cfh5Id: json.cfh5Id,
       date: json.date,
       time: json.time,
       loanAmount: json.loanAmount,
     });
+    router.replace("/apply/booked");
     return json;
   }
 
@@ -85,6 +86,7 @@ export function BookingView({ formData }: Props) {
               formData={formData}
               onBack={() => router.push("/apply/approval")}
               onConfirm={handleConfirm}
+              onBookedRedirect
             />
           </div>
         </div>
