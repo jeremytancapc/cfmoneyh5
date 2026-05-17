@@ -1,18 +1,21 @@
 import Image from "next/image";
-import { cookies } from "next/headers";
+
 import { LoanApplicationForm } from "./loan-application-form";
 import { SidebarTrustFeatures } from "./sidebar-trust-features";
-import { GATE_COOKIE, getApplySession } from "@/lib/apply-session";
+import { getApplySession } from "@/lib/apply-session";
+import { redirectToApplyContinueIfNeeded } from "@/lib/apply-landing";
 
 export default async function HomePage() {
   const session = await getApplySession();
-  const cookieStore = await cookies();
-  const hasApplyGate = cookieStore.get(GATE_COOKIE)?.value === "1";
-  const resumeSingpassReview = Boolean(
-    session?.authMethod === "singpass" &&
-      hasApplyGate &&
-      (session.nric || session.fullName),
-  );
+  await redirectToApplyContinueIfNeeded();
+  return <ApplyLandingLayout session={session} />;
+}
+
+function ApplyLandingLayout({
+  session,
+}: {
+  session: Awaited<ReturnType<typeof getApplySession>>;
+}) {
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
@@ -72,14 +75,10 @@ export default async function HomePage() {
 
         <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
-            <LoanApplicationForm
-              initialApplySession={session ?? undefined}
-              initialHistorySteps={resumeSingpassReview ? [1, 2, 3, 8] : undefined}
-            />
+            <LoanApplicationForm initialApplySession={session ?? undefined} />
           </div>
         </div>
 
-        {/* Mobile-only footer */}
         <footer className="lg:hidden bg-brand-blue px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
           <Image
             src="/images/cf-money-white.png"
@@ -89,21 +88,50 @@ export default async function HomePage() {
             className="mb-4 h-5 w-auto"
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
-            <span className="opacity-75">Copyright © 2026 CF Money Pte. Ltd. All rights reserved</span>
+            <span className="opacity-75">
+              Copyright © 2026 CF Money Pte. Ltd. All rights reserved
+            </span>
           </div>
 
           <p className="mt-4 text-xs leading-relaxed opacity-70">
             CF Money Pte. Ltd. (UEN No. 201406595W) is a company incorporated under the laws of Singapore. Customers are advised to read the{" "}
-            <a href="https://crawfort.com/sg/terms/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 opacity-100">Terms and Conditions</a>
-            {" "}and{" "}
-            <a href="https://crawfort.com/sg/privacy/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 opacity-100">Privacy Policy</a>
-            {" "}carefully. If you have any concerns or further queries about how we are handling your personal data or queries regarding the Terms and Conditions and the Privacy Policy, please contact our Data Protection Officer at{" "}
-            <a href="mailto:dposg@crawfort.com" className="underline underline-offset-2 opacity-100">dposg@crawfort.com</a>.
+            <a
+              href="https://crawfort.com/sg/terms/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 opacity-100"
+            >
+              Terms and Conditions
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://crawfort.com/sg/privacy/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 opacity-100"
+            >
+              Privacy Policy
+            </a>{" "}
+            carefully. If you have any concerns or further queries about how we are handling your personal data or queries regarding the Terms and Conditions and the Privacy Policy, please contact our Data Protection Officer at{" "}
+            <a
+              href="mailto:dposg@crawfort.com"
+              className="underline underline-offset-2 opacity-100"
+            >
+              dposg@crawfort.com
+            </a>
+            .
           </p>
 
           <p className="mt-4 text-xs font-semibold">
             For any enquiries, please WhatsApp us at{" "}
-            <a href="https://wa.me/6560119380" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">6011 9380</a>
+            <a
+              href="https://wa.me/6560119380"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2"
+            >
+              6011 9380
+            </a>
           </p>
         </footer>
       </main>

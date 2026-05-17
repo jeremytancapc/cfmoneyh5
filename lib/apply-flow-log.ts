@@ -13,6 +13,7 @@ export const APPLY_TRACE_ID_KEY = "applyTraceId";
 
 export type ApplyFlowEventName =
   | "singpass_gate_saved"
+  | "manual_gate_saved"
   | "auth_callback_received"
   | "activate_merged";
 

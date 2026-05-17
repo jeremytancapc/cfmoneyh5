@@ -34,10 +34,11 @@ export async function POST(request: NextRequest) {
   const prev: SessionWithTrace = existing ? (decodeSession(existing) ?? {}) : {};
   const merged: SessionWithTrace = { ...prev, ...formData };
 
-  const isSingpassGate =
-    gate === "apply" && formData.authMethod === "singpass";
+  const isApplyGateSave =
+    gate === "apply" &&
+    (formData.authMethod === "singpass" || formData.authMethod === "manual");
 
-  if (isSingpassGate && !merged[APPLY_TRACE_ID_KEY]) {
+  if (isApplyGateSave && !merged[APPLY_TRACE_ID_KEY]) {
     merged[APPLY_TRACE_ID_KEY] = newApplyTraceId();
   }
 
@@ -56,9 +57,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (isSingpassGate && merged[APPLY_TRACE_ID_KEY]) {
+  if (isApplyGateSave && merged[APPLY_TRACE_ID_KEY]) {
     await logApplyFlowEvent({
-      event: "singpass_gate_saved",
+      event:
+        formData.authMethod === "singpass"
+          ? "singpass_gate_saved"
+          : "manual_gate_saved",
       traceId: merged[APPLY_TRACE_ID_KEY],
       applyTraceId: merged[APPLY_TRACE_ID_KEY],
       request,
@@ -68,7 +72,7 @@ export async function POST(request: NextRequest) {
       cookieMergedBytes: byteLength(encoded),
       sessionBefore: prev,
       sessionAfter: merged,
-      details: { gate },
+      details: { gate, auth_method: formData.authMethod },
     });
   }
 

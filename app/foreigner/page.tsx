@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { LoanApplicationForm } from "../loan-application-form";
 import { SidebarTrustFeatures } from "../sidebar-trust-features";
+import { redirectToApplyContinueIfNeeded } from "@/lib/apply-landing";
 
 const FOREIGNER_REMINDERS = [
   "I understand I need to bring my latest 3 months payslip and proof of residence letter which shows my name and local residential address (e.g. bank statement / utility bill).",
@@ -12,7 +13,8 @@ const FOREIGNER_THINGS_TO_BRING = [
   "Work pass with more than 3 months validity remaining, or your pass renewal IPA letter.",
 ];
 
-export default function ForeignerPage() {
+export default async function ForeignerPage() {
+  await redirectToApplyContinueIfNeeded();
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">

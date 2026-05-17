@@ -15,6 +15,7 @@ import {
 import type { LoanFormData } from "@/lib/loan-form";
 import { calculateMonthlyRepayment } from "@/lib/loan-form";
 import { trackDisplayStep, trackEvent } from "@/lib/analytics";
+import { postSubmitUrl } from "@/lib/post-submit-nav";
 import { LoanLoadingScreen } from "@/app/loan-loading-screen";
 
 interface Props {
@@ -190,10 +191,8 @@ export function ReviewForm({ initialData }: Props) {
           onComplete={() => {
             const path = submitNavRef.current;
             const leadId = submitLeadIdRef.current;
-            if (path === "/apply/pending" && leadId) {
-              router.push(`/apply/pending?leadId=${encodeURIComponent(leadId)}`);
-            } else if (path) {
-              router.push(path);
+            if (path) {
+              router.push(postSubmitUrl(path, leadId));
             }
             setSubmitOverlay(null);
           }}
