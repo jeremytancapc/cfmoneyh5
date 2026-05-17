@@ -24,6 +24,7 @@ import type { LoanFormData } from "@/lib/loan-form";
 import { assessCredit } from "@/lib/credit-score";
 import { createAdminClient } from "@/lib/supabase/client";
 import { peekAuthCallbackPayload } from "@/lib/auth-callback-store";
+import { buildPostSubmitSession } from "@/lib/apply-session-slim";
 
 export const runtime = "nodejs";
 
@@ -173,14 +174,12 @@ export async function POST(request: NextRequest) {
     raw_assessment: assessment as unknown as Record<string, unknown>,
   });
 
-  // ── 5. Update session with approval result ────────────────────────────────
-  const updatedSession = {
-    ...sessionData,
-    leadId,
+  // ── 5. Update session with approval result (slim cookie — no CPF/NOA blobs) ─
+  const updatedSession = buildPostSubmitSession(sessionData, leadId, {
     approvedLoanAmount: assessment.approvedLoanAmount,
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
-  };
+  });
   const encoded = encodeSession(updatedSession);
 
   const res = NextResponse.json({

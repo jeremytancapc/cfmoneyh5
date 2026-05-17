@@ -13,6 +13,7 @@ import {
   clearCookies,
   SESSION_COOKIE,
 } from "@/lib/apply-session";
+import { bookingConfirmCookieValue } from "@/lib/booking-confirmation";
 import { createAdminClient } from "@/lib/supabase/client";
 
 export const runtime = "nodejs";
@@ -212,7 +213,18 @@ export async function POST(request: NextRequest) {
     res.cookies.set(c);
   }
 
-  console.info(`${LOG} success — session cookies cleared, JSON response`, {
+  res.cookies.set(
+    bookingConfirmCookieValue({
+      appointmentId: appointment.id as string,
+      cfh5Id,
+      loanAmount,
+      date,
+      time,
+      idType: typeof session.idType === "string" ? session.idType : undefined,
+    }),
+  );
+
+  console.info(`${LOG} success — apply cookies cleared, booking_confirm set`, {
     appointmentId: appointment.id,
     cfh5Id,
     date,

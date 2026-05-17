@@ -1,12 +1,14 @@
 import Image from "next/image";
 import { LoanApplicationForm } from "../loan-application-form";
 import { SidebarTrustFeatures } from "../sidebar-trust-features";
+import { redirectToApplyContinueIfNeeded } from "@/lib/apply-landing";
 
 const VCSA_SG_THINGS_TO_BRING = [
   "Income proof documents (e.g. PHV monthly statements, bank statements, or any other relevant income proof documents).",
 ];
 
-export default function VCSASGPage() {
+export default async function VCSASGPage() {
+  await redirectToApplyContinueIfNeeded();
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">

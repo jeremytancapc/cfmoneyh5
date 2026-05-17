@@ -119,6 +119,8 @@ interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
   onConfirm?: (date: string, time: string) => Promise<BookingConfirmation | null>;
+  /** When set, successful booking calls this instead of showing inline confirmation. */
+  onBookedRedirect?: boolean;
   thingsToBring?: string[];
 }
 
@@ -183,7 +185,13 @@ function WhatToBring({ idType }: { idType: string }) {
   );
 }
 
-export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring = [] }: AppointmentBookingProps) {
+export function AppointmentBooking({
+  formData,
+  onBack,
+  onConfirm,
+  onBookedRedirect = false,
+  thingsToBring = [],
+}: AppointmentBookingProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -809,6 +817,10 @@ export function AppointmentBooking({ formData, onBack, onConfirm, thingsToBring 
                 const out = await onConfirm(selectedDate, selectedTime);
                 if (out === null) {
                   console.warn(`${BOOK_LOG} onConfirm returned null — staying on picker (error or slot_taken)`);
+                  return;
+                }
+                if (onBookedRedirect) {
+                  trackEvent("step_11_appointment_booked");
                   return;
                 }
                 setBookingDetails(out);

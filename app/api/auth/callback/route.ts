@@ -5,6 +5,12 @@ import { saveAuthCallbackPayload } from "@/lib/auth-callback-store";
 import { encodeSession } from "@/lib/apply-session";
 import { buildMyInfoPatch } from "@/lib/myinfo";
 import type { LoanFormData } from "@/lib/loan-form";
+import {
+  byteLength,
+  logApplyFlowEvent,
+  newApplyTraceId,
+  snapshotSession,
+} from "@/lib/apply-flow-log";
 
 export const runtime = "nodejs";
 
@@ -34,26 +40,37 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Always store full raw payload for the debug result page.
   const debugRid = randomUUID();
   saveAuthCallbackPayload(debugRid, payload);
 
-  // Merge the existing apply_session cookie (if any) with MyInfo data.
-  // The browser cookie is NOT available here (server-to-server webhook call),
-  // so we only persist the MyInfo fields. The activate route merges them.
-  // Raw blobs (CPF, NOA, full MyInfo) stay in the server-side store (keyed by
-  // debugRid) and are never put in the cookie to avoid exceeding the 4 KB limit.
   const myinfoPatch = payload.myinfo ? buildMyInfoPatch(payload.myinfo) : {};
   const sessionData: Partial<LoanFormData> = { ...myinfoPatch, singpassRawKey: debugRid };
 
-  // Encode the partial session so the activate route can merge + set cookies.
   const activateToken = encodeSession(sessionData);
-
-  const origin = getRequestOrigin(request);
-  const activateUrl = new URL("/api/apply/activate", origin);
+  const activateUrl = new URL("/api/apply/activate", getRequestOrigin(request));
   activateUrl.searchParams.set("token", activateToken);
 
-  // Lambda reads `data` and redirects the browser there.
+  const traceId = newApplyTraceId();
+  await logApplyFlowEvent({
+    event: "auth_callback_received",
+    traceId,
+    singpassRawKey: debugRid,
+    request,
+    requestPath: "/api/auth/callback",
+    hadActivateToken: true,
+    tokenDecodeOk: true,
+    cookieTokenBytes: byteLength(activateToken),
+    sessionAfter: sessionData,
+    details: {
+      has_myinfo: Boolean(payload.myinfo),
+      payload_code: payload.code ?? null,
+      payload_message: payload.message ?? null,
+      payload_state: payload.state ?? null,
+      myinfo_snapshot: snapshotSession(sessionData),
+      activate_url_length: activateUrl.toString().length,
+    },
+  });
+
   return NextResponse.json({
     code: 200,
     message: "success",

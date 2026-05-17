@@ -1,0 +1,20 @@
+{
+  "authMethod": "singpass",
+  "amount": 5000,
+  "tenure": 6,
+  "monthlyIncome": "5000",
+  "urgency": "within_week",
+  "fullName": "TEST USER",
+  "nric": "S1234567A",
+  "dob": "1990-01-01",
+  "mobile": "91234567",
+  "email": "test@example.com",
+  "idType": "singaporean",
+  "postalCode": "123456",
+  "address": "1 TEST STREET #01-01",
+  "employmentStatus": "employed",
+  "loanPurpose": "personal",
+  "bankruptcyDeclaration": "clear",
+  "moneylenderNoLoans": true,
+  "moneylenderPaymentHistory": ""
+}
