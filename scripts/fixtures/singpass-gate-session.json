@@ -1,0 +1,10 @@
+{
+  "formData": {
+    "authMethod": "singpass",
+    "amount": 5000,
+    "tenure": 6,
+    "monthlyIncome": "5000",
+    "urgency": "within_week"
+  },
+  "gate": "apply"
+}

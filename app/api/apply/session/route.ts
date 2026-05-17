@@ -9,6 +9,12 @@ import {
   SESSION_COOKIE,
 } from "@/lib/apply-session";
 import type { LoanFormData } from "@/lib/loan-form";
+import {
+  APPLY_TRACE_ID_KEY,
+  byteLength,
+  logApplyFlowEvent,
+  newApplyTraceId,
+} from "@/lib/apply-flow-log";
 
 export const runtime = "nodejs";
 
@@ -17,20 +23,28 @@ type RequestBody = {
   gate?: "apply" | "review";
 };
 
+type SessionWithTrace = Partial<LoanFormData> & { applyTraceId?: string };
+
 // POST — save form data and set gate cookie
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as RequestBody;
   const { formData, gate = "apply" } = body;
 
-  // Merge with existing session so partial updates don't lose earlier fields.
   const existing = request.cookies.get(SESSION_COOKIE)?.value;
-  const prev = existing ? (decodeSession(existing) ?? {}) : {};
-  const merged = { ...prev, ...formData };
+  const prev: SessionWithTrace = existing ? (decodeSession(existing) ?? {}) : {};
+  const merged: SessionWithTrace = { ...prev, ...formData };
+
+  const isSingpassGate =
+    gate === "apply" && formData.authMethod === "singpass";
+
+  if (isSingpassGate && !merged[APPLY_TRACE_ID_KEY]) {
+    merged[APPLY_TRACE_ID_KEY] = newApplyTraceId();
+  }
+
   const encoded = encodeSession(merged);
 
   const res = NextResponse.json({ ok: true });
 
-  // Set session cookie with the new merged value.
   const sc = sessionCookieValue(merged);
   res.cookies.set({ ...sc, value: encoded });
 
@@ -40,6 +54,22 @@ export async function POST(request: NextRequest) {
     } else {
       res.cookies.set(reviewGateCookieValue());
     }
+  }
+
+  if (isSingpassGate && merged[APPLY_TRACE_ID_KEY]) {
+    await logApplyFlowEvent({
+      event: "singpass_gate_saved",
+      traceId: merged[APPLY_TRACE_ID_KEY],
+      applyTraceId: merged[APPLY_TRACE_ID_KEY],
+      request,
+      requestPath: "/api/apply/session",
+      hadExistingSessionCookie: Boolean(existing),
+      cookieExistingBytes: byteLength(existing),
+      cookieMergedBytes: byteLength(encoded),
+      sessionBefore: prev,
+      sessionAfter: merged,
+      details: { gate },
+    });
   }
 
   return res;

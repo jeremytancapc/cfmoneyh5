@@ -1,0 +1,49 @@
+{
+  "code": 200,
+  "message": "success",
+  "state": "test-state-uuid",
+  "myinfo": {
+    "name": { "value": "TEST USER" },
+    "uinfin": { "value": "S1234567A" },
+    "email": { "value": "test@example.com" },
+    "dob": { "value": "1990-01-01" },
+    "mobileno": {
+      "nbr": { "value": "91234567" },
+      "prefix": { "value": "+" },
+      "areacode": { "value": "65" }
+    },
+    "residentialstatus": { "code": "C", "desc": "CITIZEN" },
+    "regadd": {
+      "block": { "value": "1" },
+      "street": { "value": "TEST STREET" },
+      "floor": { "value": "1" },
+      "unit": { "value": "1" },
+      "postal": { "value": "123456" }
+    },
+    "marital": { "code": "1", "desc": "SINGLE" },
+    "noahistory": {
+      "noas": [
+        {
+          "yearofassessment": { "value": "2025" },
+          "category": { "value": "ORIGINAL" },
+          "taxclearance": { "value": "N" },
+          "amount": { "value": 60000 },
+          "employment": { "value": 60000 },
+          "trade": { "value": 0 },
+          "rent": { "value": 0 },
+          "interest": { "value": 0 }
+        }
+      ]
+    },
+    "cpfcontributions": {
+      "history": [
+        {
+          "month": { "value": "2026-01" },
+          "amount": { "value": 1500 },
+          "employer": { "value": "TEST EMPLOYER PTE LTD" },
+          "date": { "value": "2026-01-15" }
+        }
+      ]
+    }
+  }
+}

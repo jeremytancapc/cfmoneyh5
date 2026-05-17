@@ -5,32 +5,74 @@ import {
   sessionCookieValue,
   gateCookieValue,
   SESSION_COOKIE,
+  GATE_COOKIE,
 } from "@/lib/apply-session";
+import {
+  APPLY_TRACE_ID_KEY,
+  byteLength,
+  computeResumeWouldPass,
+  logApplyFlowEvent,
+  newApplyTraceId,
+} from "@/lib/apply-flow-log";
+import type { LoanFormData } from "@/lib/loan-form";
 
 export const runtime = "nodejs";
+
+type SessionWithTrace = Partial<LoanFormData> & { applyTraceId?: string };
 
 // GET /api/apply/activate?token=<signed-myinfo-patch>
 //
 // The browser lands here after the Lambda → Singpass → Lambda → webhook flow.
 // We merge the MyInfo patch with the existing apply_session cookie, set the
-// apply_gate cookie, and redirect to the home page form (no PII in URL).
+// apply_gate cookie, and redirect to /apply/review (no PII in URL).
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token") ?? "";
-
-  // Decode the MyInfo patch token that the callback route encoded.
+  const tokenDecodeOk = Boolean(token && decodeSession(token));
   const myinfoPatch = token ? (decodeSession(token) ?? {}) : {};
 
-  // Merge with whatever the browser already has in apply_session.
   const existingRaw = request.cookies.get(SESSION_COOKIE)?.value ?? "";
-  const existing = existingRaw ? (decodeSession(existingRaw) ?? {}) : {};
+  const existing: SessionWithTrace = existingRaw
+    ? (decodeSession(existingRaw) ?? {})
+    : {};
 
-  const merged = { ...existing, ...myinfoPatch };
+  const merged: SessionWithTrace = { ...existing, ...myinfoPatch };
+  if (!merged[APPLY_TRACE_ID_KEY]) {
+    merged[APPLY_TRACE_ID_KEY] = existing[APPLY_TRACE_ID_KEY] ?? newApplyTraceId();
+  }
+
   const encoded = encodeSession(merged);
+  const hadApplyGateBefore = request.cookies.get(GATE_COOKIE)?.value === "1";
+  const resumeWouldPass = computeResumeWouldPass(merged, true);
 
-  const homeUrl = new URL("/", request.nextUrl.origin);
-  const res = NextResponse.redirect(homeUrl, { status: 302 });
+  await logApplyFlowEvent({
+    event: "activate_merged",
+    traceId: merged[APPLY_TRACE_ID_KEY]!,
+    applyTraceId: merged[APPLY_TRACE_ID_KEY] ?? null,
+    singpassRawKey: merged.singpassRawKey || null,
+    request,
+    requestPath: request.nextUrl.pathname,
+    hadExistingSessionCookie: Boolean(existingRaw),
+    hadActivateToken: Boolean(token),
+    tokenDecodeOk,
+    hadApplyGateCookie: hadApplyGateBefore,
+    cookieExistingBytes: byteLength(existingRaw),
+    cookieTokenBytes: byteLength(token),
+    cookieMergedBytes: byteLength(encoded),
+    resumeWouldPass,
+    sessionBefore: existing,
+    sessionAfter: merged,
+    details: {
+      redirect_to: "/apply/review",
+      had_apply_gate_before: hadApplyGateBefore,
+      singpass_raw_key_from_token: Boolean(
+        (myinfoPatch as Partial<LoanFormData>).singpassRawKey,
+      ),
+    },
+  });
 
-  // Set the merged session cookie + gate so the home form can resume.
+  const reviewUrl = new URL("/apply/review", request.nextUrl.origin);
+  const res = NextResponse.redirect(reviewUrl, { status: 302 });
+
   const sc = sessionCookieValue(merged);
   res.cookies.set({ ...sc, value: encoded });
   res.cookies.set(gateCookieValue());
