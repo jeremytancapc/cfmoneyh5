@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { clearApplyCookiesServer } from "@/lib/apply-session";
 import { enforceApplyFunnel } from "@/lib/apply-funnel-enforce";
 import { createAdminClient } from "@/lib/supabase/client";
 import { looksLikeLeadUuid } from "@/lib/lead-id";
@@ -22,12 +21,11 @@ function pickLeadQuery(raw: string | string[] | undefined): string | undefined {
 
 /**
  * Pending confirmation (like /apply/booked): survives reload via ?leadId= only.
- * Clears all apply funnel cookies so `/` is a fresh application.
+ * Apply cookies are cleared in middleware + submit response (not here — RSC cannot mutate cookies).
  */
 export default async function PendingPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   await enforceApplyFunnel("/apply/pending", sp);
-  await clearApplyCookiesServer();
 
   const qRaw = pickLeadQuery(sp.leadId);
   const leadId = qRaw && looksLikeLeadUuid(qRaw) ? qRaw.trim() : null;

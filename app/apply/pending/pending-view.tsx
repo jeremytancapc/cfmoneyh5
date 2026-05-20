@@ -166,9 +166,6 @@ export function PendingView({ pending }: Props) {
             <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
               Office hours: Mon – Sat, 10:30am – 7:30pm. Closed on Sundays and Public Holidays.
             </p>
-            <p className="text-xs text-[var(--text-tertiary)]">
-              You can bookmark or refresh this page — your application reference stays in the link.
-            </p>
 
           </div>
         </div>

@@ -16,6 +16,7 @@ import {
   approvalOfferCookieValue,
   storedApprovalOfferFromForm,
 } from "@/lib/approval-offer";
+import { applyClearApplyCookiesOnResponse } from "@/lib/clear-apply-cookies-response";
 import {
   decodeSession,
   encodeSession,
@@ -197,10 +198,9 @@ export async function POST(request: NextRequest) {
     explanation: assessment.explanation,
   });
 
-  const sc = sessionCookieValue(updatedSession);
-  res.cookies.set({ ...sc, value: encoded });
-
   if (assessment.isEligible && assessment.approvedLoanAmount > 0) {
+    const sc = sessionCookieValue(updatedSession);
+    res.cookies.set({ ...sc, value: encoded });
     res.cookies.set(reviewGateCookieValue(POST_SUBMIT_COOKIE_MAX_AGE_SEC));
     res.cookies.set(
       approvalOfferCookieValue(
@@ -211,7 +211,9 @@ export async function POST(request: NextRequest) {
         }),
       ),
     );
+    return res;
   }
 
+  applyClearApplyCookiesOnResponse(res);
   return res;
 }
