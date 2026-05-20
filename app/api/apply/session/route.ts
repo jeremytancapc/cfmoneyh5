@@ -9,6 +9,7 @@ import {
   SESSION_COOKIE,
 } from "@/lib/apply-session";
 import type { LoanFormData } from "@/lib/loan-form";
+import { stripPostSubmitSessionFields } from "@/lib/apply-session-fields";
 import {
   APPLY_TRACE_ID_KEY,
   byteLength,
@@ -21,6 +22,8 @@ export const runtime = "nodejs";
 type RequestBody = {
   formData: Partial<LoanFormData>;
   gate?: "apply" | "review";
+  /** When false, save session only (e.g. Singpass redirect before MyInfo returns). Default true. */
+  setApplyGate?: boolean;
 };
 
 type SessionWithTrace = Partial<LoanFormData> & { applyTraceId?: string };
@@ -28,18 +31,21 @@ type SessionWithTrace = Partial<LoanFormData> & { applyTraceId?: string };
 // POST — save form data and set gate cookie
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as RequestBody;
-  const { formData, gate = "apply" } = body;
+  const { formData, gate = "apply", setApplyGate = true } = body;
 
   const existing = request.cookies.get(SESSION_COOKIE)?.value;
   const prev: SessionWithTrace = existing ? (decodeSession(existing) ?? {}) : {};
-  const merged: SessionWithTrace = { ...prev, ...formData };
+  let merged: SessionWithTrace = { ...prev, ...formData };
 
   const isApplyGateSave =
     gate === "apply" &&
     (formData.authMethod === "singpass" || formData.authMethod === "manual");
 
-  if (isApplyGateSave && !merged[APPLY_TRACE_ID_KEY]) {
-    merged[APPLY_TRACE_ID_KEY] = newApplyTraceId();
+  if (isApplyGateSave) {
+    merged = stripPostSubmitSessionFields(merged);
+    if (!merged[APPLY_TRACE_ID_KEY]) {
+      merged[APPLY_TRACE_ID_KEY] = newApplyTraceId();
+    }
   }
 
   const encoded = encodeSession(merged);
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
   const sc = sessionCookieValue(merged);
   res.cookies.set({ ...sc, value: encoded });
 
-  if (gate === "apply" || gate === "review") {
+  if (setApplyGate && (gate === "apply" || gate === "review")) {
     if (gate === "apply") {
       res.cookies.set(gateCookieValue());
     } else {
@@ -72,7 +78,11 @@ export async function POST(request: NextRequest) {
       cookieMergedBytes: byteLength(encoded),
       sessionBefore: prev,
       sessionAfter: merged,
-      details: { gate, auth_method: formData.authMethod },
+      details: {
+        gate,
+        auth_method: formData.authMethod,
+        set_apply_gate: setApplyGate,
+      },
     });
   }
 

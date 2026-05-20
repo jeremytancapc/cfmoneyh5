@@ -2,7 +2,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { GATE_COOKIE, getApplySession } from "@/lib/apply-session";
-import { hasValidApplyAuthMethod } from "@/lib/apply-flow-guard";
+import {
+  hasSingpassMyInfoMerged,
+  hasValidApplyAuthMethod,
+} from "@/lib/apply-flow-guard";
+import { postSubmitUrl } from "@/lib/post-submit-nav";
 import { initialLoanFormData, type LoanFormData } from "@/lib/loan-form";
 
 import { ReviewForm } from "./review-form";
@@ -28,7 +32,12 @@ export default async function ReviewPage() {
   }
 
   if (session.leadId) {
-    redirect(session.approvedLoanAmount ? "/apply/approval" : "/apply/pending");
+    const dest = session.approvedLoanAmount ? "/apply/approval" : "/apply/pending";
+    redirect(postSubmitUrl(dest, session.leadId));
+  }
+
+  if (session.authMethod === "singpass" && !hasSingpassMyInfoMerged(session)) {
+    redirect("/");
   }
 
   const initialData: LoanFormData = { ...initialLoanFormData, ...session };

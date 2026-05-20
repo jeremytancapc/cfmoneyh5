@@ -77,3 +77,11 @@ export function clearCookies() {
     { name: REVIEW_GATE_COOKIE, value: "", ...expire },
   ];
 }
+
+/** Clear apply funnel cookies in a Server Component / Server Action. */
+export async function clearApplyCookiesServer(): Promise<void> {
+  const store = await cookies();
+  for (const c of clearCookies()) {
+    store.delete(c.name);
+  }
+}

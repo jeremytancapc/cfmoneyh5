@@ -7,10 +7,10 @@ import {
   Info,
   CheckCircle,
 } from "@phosphor-icons/react";
-import type { LoanFormData } from "@/lib/loan-form";
+import type { PendingDisplay } from "@/lib/pending-display";
 
 interface Props {
-  formData: LoanFormData;
+  pending: PendingDisplay;
 }
 
 /** Shorten a UUID to the last 8 characters for display as a reference number. */
@@ -24,8 +24,8 @@ const NEXT_STEPS = [
   "WhatsApp us if you need to follow up.",
 ];
 
-export function PendingView({ formData }: Props) {
-  const { fullName, leadId, amount, idType } = formData;
+export function PendingView({ pending }: Props) {
+  const { fullName, leadId, amount, idType } = pending;
   const firstName = fullName ? fullName.split(" ")[0] : null;
   const cfh5Ref = leadId ? `CFH5-${shortRef(leadId)}` : null;
 
@@ -166,9 +166,12 @@ export function PendingView({ formData }: Props) {
             <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
               Office hours: Mon – Sat, 10:30am – 7:30pm. Closed on Sundays and Public Holidays.
             </p>
+            <p className="text-xs text-[var(--text-tertiary)]">
+              You can bookmark or refresh this page — your application reference stays in the link.
+            </p>
 
-          </div>
-        </div>
+          </motion>
+        </motion>
       </main>
     </div>
   );
