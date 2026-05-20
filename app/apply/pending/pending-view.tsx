@@ -170,8 +170,8 @@ export function PendingView({ pending }: Props) {
               You can bookmark or refresh this page — your application reference stays in the link.
             </p>
 
-          </motion>
-        </motion>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -15,6 +15,7 @@
     "supabase:types:prod": "supabase gen types typescript --project-id eitizjsyhlpheqannxpn > lib/supabase/types.ts",
     "test:apply-flow-logs": "bash scripts/test-apply-flow-logs.sh",
     "test:apply-flow-e2e": "bash scripts/test-apply-flow-e2e.sh",
+    "test:singpass-gate": "bash scripts/test-singpass-gate.sh",
     "test:apply-flow-logs:cookie-lost": "bash scripts/test-apply-flow-logs.sh cookie-lost",
     "test:apply-flow-logs:empty": "bash scripts/test-apply-flow-logs.sh empty-myinfo",
     "test:apply-flow-logs:full": "bash scripts/test-apply-flow-logs.sh full"
