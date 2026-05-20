@@ -208,9 +208,6 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
 
       <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)]">
         <p>We look forward to meeting you.</p>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          You can bookmark or refresh this page — your appointment details stay here for 30 days.
-        </p>
       </div>
     </div>
   );

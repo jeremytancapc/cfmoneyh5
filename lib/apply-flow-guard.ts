@@ -10,6 +10,13 @@ export function hasSingpassMyInfoMerged(
   return Boolean(session?.nric?.trim() && session?.fullName?.trim());
 }
 
+export function hasValidApplyAuthMethod(
+  session: Partial<LoanFormData> | null | undefined,
+): session is Partial<LoanFormData> & { authMethod: "manual" | "singpass" } {
+  return session?.authMethod === "manual" || session?.authMethod === "singpass";
+}
+
+/** @deprecated Prefer `enforceApplyFunnel` from `lib/apply-funnel-enforce`. */
 export function shouldRedirectToApplyContinue(
   session: Partial<LoanFormData> | null | undefined,
   hasApplyGate: boolean,
@@ -30,10 +37,4 @@ export function gateInitialSession(
 ): Partial<LoanFormData> | undefined {
   if (!session || session.leadId) return undefined;
   return session;
-}
-
-export function hasValidApplyAuthMethod(
-  session: Partial<LoanFormData> | null | undefined,
-): session is Partial<LoanFormData> & { authMethod: "manual" | "singpass" } {
-  return session?.authMethod === "manual" || session?.authMethod === "singpass";
 }

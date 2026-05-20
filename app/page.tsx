@@ -8,7 +8,7 @@ import { redirectToApplyContinueIfNeeded } from "@/lib/apply-landing";
 
 export default async function HomePage() {
   const session = await getApplySession();
-  await redirectToApplyContinueIfNeeded();
+  await redirectToApplyContinueIfNeeded("/");
   return <ApplyLandingLayout initialGateSession={gateInitialSession(session)} />;
 }
 

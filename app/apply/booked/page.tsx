@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import { getBookingConfirmation } from "@/lib/booking-confirmation";
+import { enforceApplyFunnel } from "@/lib/apply-funnel-enforce";
 import { BookingConfirmedView } from "@/app/booking-confirmed-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function BookedPage() {
+  await enforceApplyFunnel("/apply/booked");
+
   const booking = await getBookingConfirmation();
   if (!booking) redirect("/");
 
@@ -27,14 +30,14 @@ export default async function BookedPage() {
             You&apos;re all set
           </h1>
           <p className="mt-6 text-lg leading-relaxed text-[var(--text-on-brand)] opacity-75 max-w-[380px]">
-            Save this page or take a screenshot — your reference and visit time are below.
+            Your appointment reference and visit time are below.
           </p>
         </div>
       </aside>
 
       <main className="flex flex-col flex-1 overflow-x-clip">
         <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
-          <a href="/">
+          <a href="/apply/booked">
             <Image
               src="/images/cf-money-full-color.png"
               alt="CF Money"

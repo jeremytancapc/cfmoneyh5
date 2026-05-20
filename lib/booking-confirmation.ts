@@ -1,7 +1,11 @@
 import { cookies } from "next/headers";
-import { decodeSession, encodeSession } from "@/lib/apply-session";
+
+import { decodeSession, encodeSession } from "@/lib/apply-session-codec";
 
 export const BOOKING_CONFIRM_COOKIE = "booking_confirm";
+
+/** How long `booking_confirm` persists (seconds). Default 30 days. */
+export const BOOKING_CONFIRM_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
 export type StoredBookingConfirmation = {
   appointmentId: string;
@@ -17,7 +21,7 @@ const BOOKING_COOKIE_OPTS = {
   sameSite: "lax" as const,
   path: "/",
   secure: process.env.NODE_ENV === "production",
-  maxAge: 60 * 60 * 24 * 30,
+  maxAge: BOOKING_CONFIRM_MAX_AGE_SEC,
 } as const;
 
 export function bookingConfirmCookieValue(data: StoredBookingConfirmation) {
@@ -43,9 +47,19 @@ export function decodeBookingConfirmation(raw: string): StoredBookingConfirmatio
   };
 }
 
+export function hasValidBookingConfirmCookie(raw: string | undefined | null): boolean {
+  if (!raw) return false;
+  return decodeBookingConfirmation(raw) !== null;
+}
+
 export async function getBookingConfirmation(): Promise<StoredBookingConfirmation | null> {
   const store = await cookies();
   const raw = store.get(BOOKING_CONFIRM_COOKIE)?.value;
   if (!raw) return null;
   return decodeBookingConfirmation(raw);
+}
+
+export async function clearBookingConfirmServer(): Promise<void> {
+  const store = await cookies();
+  store.delete(BOOKING_CONFIRM_COOKIE);
 }

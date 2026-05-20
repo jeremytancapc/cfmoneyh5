@@ -13,8 +13,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
+  approvalOfferCookieValue,
+  storedApprovalOfferFromForm,
+} from "@/lib/approval-offer";
+import {
   decodeSession,
   encodeSession,
+  POST_SUBMIT_COOKIE_MAX_AGE_SEC,
   sessionCookieValue,
   reviewGateCookieValue,
   SESSION_COOKIE,
@@ -194,7 +199,19 @@ export async function POST(request: NextRequest) {
 
   const sc = sessionCookieValue(updatedSession);
   res.cookies.set({ ...sc, value: encoded });
-  res.cookies.set(reviewGateCookieValue());
+
+  if (assessment.isEligible && assessment.approvedLoanAmount > 0) {
+    res.cookies.set(reviewGateCookieValue(POST_SUBMIT_COOKIE_MAX_AGE_SEC));
+    res.cookies.set(
+      approvalOfferCookieValue(
+        storedApprovalOfferFromForm(leadId, formData, {
+          approvedLoanAmount: assessment.approvedLoanAmount,
+          verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+          incomeSource: assessment.incomeSource,
+        }),
+      ),
+    );
+  }
 
   return res;
 }

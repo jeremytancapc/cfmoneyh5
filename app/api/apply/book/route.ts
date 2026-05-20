@@ -13,6 +13,11 @@ import {
   clearCookies,
   SESSION_COOKIE,
 } from "@/lib/apply-session";
+import {
+  clearApprovalOfferCookie,
+  decodeApprovalOffer,
+  APPROVAL_OFFER_COOKIE,
+} from "@/lib/approval-offer";
 import { bookingConfirmCookieValue } from "@/lib/booking-confirmation";
 import { createAdminClient } from "@/lib/supabase/client";
 
@@ -108,7 +113,13 @@ export async function POST(request: NextRequest) {
   const rawSession = request.cookies.get(SESSION_COOKIE)?.value ?? "";
   const session = rawSession ? (decodeSession(rawSession) ?? {}) : {};
 
-  const leadId = session.leadId;
+  const offerRaw = request.cookies.get(APPROVAL_OFFER_COOKIE)?.value;
+  const offer = offerRaw ? decodeApprovalOffer(offerRaw) : null;
+
+  const leadId =
+    (typeof session.leadId === "string" && session.leadId.length > 0
+      ? session.leadId
+      : null) ?? offer?.leadId ?? null;
   console.info(`${LOG} POST`, {
     hasSessionCookie: Boolean(rawSession),
     sessionDecoded: Boolean(session && Object.keys(session).length > 0),
@@ -212,6 +223,7 @@ export async function POST(request: NextRequest) {
   for (const c of clearCookies()) {
     res.cookies.set(c);
   }
+  res.cookies.set(clearApprovalOfferCookie());
 
   res.cookies.set(
     bookingConfirmCookieValue({

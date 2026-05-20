@@ -8,7 +8,7 @@ const VCSA_SG_THINGS_TO_BRING = [
 ];
 
 export default async function VCSASGPage() {
-  await redirectToApplyContinueIfNeeded();
+  await redirectToApplyContinueIfNeeded("/vcsa-sg");
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
