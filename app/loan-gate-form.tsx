@@ -88,7 +88,11 @@ export function LoanGateForm({
   }, []);
 
   const leaveAfterSavingGate = useCallback(
-    async (destination: string, patch: Partial<FormData>) => {
+    async (
+      destination: string,
+      patch: Partial<FormData>,
+      options?: { setApplyGate?: boolean },
+    ) => {
       setStep3RedirectPending(true);
       try {
         const res = await fetch("/api/apply/session", {
@@ -97,6 +101,7 @@ export function LoanGateForm({
           body: JSON.stringify({
             formData: { ...formData, ...patch },
             gate: "apply",
+            setApplyGate: options?.setApplyGate ?? true,
           }),
         });
         if (!res.ok) {
@@ -189,7 +194,9 @@ export function LoanGateForm({
               scrollToTop();
             }}
             onSingpass={() => {
-              void leaveAfterSavingGate("/api/auth", { authMethod: "singpass" });
+              void leaveAfterSavingGate("/api/auth", { authMethod: "singpass" }, {
+                setApplyGate: false,
+              });
             }}
             onManual={() => {
               void continueManualAfterGate();

@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
 
+import { enforceApplyFunnel } from "@/lib/apply-funnel-enforce";
+import {
+  getApprovalOffer,
+  mergeOfferIntoFormData,
+} from "@/lib/approval-offer";
 import { getApplySession } from "@/lib/apply-session";
 import { createAdminClient } from "@/lib/supabase/client";
 import { initialLoanFormData, type LoanFormData } from "@/lib/loan-form";
-import { looksLikeLeadUuid } from "@/lib/lead-id";
 
 import { ApprovalView } from "./approval-view";
 
@@ -13,35 +17,30 @@ interface PageProps {
   searchParams: Promise<{ leadId?: string | string[] }>;
 }
 
-function pickLeadQuery(raw: string | string[] | undefined): string | undefined {
-  if (typeof raw === "string") return raw;
-  if (Array.isArray(raw) && raw.length > 0) return raw[0];
-  return undefined;
-}
-
 export default async function ApprovalPage({ searchParams }: PageProps) {
   const sp = await searchParams;
+  await enforceApplyFunnel("/apply/approval", sp);
+
   const session = await getApplySession();
+  const offer = await getApprovalOffer();
 
-  if (!session) {
-    redirect("/");
-  }
-
-  const qRaw = pickLeadQuery(sp.leadId);
-  const qLead = qRaw && looksLikeLeadUuid(qRaw) ? qRaw.trim() : undefined;
-
-  const leadFromCookie =
-    typeof session.leadId === "string" && session.leadId.length > 0
+  const leadId =
+    (typeof session?.leadId === "string" && session.leadId.length > 0
       ? session.leadId
-      : null;
-
-  const leadId = leadFromCookie ?? qLead ?? null;
+      : null) ??
+    offer?.leadId ??
+    null;
 
   if (!leadId) {
     redirect("/");
   }
 
-  const formData: LoanFormData = { ...initialLoanFormData, ...session, leadId };
+  const formData: LoanFormData = {
+    ...initialLoanFormData,
+    ...session,
+    ...(offer ? mergeOfferIntoFormData(offer) : {}),
+    leadId,
+  };
 
   if (!formData.approvedLoanAmount || formData.approvedLoanAmount <= 0) {
     const admin = createAdminClient();

@@ -3,18 +3,19 @@ import Image from "next/image";
 import { LoanApplicationForm } from "./loan-application-form";
 import { SidebarTrustFeatures } from "./sidebar-trust-features";
 import { getApplySession } from "@/lib/apply-session";
+import { gateInitialSession } from "@/lib/apply-flow-guard";
 import { redirectToApplyContinueIfNeeded } from "@/lib/apply-landing";
 
 export default async function HomePage() {
   const session = await getApplySession();
-  await redirectToApplyContinueIfNeeded();
-  return <ApplyLandingLayout session={session} />;
+  await redirectToApplyContinueIfNeeded("/");
+  return <ApplyLandingLayout initialGateSession={gateInitialSession(session)} />;
 }
 
 function ApplyLandingLayout({
-  session,
+  initialGateSession,
 }: {
-  session: Awaited<ReturnType<typeof getApplySession>>;
+  initialGateSession?: Partial<import("@/lib/loan-form").LoanFormData>;
 }) {
   return (
     <div className="flex flex-col lg:flex-row min-h-[100dvh]">
@@ -75,7 +76,7 @@ function ApplyLandingLayout({
 
         <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 sm:pt-6 sm:pb-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
-            <LoanApplicationForm initialApplySession={session ?? undefined} />
+            <LoanApplicationForm initialApplySession={initialGateSession} />
           </div>
         </div>
 
