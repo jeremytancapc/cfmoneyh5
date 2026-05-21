@@ -1573,8 +1573,8 @@ export function Step9_MoneylenderLoans({
     <div>
       <StepHeader
         icon={ChartLineUp}
-        title="Outstanding loans?"
-        subtitle="Declare any outstanding licensed moneylender balances so we can calculate your offer accurately."
+        title="Almost Done!"
+        subtitle="To help us calculate the most accurate rates for you, please let us know if you have any existing moneylender loans."
       />
 
       <div className="flex flex-col gap-4">
