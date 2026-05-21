@@ -17,7 +17,6 @@ import {
   User,
   Briefcase,
   Phone,
-  ChatTeardropText,
   IdentificationCard,
   Buildings,
   ChartLineUp,
@@ -193,6 +192,8 @@ function InputField({
   onBlur,
   prefix,
   helper,
+  tooltip,
+  validate,
 }: {
   label: string;
   type?: string;
@@ -202,16 +203,85 @@ function InputField({
   onBlur?: () => void;
   prefix?: string;
   helper?: string;
+  tooltip?: React.ReactNode;
+  validate?: (v: string) => string | undefined;
 }) {
+  const [touched, setTouched] = useState(false);
+  const validationError = validate && touched && value.trim() ? validate(value) : undefined;
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tipPos, setTipPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const hoverRef = useRef(false);
+  const clickRef = useRef(false);
+
+  function calcPos() {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const tooltipW = Math.min(288, window.innerWidth - 32);
+    const rawRight = window.innerWidth - r.right;
+    const right = Math.max(16, Math.min(rawRight, window.innerWidth - tooltipW - 16));
+    setTipPos({ top: r.bottom + 8, right });
+  }
+
+  function handleMouseEnter() { hoverRef.current = true; calcPos(); setTipVisible(true); }
+  function handleMouseLeave() { hoverRef.current = false; if (!clickRef.current) setTipVisible(false); }
+  function handleClick() {
+    clickRef.current = !clickRef.current;
+    if (clickRef.current) { calcPos(); setTipVisible(true); } else { setTipVisible(false); }
+  }
+
+  useEffect(() => {
+    if (!tipVisible) return;
+    const handler = (e: MouseEvent) => {
+      if (!tipRef.current?.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) {
+        clickRef.current = false;
+        setTipVisible(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [tipVisible]);
+
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-base font-medium text-[var(--text-primary)]">
-        {label}
-      </label>
+      <div className="flex items-center gap-1.5">
+        <label className="text-base font-medium text-[var(--text-primary)]">
+          {label}
+        </label>
+        {tooltip && (
+          <>
+            <button
+              ref={btnRef}
+              type="button"
+              onClick={handleClick}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-brand-blue/30 bg-white text-[10px] font-bold text-brand-blue shadow-sm transition-colors duration-150 hover:bg-brand-blue/5 focus:outline-none"
+              aria-label="More information"
+            >
+              ?
+            </button>
+            {tipVisible && createPortal(
+              <div
+                ref={tipRef}
+                style={{ position: "fixed", top: tipPos.top, right: tipPos.right, zIndex: 9999, width: "18rem", maxWidth: "calc(100vw - 2rem)" }}
+                className="rounded-[var(--radius-md)] bg-gray-900 p-3.5 shadow-2xl"
+              >
+                <div style={{ position: "absolute", top: -6, right: 6 }} className="h-3 w-3 rotate-45 bg-gray-900" />
+                {tooltip}
+              </div>,
+              document.body
+            )}
+          </>
+        )}
+      </div>
       <div
-        className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10 ${
-          prefix ? "gap-2 pl-4 pr-4" : ""
-        }`}
+        className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] transition-all duration-200 ${
+          validationError
+            ? "border-red-400 ring-2 ring-red-400/10"
+            : "border-[var(--border-subtle)] focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
+        } ${prefix ? "gap-2 pl-4 pr-4" : ""}`}
       >
         {prefix && (
           <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">
@@ -220,18 +290,21 @@ function InputField({
         )}
         <input
           type={type}
+          inputMode={type === "number" ? "decimal" : undefined}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
+          onBlur={() => { setTouched(true); onBlur?.(); }}
           className={`min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-tertiary)] ${
             prefix ? "py-2 sm:py-3 pl-0" : "px-4 py-2 sm:py-3"
           }`}
         />
       </div>
-      {helper && (
+      {validationError ? (
+        <span className="text-xs text-red-500">{validationError}</span>
+      ) : helper ? (
         <span className="text-xs text-[var(--text-tertiary)]">{helper}</span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -512,10 +585,14 @@ export function Step2_SelfDeclaredIncome({
   formData,
   updateField,
   incomeHighWarningShown,
+  incomeConfirmed,
+  onIncomeConfirmedChange,
 }: {
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
   incomeHighWarningShown: boolean;
+  incomeConfirmed: boolean;
+  onIncomeConfirmedChange: (v: boolean) => void;
 }) {
   const [touched, setTouched] = useState(false);
 
@@ -529,7 +606,7 @@ export function Step2_SelfDeclaredIncome({
       <StepHeader
         icon={Coins}
         title="What is your monthly income?"
-        subtitle="Helps us confirm the loan fits your budget."
+        subtitle="This helps us confirm the loan is within your budget."
       />
       <div className="flex flex-col gap-5">
         <InputField
@@ -541,6 +618,22 @@ export function Step2_SelfDeclaredIncome({
           onBlur={() => setTouched(true)}
           prefix="$"
           helper=""
+          tooltip={
+            <ol className="space-y-2.5">
+              <li className="text-sm leading-snug text-white/70">
+                <span className="font-semibold text-white">Employed Full-time — </span>
+                Gross monthly salary before CPF deduction
+              </li>
+              <li className="text-sm leading-snug text-white/70">
+                <span className="font-semibold text-white">PHV drivers — </span>
+                Gross monthly salary after deducting vehicle rental fees
+              </li>
+              <li className="text-sm leading-snug text-white/70">
+                <span className="font-semibold text-white">Own business — </span>
+                Monthly salary based on latest year Notice of Assessment or monthly bank statement
+              </li>
+            </ol>
+          }
         />
 
         {isTooLow && (
@@ -559,6 +652,39 @@ export function Step2_SelfDeclaredIncome({
               Just double checking your income is entered correctly.
             </p>
           </div>
+        )}
+
+        {hasValue && !isTooLow && (
+          <button
+            type="button"
+            onClick={() => onIncomeConfirmedChange(!incomeConfirmed)}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.99]"
+            style={{
+              borderColor: incomeConfirmed ? "var(--brand-blue-hex)" : "var(--border-subtle)",
+              background: incomeConfirmed ? "oklch(0.32 0.14 260 / 0.06)" : "var(--surface-elevated)",
+            }}
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-150"
+              style={{
+                borderColor: incomeConfirmed ? "var(--brand-blue-hex)" : "var(--border-medium)",
+                background: incomeConfirmed ? "var(--brand-blue-hex)" : "transparent",
+              }}
+            >
+              {incomeConfirmed && (
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                  <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </span>
+            <span
+              className="text-sm leading-snug"
+              style={{ color: incomeConfirmed ? "var(--brand-blue-hex)" : "var(--text-secondary)" }}
+            >
+              I confirm this income is accurate and understand it will be used to
+              determine my final loan eligibility.
+            </span>
+          </button>
         )}
       </div>
     </div>
@@ -776,6 +902,14 @@ export function Step6_Contact({
   formData: FormData;
   updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
 }) {
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  const phoneDigits = formData.mobile.replace(/\s/g, "");
+  const phoneError =
+    phoneTouched && phoneDigits.length > 0 && !/^[89]\d{7}$/.test(phoneDigits)
+      ? "Enter a valid 8-digit Singapore mobile number starting with 8 or 9."
+      : undefined;
+
   return (
     <div>
       <StepHeader
@@ -785,34 +919,36 @@ export function Step6_Contact({
       />
 
       <div className="flex flex-col gap-5">
-        {/* Mobile number field with Phone + WhatsApp icons on the label right */}
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <label className="text-base font-medium text-[var(--text-primary)]">
-              Mobile Number
+              WhatsApp Mobile Number
             </label>
-            <div className="flex items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-brand-blue">
-                <ChatTeardropText size={14} weight="fill" className="text-white" />
-              </div>
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)]"
-                style={{ background: "#25D366" }}
-              >
-                <WhatsappLogo size={14} weight="fill" className="text-white" />
-              </div>
+            <div
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+              style={{ background: "#25D366" }}
+            >
+              <WhatsappLogo size={13} weight="fill" className="text-white" />
             </div>
           </div>
-          <div className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10">
+          <div className={`flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 ${
+            phoneError
+              ? "border-red-400 ring-2 ring-red-400/10"
+              : "border-[var(--border-subtle)] focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
+          }`}>
             <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">+65</span>
             <input
               type="tel"
               placeholder="9123 4567"
               value={formData.mobile}
               onChange={(e) => updateField("mobile", e.target.value)}
+              onBlur={() => setPhoneTouched(true)}
               className="min-w-0 flex-1 border-0 bg-transparent py-2 sm:py-3 pl-0 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
             />
           </div>
+          {phoneError && (
+            <span className="text-xs text-red-500">{phoneError}</span>
+          )}
         </div>
       </div>
     </div>
@@ -2060,19 +2196,6 @@ export function Step8_Review({
     ...(formData.postalCode ? [{ label: "Postal Code", value: formData.postalCode }] : []),
   ];
 
-  const declarationRows = [
-    {
-      label: "Bankruptcy / DRS",
-      value:
-        formData.bankruptcyDeclaration === "clear"
-          ? "Not bankrupt / DRS"
-          : formData.bankruptcyDeclaration === "discharged_lt5"
-            ? "Discharged (< 5 yrs)"
-            : formData.bankruptcyDeclaration === "active"
-              ? "Currently bankrupt / DRS"
-              : "—",
-    },
-  ];
 
   return (
     <div>
@@ -2122,22 +2245,6 @@ export function Step8_Review({
               value={formData.email}
               onSave={(v) => updateField("email", v)}
             />
-          </div>
-        </div>
-
-        {/* Declaration */}
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <ShieldCheck size={16} weight="duotone" className="text-brand-blue" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Declaration</span>
-          </div>
-          <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-            {declarationRows.map(({ label, value }) => (
-              <div key={label} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-[var(--text-tertiary)]">{label}</span>
-                <span className="font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{value}</span>
-              </div>
-            ))}
           </div>
         </div>
 

@@ -13,46 +13,47 @@ export interface PaymentHistoryOption {
   gradientTo: string;
 }
 
+// Gradient: dark emerald → teal-blue → brand blue
 export const PAYMENT_HISTORY_SLIDER_OPTIONS: PaymentHistoryOption[] = [
   {
-    id: "very_good",
-    label: "Very Good",
-    value: "very_good",
+    id: "on_time",
+    label: "Always On-time",
+    value: "on_time",
     color: "#059669",
     gradientFrom: "#059669",
     gradientTo: "#0A94A0",
   },
   {
-    id: "good",
-    label: "Good",
-    value: "good",
+    id: "late_14",
+    label: "Up to 14 days late",
+    value: "late_14",
     color: "#0A94A0",
     gradientFrom: "#0A94A0",
     gradientTo: "#0B7CB4",
   },
   {
-    id: "average",
-    label: "Average",
-    value: "average",
+    id: "late_30",
+    label: "Up to 30 days late",
+    value: "late_30",
     color: "#0B7CB4",
     gradientFrom: "#0B7CB4",
     gradientTo: "#0A55A8",
   },
   {
-    id: "poor",
-    label: "Poor",
-    value: "poor",
-    color: "#C47C1A",
-    gradientFrom: "#C47C1A",
-    gradientTo: "#B85C10",
+    id: "late_60",
+    label: "Up to 60 days late",
+    value: "late_60",
+    color: "#0A55A8",
+    gradientFrom: "#0A55A8",
+    gradientTo: "#0033AA",
   },
   {
     id: "bad_debt",
-    label: "Bad Debt",
+    label: "More than 60 days late",
     value: "bad_debt",
-    color: "#B91C1C",
-    gradientFrom: "#B91C1C",
-    gradientTo: "#7F1D1D",
+    color: "#0033AA",
+    gradientFrom: "#0033AA",
+    gradientTo: "#001F88",
   },
 ];
 
@@ -78,72 +79,159 @@ export function PaymentHistorySelector({
   };
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex gap-2">
+    <div className={cn("w-full", className)}>
+      {/* ── Mobile: vertical stack ── */}
+      <div className="md:hidden flex flex-col">
         {options.map((option, index) => {
           const isSelected = selectedIndex === index;
-          const isPast = selectedIndex > index;
 
           return (
-            <motion.button
-              key={option.id}
-              type="button"
-              onClick={() => handleSelect(option)}
-              className="relative flex flex-1 flex-col items-center gap-2 rounded-[var(--radius-md)] border py-3 transition-colors duration-200 active:scale-[0.96]"
-              style={{
-                borderColor: isSelected
-                  ? option.color
-                  : isPast
-                    ? `${option.color}60`
-                    : "var(--border-subtle)",
-                background: isSelected
-                  ? `linear-gradient(135deg, ${option.gradientFrom} 0%, ${option.gradientTo} 100%)`
-                  : isPast
-                    ? `linear-gradient(135deg, ${option.gradientFrom}15 0%, ${option.gradientTo}15 100%)`
-                    : "var(--surface-elevated)",
-              }}
-              animate={
-                shouldReduceMotion
-                  ? {}
-                  : isSelected
-                    ? { scale: 1.03 }
-                    : { scale: 1 }
-              }
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            >
-              <span
-                className="text-[11px] font-semibold text-center leading-tight px-1"
-                style={{
-                  color: isSelected
-                    ? "#ffffff"
-                    : isPast
-                      ? option.color
-                      : "var(--text-secondary)",
-                }}
+            <div key={option.id} className="flex flex-col">
+              <button
+                type="button"
+                onClick={() => handleSelect(option)}
+                onPointerDown={(e) => e.preventDefault()}
+                className="flex items-center gap-3 py-0.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/40 rounded-md"
               >
-                {option.label}
-              </span>
-            </motion.button>
+                <div className="flex flex-col items-center w-5 shrink-0">
+                  <motion.div
+                    className="relative rounded-full shrink-0"
+                    tabIndex={-1}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      backgroundColor: isSelected
+                        ? option.color
+                        : "var(--border-medium)",
+                      boxShadow: isSelected
+                        ? `0 0 12px ${option.color}70, 0 0 24px ${option.color}30`
+                        : "none",
+                    }}
+                    animate={
+                      isSelected && !shouldReduceMotion
+                        ? { scale: [1, 1.12, 1] }
+                        : { scale: 1 }
+                    }
+                    transition={{ duration: 0.35 }}
+                    whileTap={shouldReduceMotion ? {} : { scale: 0.88 }}
+                  >
+                    {isSelected && (
+                      <motion.div
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        initial={{ scale: 1, opacity: 0.5 }}
+                        animate={{ scale: 1.8, opacity: 0 }}
+                        transition={{
+                          duration: 0.7,
+                          repeat: Infinity,
+                          repeatDelay: 1,
+                          ease: "easeOut",
+                        }}
+                        style={{ backgroundColor: option.color }}
+                      />
+                    )}
+                  </motion.div>
+                </div>
+
+                <span
+                  className="text-base leading-snug transition-colors duration-200"
+                  style={{
+                    color: isSelected ? option.color : "var(--text-secondary)",
+                    fontWeight: isSelected ? 600 : 500,
+                  }}
+                >
+                  {option.label}
+                </span>
+              </button>
+
+              {index < options.length - 1 && (
+                <div className="pl-[9px]">
+                  <div
+                    className="w-0.5 h-4 rounded-full transition-all duration-300"
+                    style={{ background: "var(--border-medium)" }}
+                  />
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
 
-      {selectedIndex >= 0 && (
-        <motion.p
-          key={value}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="text-xs text-center"
-          style={{ color: options[selectedIndex].color }}
-        >
-          {selectedIndex === 0 && "Always paid on time — best rate applied"}
-          {selectedIndex === 1 && "Mostly on time — good rate applied"}
-          {selectedIndex === 2 && "Occasionally late — standard rate applied"}
-          {selectedIndex === 3 && "Frequently late — reduced rate applied"}
-          {selectedIndex === 4 && "Significant arrears — minimum rate applied"}
-        </motion.p>
-      )}
+      {/* ── Desktop: horizontal track ── */}
+      <div className="hidden md:flex flex-col gap-3">
+        <div className="relative flex justify-between items-center">
+          <div
+            className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full"
+            style={{ left: 10, right: 10, background: "var(--border-medium)" }}
+          />
+          {options.map((option, index) => {
+            const isSelected = selectedIndex === index;
+            return (
+              <motion.button
+                key={option.id}
+                type="button"
+                onClick={() => handleSelect(option)}
+                className="relative z-10 rounded-full shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/40"
+                style={{
+                  width: 20,
+                  height: 20,
+                  backgroundColor: isSelected
+                    ? option.color
+                    : "var(--border-medium)",
+                  boxShadow: isSelected
+                    ? `0 0 12px ${option.color}70, 0 0 24px ${option.color}30`
+                    : "none",
+                }}
+                whileHover={shouldReduceMotion ? {} : { scale: 1.15 }}
+                whileTap={shouldReduceMotion ? {} : { scale: 0.88 }}
+              >
+                {isSelected && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full pointer-events-none"
+                    initial={{ scale: 1, opacity: 0.5 }}
+                    animate={{ scale: 1.8, opacity: 0 }}
+                    transition={{
+                      duration: 0.7,
+                      repeat: Infinity,
+                      repeatDelay: 1,
+                      ease: "easeOut",
+                    }}
+                    style={{ backgroundColor: option.color }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div className="relative flex justify-between" style={{ height: 36 }}>
+          {options.map((option, index) => {
+            const isSelected = selectedIndex === index;
+            const isFirst = index === 0;
+            const isLast = index === options.length - 1;
+            return (
+              <div key={`lbl-${option.id}`} className="relative" style={{ width: 20 }}>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(option)}
+                  className="absolute text-[10px] leading-snug text-center focus:outline-none transition-colors duration-200"
+                  style={{
+                    width: 76,
+                    ...(isFirst
+                      ? { left: 0, textAlign: "left" }
+                      : isLast
+                      ? { right: 0, textAlign: "right" }
+                      : { left: "50%", transform: "translateX(-50%)", textAlign: "center" }),
+                    color: isSelected ? option.color : "var(--text-tertiary)",
+                    fontWeight: isSelected ? 600 : 500,
+                  }}
+                >
+                  {option.label}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

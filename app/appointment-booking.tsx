@@ -200,6 +200,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
   const [locationTooltip, setLocationTooltip] = useState(false);
@@ -965,23 +966,38 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
       >
         <button
           type="button"
-          disabled={!canConfirm}
-            onClick={async () => {
-            if (!selectedDate || !selectedTime) return;
-            trackEvent("step_11_appointment_booked");
-            if (onConfirm) {
-              await onConfirm(selectedDate, selectedTime);
-              if (onBookedRedirect) return;
+          onClick={async () => {
+            if (!selectedDate || !selectedTime || isBooking) return;
+            setIsBooking(true);
+            try {
+              trackEvent("step_11_appointment_booked");
+              if (onConfirm) {
+                await onConfirm(selectedDate, selectedTime);
+                if (onBookedRedirect) return;
+              }
+              setConfirmed(true);
+              window.scrollTo({ top: 0, behavior: "instant" });
+            } finally {
+              setIsBooking(false);
             }
-            setConfirmed(true);
-            window.scrollTo({ top: 0, behavior: "instant" });
           }}
+          disabled={!canConfirm || isBooking}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
-          Book Appointment
+          {isBooking ? (
+            <>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+              Confirming...
+            </>
+          ) : (
+            "Book Appointment"
+          )}
         </button>
         <div className="pb-6" />
-        {!canConfirm && (
+        {!canConfirm && !isBooking && (
           <p className="mt-2 text-center text-xs text-[var(--text-tertiary)]">
             {!selectedDate
               ? "Select a date to continue"

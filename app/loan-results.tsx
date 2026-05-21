@@ -227,6 +227,7 @@ interface FormData {
   postalCode: string;
   address: string;
   moneylenderPaymentHistory?: string;
+  leadId?: string;
 }
 
 function formatCurrency(value: number): string {
@@ -294,129 +295,169 @@ type ModalStep = "deterrent" | "survey" | "final";
 function ReconsiderModal({
   onAccept,
   onClose,
+  leadId,
 }: {
   onAccept: () => void;
   onClose: () => void;
+  leadId?: string;
 }) {
   const [step, setStep] = useState<ModalStep>("deterrent");
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
+  // Prevent body scroll while modal is open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const handleReasonSelect = (label: string) => {
     setSelectedReason(label);
+    // Save decline reason to lead in the background
+    if (leadId) {
+      fetch("/api/apply/decline-reason", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ leadId, reason: label }),
+      }).catch(() => {});
+    }
+    trackEvent("step_offer_declined", { reason: label });
+    setStep("final");
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-      style={{ background: "oklch(0.15 0.04 260 / 0.7)", backdropFilter: "blur(4px)" }}
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
+      style={{
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        background: "oklch(0.18 0.02 260 / 0.55)",
+        animation: "fade-up 0.25s cubic-bezier(0.16,1,0.3,1) both",
+      }}
+      onClick={onClose}
     >
       <div
-        className="relative flex w-full max-w-sm flex-col gap-6 rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] bg-[var(--surface-base)] px-6 py-8"
-        style={{ animation: "fade-up 0.35s cubic-bezier(0.16,1,0.3,1) both" }}
+        className="relative w-full max-w-[480px] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] px-6 pb-8 pt-6 flex flex-col gap-6"
+        style={{ background: "var(--surface-elevated)" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)]"
-        >
-          <X size={14} weight="bold" />
-        </button>
+        {/* Close button — hidden on final step */}
+        {step !== "final" && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-150 hover:bg-[var(--surface-secondary)] active:scale-[0.95]"
+            aria-label="Close"
+          >
+            <X size={16} weight="bold" className="text-[var(--text-tertiary)]" />
+          </button>
+        )}
 
+        {/* ── Step 1: Deterrent ─────────────────────────────────── */}
         {step === "deterrent" && (
           <>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pr-8">
               <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                Before you go...
+                Are you sure?
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                Here&apos;s what you&apos;ll lose if you close this offer:
+                Your application is approved in principle. Here is what you stand to lose by waiting.
               </p>
             </div>
 
-            <ul className="flex flex-col gap-4">
-              {DETERRENT_ITEMS.map(({ icon: Icon, heading, body }) => (
-                <li key={heading} className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-red-50">
-                    <Icon size={16} weight="duotone" className="text-red-500" />
+            <ul className="flex flex-col gap-5">
+              {DETERRENT_ITEMS.map(({ icon: Icon, heading, body }, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-4"
+                  style={{ opacity: 0, animation: `fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 70}ms both` }}
+                >
+                  <div
+                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)]"
+                    style={{ background: "oklch(0.78 0.16 178 / 0.10)" }}
+                  >
+                    <Icon size={15} weight="duotone" className="text-brand-teal" />
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">{heading}</p>
-                    <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{body}</p>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">
+                      {i === 0 ? (
+                        <span className="inline-flex items-baseline gap-1.5 flex-wrap">
+                          Loan offer expires in:
+                          <span className="font-black tracking-tight tabular-nums text-red-500">
+                            <OfferCountdown />
+                          </span>
+                        </span>
+                      ) : heading}
+                    </p>
+                    <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{body}</p>
                   </div>
                 </li>
               ))}
             </ul>
 
+            <div className="h-px bg-[var(--border-subtle)]" />
+
             <div className="flex flex-col gap-3">
               <button
                 type="button"
                 onClick={onAccept}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-bold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
               >
-                <ArrowRight size={16} weight="bold" />
-                Secure my offer now
+                <ArrowLeft size={16} weight="bold" />
+                Accept the offer now
               </button>
               <button
                 type="button"
                 onClick={() => setStep("survey")}
-                className="text-center text-sm text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--text-secondary)]"
+                className="text-center text-xs text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--text-secondary)]"
               >
-                I still want to leave
+                I understand, I still need more time
               </button>
             </div>
           </>
         )}
 
+        {/* ── Step 2: Survey ─────────────────────────────────────── */}
         {step === "survey" && (
           <>
-            <div className="flex flex-col gap-2">
+            <div
+              className="flex flex-col gap-2 pr-8"
+              style={{ animation: "fade-up 0.3s cubic-bezier(0.16,1,0.3,1) both" }}
+            >
               <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                Quick question
+                No worries, mind sharing why?
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                What&apos;s the main reason you&apos;re not proceeding today?
+                Help us understand so we can improve. Your answer won&apos;t affect your application.
               </p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {SURVEY_REASONS.map(({ emoji, label }) => (
+            <div className="grid grid-cols-2 gap-3">
+              {SURVEY_REASONS.map(({ emoji, label }, i) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => handleReasonSelect(label)}
-                  className="flex items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-left text-sm font-medium transition-all duration-200 active:scale-[0.98]"
-                  style={{
-                    borderColor: selectedReason === label ? "var(--brand-blue-hex)" : "var(--border-subtle)",
-                    background: selectedReason === label ? "var(--brand-blue-hex)" : "var(--surface-elevated)",
-                    color: selectedReason === label ? "#fff" : "var(--text-primary)",
-                  }}
+                  className="flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-3 py-4 text-center transition-all duration-200 hover:border-brand-blue hover:bg-[var(--surface-elevated)] active:scale-[0.97]"
+                  style={{ opacity: 0, animation: `fade-up 0.35s cubic-bezier(0.16,1,0.3,1) ${i * 60}ms both` }}
                 >
-                  <span>{emoji}</span>
-                  <span>{label}</span>
+                  <span className="text-2xl leading-none">{emoji}</span>
+                  <span className="text-sm font-semibold leading-snug text-[var(--text-primary)]">{label}</span>
                 </button>
               ))}
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                disabled={!selectedReason}
-                onClick={() => setStep("final")}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-bold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-              >
-                Continue
-                <ArrowRight size={16} weight="bold" />
-              </button>
             </div>
           </>
         )}
 
+        {/* ── Step 3: Final chance ─────────────────────────────────── */}
         {step === "final" && (
           <>
-            <div className="flex flex-col gap-2 text-center">
-              <p className="text-3xl">⏰</p>
-              <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+            <div
+              className="flex flex-col items-center gap-3 pt-2 text-center"
+              style={{ animation: "fade-up 0.35s cubic-bezier(0.16,1,0.3,1) both" }}
+            >
+              <span className="text-4xl">⚡</span>
+              <p className="font-display text-2xl font-black tracking-tight text-brand-blue">
                 Final Chance!
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)] max-w-[320px]">
@@ -430,7 +471,7 @@ function ReconsiderModal({
               <button
                 type="button"
                 onClick={onAccept}
-                className="flex h-13 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-bold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-bold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
                 style={{ animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 100ms both" }}
               >
                 <ArrowRight size={16} weight="bold" />
@@ -638,6 +679,7 @@ export function LoanResults({
         <ReconsiderModal
           onAccept={handleAccept}
           onClose={() => setShowModal(false)}
+          leadId={formData.leadId ?? undefined}
         />
       )}
     </>
