@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import type { LoanFormData as FormData } from "@/lib/loan-form";
+import React, { useState, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { trackEvent } from "@/lib/analytics";
+import type { LoanFormData as FormData } from "@/lib/loan-form";
 import {
   CalendarBlank,
   MapPin,
   Clock,
-  ArrowSquareOut,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
   Train,
   Car,
+  X,
+  CaretDown,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 
 // Singapore 2026 public holidays (YYYY-MM-DD, local dates)
@@ -46,9 +49,6 @@ const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-/** Browser console prefix when confirming appointment — filter DevTools by this string. */
-const BOOK_LOG = "[apply/book:ui]";
 
 function toISODate(date: Date): string {
   const y = date.getFullYear();
@@ -106,6 +106,17 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
+function addToCalendar(date: Date, timeSlot: string) {
+  const y  = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  const d  = String(date.getDate()).padStart(2, "0");
+  // Navigating to this endpoint serves Content-Type: text/calendar with
+  // Content-Disposition: inline, which triggers the native "Add to Calendar"
+  // dialog on iOS Safari and the OS calendar handler on Android — no UA
+  // sniffing, no share sheets, no blob URLs.
+  window.location.href = `/api/apply/calendar?date=${y}-${mo}-${d}&time=${encodeURIComponent(timeSlot)}`;
+}
+
 /** Returned by POST /api/apply/book — shown on the confirmation step. */
 export type BookingConfirmation = {
   appointmentId: string;
@@ -118,8 +129,8 @@ export type BookingConfirmation = {
 interface AppointmentBookingProps {
   formData: FormData;
   onBack?: () => void;
-  onConfirm?: (date: string, time: string) => Promise<BookingConfirmation | null>;
-  /** When set, successful booking calls this instead of showing inline confirmation. */
+  onConfirm?: (date: string, time: string) => Promise<BookingConfirmation | null> | void;
+  /** When set, successful booking redirects instead of showing inline confirmation. */
   onBookedRedirect?: boolean;
   thingsToBring?: string[];
 }
@@ -185,78 +196,60 @@ function WhatToBring({ idType }: { idType: string }) {
   );
 }
 
-export function AppointmentBooking({
-  formData,
-  onBack,
-  onConfirm,
-  onBookedRedirect = false,
-  thingsToBring = [],
-}: AppointmentBookingProps) {
+export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedirect = false, thingsToBring = [] }: AppointmentBookingProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [isBookingSubmit, setIsBookingSubmit] = useState(false);
-  const [bookingDetails, setBookingDetails] = useState<BookingConfirmation | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
+  const [locationTooltip, setLocationTooltip] = useState(false);
 
-  const dateScrollRef = useRef<HTMLDivElement>(null);
+  type PopupPos = { top: number; left: number; width: number };
+  const [calendarPos, setCalendarPos] = useState<PopupPos | null>(null);
+  const [timePos, setTimePos] = useState<PopupPos | null>(null);
+
+  const dateTriggerRef = useRef<HTMLButtonElement>(null);
+  const timeTriggerRef = useRef<HTMLButtonElement>(null);
   const confirmBtnRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ startX: number; startScroll: number; pointerId: number; dragging: boolean } | null>(null);
-  const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
 
-  const updateFades = useCallback(() => {
-    const el = dateScrollRef.current;
+  const CALENDAR_HEIGHT_EST = 370;
+  const TIME_HEIGHT_EST = 280;
+  const POPUP_GAP = 6;
+
+  const openCalendarPopup = () => {
+    const el = dateTriggerRef.current;
     if (!el) return;
-    setShowLeftFade(el.scrollLeft > 4);
-    setShowRightFade(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - POPUP_GAP;
+    const top =
+      spaceBelow >= CALENDAR_HEIGHT_EST
+        ? rect.bottom + POPUP_GAP
+        : Math.max(8, rect.top - POPUP_GAP - CALENDAR_HEIGHT_EST);
+    setCalendarPos({ top, left: rect.left, width: rect.width });
+    setCalendarOpen(true);
+    setTimeDropdownOpen(false);
+  };
 
-  useEffect(() => {
-    const el = dateScrollRef.current;
+  const openTimePopup = () => {
+    const el = timeTriggerRef.current;
     if (!el) return;
-    updateFades();
-    el.addEventListener("scroll", updateFades, { passive: true });
-    return () => el.removeEventListener("scroll", updateFades);
-  }, [updateFades]);
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - POPUP_GAP;
+    const top =
+      spaceBelow >= TIME_HEIGHT_EST
+        ? rect.bottom + POPUP_GAP
+        : Math.max(8, rect.top - POPUP_GAP - TIME_HEIGHT_EST);
+    setTimePos({ top, left: rect.left, width: rect.width });
+    setTimeDropdownOpen(true);
+  };
 
-  const scrollDates = useCallback((direction: "left" | "right") => {
-    const el = dateScrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction === "right" ? 200 : -200, behavior: "smooth" });
-  }, []);
-
-  // Only capture the pointer (and suppress the click) once the drag crosses a
-  // 6px threshold — short taps never trigger it so button clicks work normally.
-  const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dateScrollRef.current) return;
-    dragState.current = {
-      startX: e.clientX,
-      startScroll: dateScrollRef.current.scrollLeft,
-      pointerId: e.pointerId,
-      dragging: false,
-    };
-  }, []);
-
-  const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const el = dateScrollRef.current;
-    if (!dragState.current || !el) return;
-    const dx = e.clientX - dragState.current.startX;
-    if (!dragState.current.dragging) {
-      if (Math.abs(dx) < 6) return;
-      dragState.current.dragging = true;
-      el.setPointerCapture(dragState.current.pointerId);
-    }
-    el.scrollLeft = dragState.current.startScroll - dx;
-  }, []);
-
-  const onDragEnd = useCallback(() => {
-    dragState.current = null;
-  }, []);
-
-  // Swallow the synthetic click that bubbles up after a completed drag.
-  const onClickCapture = useCallback((e: React.MouseEvent) => {
-    if (dragState.current?.dragging) e.stopPropagation();
-  }, []);
+  // Calendar month state — 1st of the displayed month
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   const today = useMemo(() => {
     const d = new Date();
@@ -264,27 +257,27 @@ export function AppointmentBooking({
     return d;
   }, []);
 
-  // Generate the next 28 days as candidates
-  const availableDates = useMemo(() => {
-    const dates: Date[] = [];
-    for (let i = 0; i < 28; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      dates.push(d);
-    }
-    return dates;
+  // Generate the next 14 days as the booking window
+  const maxDate = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + 14);
+    return d;
   }, [today]);
 
-  // Current time for filtering past slots on today
-  const nowHour = new Date().getHours();
-  const nowMinute = new Date().getMinutes();
-
+  // Current time for filtering slots on today (2-hour advance required)
   const isSlotDisabled = (slot: string): boolean => {
     if (!selectedDate) return false;
     if (selectedDate !== toISODate(today)) return false;
     const [h, m] = slot.split(":").map(Number);
-    // Disable if the slot start is in the past (with 30-min buffer)
-    return h < nowHour || (h === nowHour && m <= nowMinute);
+    const slotMinutes = h * 60 + m;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return slotMinutes < nowMinutes + 120; // 2-hour buffer
+  };
+
+  const isDateInWindow = (date: Date): boolean => {
+    const t = date.getTime();
+    return t >= today.getTime() && t <= maxDate.getTime();
   };
 
   const selectedDateObj = useMemo(() => {
@@ -296,11 +289,38 @@ export function AppointmentBooking({
   const canConfirm = selectedDate !== null && selectedTime !== null;
 
   if (confirmed && selectedDateObj && selectedTime) {
+    const idKey = formData.idType === "foreigner" ? "foreigner" : "sg_pr";
+    const thingsToBringLines = WHAT_TO_BRING[idKey].map((item) => `• ${item}`).join("\n");
+
+    const appointmentMessage = [
+      "[ CF Money Appointment ]",
+      "",
+      `Date: ${formatDisplayDate(selectedDateObj)}`,
+      `Time: ${formatDisplayTime(selectedTime)}`,
+      "",
+      "-- Location --",
+      "1 North Bridge Road, High Street Centre",
+      "#01-35, Singapore 179094",
+      "City Hall MRT (Exit B) or Clarke Quay MRT (Exit E)",
+      "https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6",
+      "",
+      "-- Things to bring --",
+      thingsToBringLines,
+    ].join("\n");
+
+    const handleShare = () => {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        navigator.share({ text: appointmentMessage }).catch(() => {});
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(appointmentMessage)}`, "_blank");
+      }
+    };
+
     return (
-      <div className="animate-fade-up flex flex-col gap-8 pt-6 text-center sm:pt-0 sm:text-left">
+      <div className="animate-fade-up flex flex-col gap-8 pt-6 text-center sm:pt-0">
         {/* Success state */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-center gap-2 sm:justify-start">
+          <div className="flex items-center justify-center gap-2">
             <CheckCircle
               size={18}
               weight="duotone"
@@ -314,34 +334,29 @@ export function AppointmentBooking({
             <p className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
               {formatDisplayDate(selectedDateObj)}
             </p>
-            <p className="mt-1 text-lg font-semibold text-brand-blue">
+            <p className="mt-1 font-display text-2xl font-bold tracking-tight text-brand-blue sm:text-3xl">
               {formatDisplayTime(selectedTime)}
             </p>
             <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-              We recommend arriving 15 mins before your timeslot so that we can facilitate your appointment on time.
+              Kindly arrive on time so we can serve you promptly.
             </p>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="mx-auto mt-3 mb-[-16px] flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            >
+              <DownloadSimple size={16} weight="bold" />
+              Save details on WhatsApp
+            </button>
           </div>
-        </div>
 
-        {bookingDetails && (
-          <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-4 text-left">
-            <div>
-              <p className="text-xs text-[var(--text-tertiary)]">Application reference</p>
-              <p className="mt-0.5 font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
-                {bookingDetails.cfh5Id}
-              </p>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-teal/10">
-              <CalendarBlank size={18} weight="duotone" className="text-brand-blue" />
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* ── What to bring ───────────────────────────────────────── */}
         <WhatToBring idType={formData.idType} />
 
-        {/* Office details */}
-        <div className="flex flex-col gap-4 text-left">
+        {/* Office details — hidden on desktop (shown in sidebar) */}
+        <div className="flex flex-col gap-4 text-left lg:hidden">
           {/* Landscape shopfront image */}
           <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
             <img
@@ -354,31 +369,25 @@ export function AppointmentBooking({
           </div>
 
           <div className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                Our office
-              </h3>
+            <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+              Our office
+            </h3>
+
+            <div className="flex items-start gap-3">
+              <MapPin size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
               <a
                 href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                className="group flex flex-col transition-opacity duration-200 hover:opacity-75"
               >
-                View on Google Maps
-                <ArrowSquareOut size={14} weight="bold" />
-              </a>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <MapPin size={16} weight="duotone" className="mt-0.5 shrink-0 text-brand-blue" />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   1 North Bridge Road, High Street Centre
                 </p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   #01-35, Singapore 179094
                 </p>
-              </div>
+              </a>
             </div>
 
             <div className="flex items-start gap-3">
@@ -411,7 +420,7 @@ export function AppointmentBooking({
 
         <div className="h-px bg-[var(--border-subtle)]" />
 
-        <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+        <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)] text-center">
           <p>We look forward to meeting you.</p>
         </div>
       </div>
@@ -442,262 +451,419 @@ export function AppointmentBooking({
           <CalendarBlank size={18} weight="duotone" className="text-brand-blue" />
         </div>
         <h2 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-          Book your visit
+          Finalise your loan details
         </h2>
         <p className="text-sm leading-relaxed text-[var(--text-secondary)] max-w-[42ch] sm:max-w-none">
-          Pick a date and time that works for you.<br />
-          We&apos;re open Monday to Saturday, 10:30am&ndash;7:30pm.
+          Book a private session with your Relationship Manager to discuss your personalised loan.
         </p>
       </div>
 
-      {/* ── Date picker ────────────────────────────────────────── */}
+      {/* ── Relationship Manager image ───────────────────────── */}
+      <div
+        style={{
+          opacity: 0,
+          animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 40ms both",
+        }}
+      >
+        <div className="relative h-44 w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] sm:h-52">
+          <img
+            src="/images/rm-image.webp"
+            alt="Your Relationship Manager"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: "center 40%" }}
+            loading="lazy"
+          />
+        </div>
+      </div>
+
+      {/* ── Date & Time picker (dropdown style) ─────────────────── */}
       <div
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 80ms both",
         }}
       >
-        {/* Label row with scroll arrows */}
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-medium text-[var(--text-primary)]">Select a date</p>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => scrollDates("left")}
-              aria-label="Scroll dates left"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)] active:scale-[0.92]"
-            >
-              <ArrowLeft size={13} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollDates("right")}
-              aria-label="Scroll dates right"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-tertiary)] transition-all duration-200 hover:border-[var(--border-medium)] hover:text-[var(--text-secondary)] active:scale-[0.92]"
-            >
-              <ArrowRight size={13} weight="bold" />
-            </button>
+        {/* Location blurb */}
+        <div className="mb-4 -mt-4">
+          <p className="text-base font-bold text-[var(--text-primary)]">Location</p>
+          <div className="text-sm font-medium text-[var(--text-primary)]">
+            <span className="inline-flex items-center gap-1.5">
+              High Street Centre
+              {/* Tooltip trigger */}
+              <span className="relative inline-flex">
+                <button
+                  type="button"
+                  aria-label="More location details"
+                  onClick={() => setLocationTooltip((v) => !v)}
+                  onMouseEnter={() => setLocationTooltip(true)}
+                  onMouseLeave={() => setLocationTooltip(false)}
+                  className="flex h-4 w-4 items-center justify-center rounded-full border border-[var(--border-medium)] text-[10px] font-bold text-[var(--text-tertiary)] transition-colors duration-150 hover:border-brand-blue hover:text-brand-blue"
+                >
+                  ?
+                </button>
+                {locationTooltip && (
+                  <div className="absolute left-1/2 top-[calc(100%+6px)] z-50 w-[240px] -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 shadow-lg">
+                    <p className="text-sm text-[var(--text-secondary)]">Near Funan IT Mall, Parliament House &amp; Boat Quay</p>
+                    <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-[var(--border-subtle)]" />
+                  </div>
+                )}
+              </span>
+            </span>
+            <br />
+            <span className="font-normal text-[var(--text-secondary)]">(City Hall MRT / Clarke Quay MRT)</span>
           </div>
         </div>
-        {/* Scroll strip with fade edges */}
-        <div className="relative">
-          <div
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-[var(--surface-primary)] to-transparent transition-opacity duration-200"
-            style={{ opacity: showLeftFade ? 1 : 0 }}
-          />
-          <div
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l from-[var(--surface-primary)] to-transparent transition-opacity duration-200"
-            style={{ opacity: showRightFade ? 1 : 0 }}
-          />
-        <div
-          ref={dateScrollRef}
-          className="date-scroll flex gap-2 pb-2"
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          onClickCapture={onClickCapture}
-        >
-          {availableDates.map((date, i) => {
-            const iso = toISODate(date);
-            const disabled = isDisabledDate(date);
-            const isSelected = selectedDate === iso;
-            const isToday = iso === toISODate(today);
 
-            return (
-              <button
-                key={iso}
-                type="button"
-                disabled={disabled}
-                onClick={() => {
-                  setSelectedDate(iso);
-                  setSelectedTime(null);
-                }}
-                className="flex shrink-0 flex-col items-center gap-1 rounded-[var(--radius-md)] border px-3 py-2.5 transition-all duration-200 active:scale-[0.96]"
+        <p className="mb-3 text-base font-bold text-[var(--text-primary)]">Select a date &amp; time</p>
+
+        <div className="flex flex-col gap-3">
+
+          {/* ── Date trigger + calendar popup ───────────────────── */}
+          <div className="relative">
+            <button
+              ref={dateTriggerRef}
+              type="button"
+              onClick={() => { calendarOpen ? setCalendarOpen(false) : openCalendarPopup(); }}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-left text-sm transition-colors duration-150"
+            >
+              <CalendarBlank size={18} weight="duotone" className="shrink-0 text-brand-blue" />
+              <span
+                className="flex-1 text-sm"
                 style={{
-                  minWidth: 56,
-                  borderColor: isSelected
-                    ? "var(--brand-blue-hex)"
-                    : "var(--border-subtle)",
-                  background: isSelected
-                    ? "var(--brand-blue-hex)"
-                    : "transparent",
-                  opacity: disabled ? 0.3 : 1,
-                  pointerEvents: disabled ? "none" : "auto",
-                  animationDelay: `${i * 40}ms`,
+                  color: "var(--text-primary)",
+                  fontWeight: selectedDate ? 500 : 400,
                 }}
               >
-                {isToday ? (
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-wider"
-                    style={{
-                      color: isSelected ? "var(--text-on-brand)" : "var(--brand-teal-hex)",
-                    }}
-                  >
-                    Today
-                  </span>
-                ) : (
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-wider"
-                    style={{
-                      color: isSelected
-                        ? "var(--text-on-brand)"
-                        : "var(--text-tertiary)",
-                    }}
-                  >
-                    {DAY_LABELS[date.getDay()]}
-                  </span>
-                )}
+                {selectedDate && selectedDateObj
+                  ? `${DAY_LABELS[selectedDateObj.getDay()]}, ${selectedDateObj.getDate()} ${MONTH_LABELS[selectedDateObj.getMonth()]}`
+                  : "Choose a preferred date"}
+              </span>
+              {selectedDate ? (
                 <span
-                  className="font-display text-lg font-bold leading-none tabular-nums"
+                  role="button"
+                  aria-label="Clear date"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDate(null);
+                    setSelectedTime(null);
+                    setCalendarOpen(false);
+                    setTimeDropdownOpen(false);
+                  }}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-[var(--surface-secondary)]"
+                >
+                  <X size={14} className="text-[var(--text-tertiary)]" />
+                </span>
+              ) : (
+                <CaretDown
+                  size={14}
+                  className="shrink-0 text-[var(--text-tertiary)] transition-transform duration-200"
+                  style={{ transform: calendarOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              )}
+            </button>
+
+            {/* Calendar popup — portalled into body to escape transform stacking contexts */}
+            {calendarOpen && calendarPos && createPortal(
+              <>
+                <div className="fixed inset-0 z-[9998]" onClick={() => setCalendarOpen(false)} />
+                <div
+                  className="fixed z-[9999] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-xl"
+                  style={{ top: calendarPos.top, left: calendarPos.left, width: calendarPos.width }}
+                >
+
+                  {/* Month header */}
+                  <div className="flex items-center justify-between px-4 py-3" style={{ background: "var(--brand-blue-hex)" }}>
+                    <button
+                      type="button"
+                      aria-label="Previous month"
+                      onClick={() => {
+                        const d = new Date(calendarMonth);
+                        d.setMonth(d.getMonth() - 1);
+                        setCalendarMonth(d);
+                      }}
+                      disabled={
+                        calendarMonth.getFullYear() === today.getFullYear() &&
+                        calendarMonth.getMonth() === today.getMonth()
+                      }
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ArrowLeft size={13} weight="bold" />
+                    </button>
+
+                    <p className="text-sm font-semibold text-white">
+                      {["January","February","March","April","May","June","July","August","September","October","November","December"][calendarMonth.getMonth()]}{" "}
+                      {calendarMonth.getFullYear()}
+                    </p>
+
+                    <button
+                      type="button"
+                      aria-label="Next month"
+                      onClick={() => {
+                        const d = new Date(calendarMonth);
+                        d.setMonth(d.getMonth() + 1);
+                        setCalendarMonth(d);
+                      }}
+                      disabled={(() => {
+                        const nextMonth = new Date(calendarMonth);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        const firstOfNext = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
+                        return firstOfNext > maxDate;
+                      })()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.92] disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ArrowRight size={13} weight="bold" />
+                    </button>
+                  </div>
+
+                  {/* Day-of-week headers */}
+                  <div className="grid grid-cols-7 border-b border-[var(--border-subtle)]">
+                    {["Mo","Tu","We","Th","Fr","Sa","Su"].map((d) => (
+                      <div key={d} className="py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day grid */}
+                  <div className="grid grid-cols-7 p-2 gap-1">
+                    {(() => {
+                      const year = calendarMonth.getFullYear();
+                      const month = calendarMonth.getMonth();
+                      const firstDay = new Date(year, month, 1);
+                      const startOffset = (firstDay.getDay() + 6) % 7;
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const todayIso = toISODate(today);
+                      const cells: React.ReactNode[] = [];
+
+                      for (let i = 0; i < startOffset; i++) {
+                        cells.push(<div key={`blank-${i}`} />);
+                      }
+
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const date = new Date(year, month, day);
+                        const iso = toISODate(date);
+                        const inWindow = isDateInWindow(date);
+                        const isHolidayOrSunday = isDisabledDate(date);
+                        const disabled = !inWindow || isHolidayOrSunday;
+                        const isSelected = selectedDate === iso;
+                        const isToday = iso === todayIso;
+                        const showRedDot = isHolidayOrSunday && inWindow && !isSelected;
+
+                        cells.push(
+                          <button
+                            key={iso}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setSelectedDate(iso);
+                              setSelectedTime(null);
+                              setCalendarOpen(false);
+                            }}
+                            className="relative flex aspect-square items-center justify-center rounded-[var(--radius-sm)] text-sm font-medium transition-all duration-150 active:scale-[0.93]"
+                            style={{
+                              background: isSelected ? "var(--brand-blue-hex)" : "transparent",
+                              color: isSelected
+                                ? "#fff"
+                                : disabled
+                                  ? "var(--text-tertiary)"
+                                  : "var(--text-primary)",
+                              opacity: disabled && !inWindow ? 0.2 : disabled ? 0.35 : 1,
+                              pointerEvents: disabled ? "none" : "auto",
+                              fontWeight: isToday ? 800 : 500,
+                            }}
+                          >
+                            {day}
+                            {isToday && !isSelected && (
+                              <span
+                                className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                                style={{ background: "var(--brand-teal-hex)" }}
+                              />
+                            )}
+                            {showRedDot && (
+                              <span
+                                className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                                style={{ background: "#ef4444" }}
+                              />
+                            )}
+                          </button>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex items-center gap-3 border-t border-[var(--border-subtle)] px-4 py-2.5">
+                    <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--brand-teal-hex)" }} />
+                      Today
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[10px]" style={{ color: "#ef4444" }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+                      Sundays &amp; public holidays unavailable
+                    </span>
+                  </div>
+
+                </div>
+              </>,
+              document.body
+            )}
+          </div>
+
+          {/* ── Time trigger + dropdown ──────────────────────────── */}
+          {selectedDate && (
+            <div className="relative">
+              <button
+                ref={timeTriggerRef}
+                type="button"
+                onClick={() => { timeDropdownOpen ? setTimeDropdownOpen(false) : openTimePopup(); }}
+                className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-left text-sm transition-colors duration-150"
+              >
+                <CalendarBlank size={18} weight="duotone" className="shrink-0 text-brand-blue" />
+                <span
+                  className="flex-1 text-sm"
                   style={{
-                    color: isSelected
-                      ? "var(--text-on-brand)"
-                      : "var(--text-primary)",
+                  color: "var(--text-primary)",
+                  fontWeight: selectedTime ? 500 : 400,
                   }}
                 >
-                  {date.getDate()}
+                  {selectedTime ? formatDisplayTime(selectedTime) : "Choose a preferred time"}
                 </span>
-                {(date.getDate() === 1 || i === 0) && (
-                  <span
-                    className="text-[9px] font-medium uppercase tracking-wider"
-                    style={{
-                      color: isSelected
-                        ? "oklch(0.98 0.005 260 / 0.7)"
-                        : "var(--text-tertiary)",
-                    }}
-                  >
-                    {MONTH_LABELS[date.getMonth()]}
-                  </span>
-                )}
+                <CaretDown
+                  size={14}
+                  className="shrink-0 text-[var(--text-tertiary)] transition-transform duration-200"
+                  style={{ transform: timeDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
               </button>
-            );
-          })}
+
+              {/* Time dropdown — portalled into body to escape transform stacking contexts */}
+              {timeDropdownOpen && timePos && createPortal(
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setTimeDropdownOpen(false)} />
+                  <div
+                    className="fixed z-[9999] overflow-hidden overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-xl"
+                    style={{ top: timePos.top, left: timePos.left, width: timePos.width, maxHeight: 280 }}
+                  >
+                    {(() => {
+                      const bookedIdx = fullyBookedIndex(selectedDate);
+                      const limitedSet = limitedSlotIndices(selectedDate, bookedIdx);
+                      return TIME_SLOTS.map((slot, i) => {
+                        const pastDisabled = isSlotDisabled(slot);
+                        const isFullyBooked = !pastDisabled && i === bookedIdx;
+                        const disabled = pastDisabled || isFullyBooked;
+                        const isSelected = selectedTime === slot;
+                        const isLimited = !disabled && limitedSet.has(i);
+
+                        return (
+                          <button
+                            key={slot}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setSelectedTime(slot);
+                              setTimeDropdownOpen(false);
+                              setTimeout(() => {
+                                const el = confirmBtnRef.current;
+                                if (!el) return;
+                                const rect = el.getBoundingClientRect();
+                                const gap = 12;
+                                const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
+                                window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+                              }, 0);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors duration-150 active:scale-[0.99]"
+                            style={{
+                              background: isSelected
+                                ? "var(--brand-blue-hex)"
+                                : isFullyBooked
+                                  ? "var(--surface-secondary)"
+                                  : "var(--surface-elevated)",
+                              opacity: pastDisabled ? 0.35 : 1,
+                              pointerEvents: disabled ? "none" : "auto",
+                              borderBottom: i < TIME_SLOTS.length - 1
+                                ? "1px solid var(--border-subtle)"
+                                : "none",
+                            }}
+                          >
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{
+                                background: isSelected
+                                  ? "rgba(255,255,255,0.6)"
+                                  : pastDisabled
+                                    ? "var(--border-medium)"
+                                    : isFullyBooked
+                                      ? "#d1495b"
+                                      : isLimited
+                                        ? "#e07b4a"
+                                        : "#4caf7d",
+                              }}
+                            />
+                            <span
+                              className="flex-1 text-left"
+                              style={{
+                                color: isSelected
+                                  ? "#ffffff"
+                                  : isFullyBooked
+                                    ? "var(--text-tertiary)"
+                                    : "var(--text-primary)",
+                                textDecoration: isFullyBooked ? "line-through" : "none",
+                              }}
+                            >
+                              {formatDisplayTime(slot)}
+                            </span>
+                            {isFullyBooked && (
+                              <span
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                style={{
+                                  background: "oklch(0.65 0.18 15 / 0.08)",
+                                  color: "#a83240",
+                                }}
+                              >
+                                Fully booked
+                              </span>
+                            )}
+                            {isLimited && !isSelected && (
+                              <span
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                style={{
+                                  background: "oklch(0.65 0.13 40 / 0.10)",
+                                  color: "#c45c1a",
+                                }}
+                              >
+                                limited spots remain
+                              </span>
+                            )}
+                            {isSelected && (
+                              <span className="shrink-0 text-xs font-semibold text-white/70">
+                                Selected
+                              </span>
+                            )}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </>,
+                document.body
+              )}
+            </div>
+          )}
+
+          {/* Hours hint — changes once a date is chosen */}
+          <p className="flex items-center justify-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+            <Clock size={12} className="shrink-0" />
+            {selectedDate
+              ? "Appointment slots open from 10:30am – 7pm"
+              : "Open Mondays – Saturdays"}
+          </p>
+
         </div>
-        </div>{/* end gradient wrapper */}
       </div>
 
-      {/* ── Time slots ─────────────────────────────────────────── */}
-      {selectedDate && (
-        <div className="animate-slide-in flex flex-col gap-3">
-          <p className="text-sm font-medium text-[var(--text-primary)]">
-            Select a time
-          </p>
-          {/* Scrollable confined list — outer div clips corners, inner scrolls */}
-          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
-          <div
-            className="overflow-y-auto"
-            style={{ maxHeight: 280 }}
-          >
-            {(() => {
-              const bookedIdx = fullyBookedIndex(selectedDate);
-              const limitedSet = limitedSlotIndices(selectedDate, bookedIdx);
-              return TIME_SLOTS.map((slot, i) => {
-              const pastDisabled = isSlotDisabled(slot);
-              const isFullyBooked = !pastDisabled && i === bookedIdx;
-              const disabled = pastDisabled || isFullyBooked;
-              const isSelected = selectedTime === slot;
-              const isLimited = !disabled && limitedSet.has(i);
-
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    setSelectedTime(slot);
-                    setTimeout(() => {
-                      const el = confirmBtnRef.current;
-                      if (!el) return;
-                      const rect = el.getBoundingClientRect();
-                      const gap = 12;
-                      const targetScrollY = window.scrollY + rect.bottom + gap - window.innerHeight;
-                      window.scrollTo({ top: targetScrollY, behavior: "smooth" });
-                    }, 0);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors duration-150 active:scale-[0.99]"
-                  style={{
-                    background: isSelected
-                      ? "var(--brand-blue-hex)"
-                      : isFullyBooked
-                        ? "var(--surface-secondary)"
-                        : "var(--surface-elevated)",
-                    opacity: pastDisabled ? 0.35 : 1,
-                    pointerEvents: disabled ? "none" : "auto",
-                    borderBottom: i < TIME_SLOTS.length - 1
-                      ? "1px solid var(--border-subtle)"
-                      : "none",
-                  }}
-                >
-                  {/* Availability dot */}
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{
-                      background: isSelected
-                        ? "rgba(255,255,255,0.6)"
-                        : pastDisabled
-                          ? "var(--border-medium)"
-                          : isFullyBooked
-                            ? "#d1495b"
-                            : isLimited
-                              ? "#e07b4a"
-                              : "#4caf7d",
-                    }}
-                  />
-                  {/* Time label */}
-                  <span
-                    className="flex-1 text-left"
-                    style={{
-                      color: isSelected
-                        ? "#ffffff"
-                        : isFullyBooked
-                          ? "var(--text-tertiary)"
-                          : "var(--text-primary)",
-                      textDecoration: isFullyBooked ? "line-through" : "none",
-                    }}
-                  >
-                    {formatDisplayTime(slot)}
-                  </span>
-                  {/* Status badge */}
-                  {isFullyBooked && (
-                    <span
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{
-                        background: "oklch(0.65 0.18 15 / 0.08)",
-                        color: "#a83240",
-                      }}
-                    >
-                      Fully booked
-                    </span>
-                  )}
-                  {isLimited && !isSelected && (
-                    <span
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{
-                        background: "oklch(0.65 0.13 40 / 0.10)",
-                        color: "#c45c1a",
-                      }}
-                    >
-                      limited spots remain
-                    </span>
-                  )}
-                  {isSelected && (
-                    <span className="shrink-0 text-xs font-semibold text-white/70">
-                      Selected
-                    </span>
-                  )}
-                </button>
-              );
-            });
-            })()}
-          </div>
-          </div>{/* end outer clip wrapper */}
-        </div>
-      )}
-
-      {/* ── Office location ────────────────────────────────────── */}
+      {/* ── Office location — hidden on desktop (shown in sidebar) */}
       <div
-        className="flex flex-col gap-3 pt-2"
+        className="hidden"
         style={{
           opacity: 0,
           animation: "fade-up 0.5s cubic-bezier(0.16,1,0.3,1) 160ms both",
@@ -717,15 +883,6 @@ export function AppointmentBooking({
                 loading="lazy"
               />
             </div>
-            <a
-              href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-1.5 text-sm font-medium text-brand-blue transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-            >
-              View on Google Maps
-              <ArrowSquareOut size={14} weight="bold" />
-            </a>
           </div>
 
           {/* Address + hours */}
@@ -742,14 +899,19 @@ export function AppointmentBooking({
                 weight="duotone"
                 className="mt-0.5 shrink-0 text-brand-blue"
               />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+              <a
+                href="https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col transition-opacity duration-200 hover:opacity-75"
+              >
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   1 North Bridge Road, High Street Centre
                 </p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
+                <p className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-medium)] underline-offset-2 group-hover:decoration-brand-blue">
                   #01-35, Singapore 179094
                 </p>
-              </div>
+              </a>
             </div>
 
             <div className="flex items-start gap-3">
@@ -803,44 +965,22 @@ export function AppointmentBooking({
       >
         <button
           type="button"
-          disabled={!canConfirm || isBookingSubmit}
+          disabled={!canConfirm}
             onClick={async () => {
             if (!selectedDate || !selectedTime) return;
-            console.info(`${BOOK_LOG} Confirm clicked`, {
-              date: selectedDate,
-              time: selectedTime,
-              hasOnConfirm: Boolean(onConfirm),
-            });
-            setIsBookingSubmit(true);
-            try {
-              if (onConfirm) {
-                const out = await onConfirm(selectedDate, selectedTime);
-                if (out === null) {
-                  console.warn(`${BOOK_LOG} onConfirm returned null — staying on picker (error or slot_taken)`);
-                  return;
-                }
-                if (onBookedRedirect) {
-                  trackEvent("step_11_appointment_booked");
-                  return;
-                }
-                setBookingDetails(out);
-              } else {
-                console.info(`${BOOK_LOG} no onConfirm — demo mode, no API`);
-                setBookingDetails(null);
-              }
-              console.info(`${BOOK_LOG} showing confirmation step`);
-              trackEvent("step_11_appointment_booked");
-              setConfirmed(true);
-              window.scrollTo({ top: 0, behavior: "instant" });
-            } finally {
-              setIsBookingSubmit(false);
+            trackEvent("step_11_appointment_booked");
+            if (onConfirm) {
+              await onConfirm(selectedDate, selectedTime);
+              if (onBookedRedirect) return;
             }
+            setConfirmed(true);
+            window.scrollTo({ top: 0, behavior: "instant" });
           }}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
-          {isBookingSubmit ? "Confirming…" : "Confirm Appointment"}
-          {!isBookingSubmit && <ArrowRight size={16} weight="bold" />}
+          Book Appointment
         </button>
+        <div className="pb-6" />
         {!canConfirm && (
           <p className="mt-2 text-center text-xs text-[var(--text-tertiary)]">
             {!selectedDate

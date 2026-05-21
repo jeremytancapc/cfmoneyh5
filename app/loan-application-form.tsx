@@ -7,6 +7,7 @@ import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, form
 import { createPortal } from "react-dom";
 import { trackDisplayStep } from "@/lib/analytics";
 import { LoanGateForm } from "@/app/loan-gate-form";
+import { PaymentHistorySelector } from "@/components/ui/gradient-selector-card";
 import {
   ArrowRight,
   ArrowLeft,
@@ -1435,8 +1436,8 @@ export function Step9_MoneylenderLoans({
     <div>
       <StepHeader
         icon={ChartLineUp}
-        title="Any moneylender loans?"
-        subtitle="Include any outstanding licensed moneylender balances."
+        title="Outstanding loans?"
+        subtitle="Declare any outstanding licensed moneylender balances so we can calculate your offer accurately."
       />
 
       <div className="flex flex-col gap-4">
@@ -1448,9 +1449,7 @@ export function Step9_MoneylenderLoans({
           <div
             className="flex min-h-[40px] sm:min-h-[46px] items-center rounded-[var(--radius-md)] border bg-[var(--surface-elevated)] gap-2 pl-4 pr-4 transition-all duration-200 focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/10"
             style={{
-              borderColor: formData.moneylenderNoLoans
-                ? "var(--border-subtle)"
-                : "var(--border-subtle)",
+              borderColor: "var(--border-subtle)",
               opacity: formData.moneylenderNoLoans ? 0.45 : 1,
             }}
           >
@@ -1476,47 +1475,16 @@ export function Step9_MoneylenderLoans({
           </div>
         </div>
 
-        {/* Payment history — revealed directly below the amount input */}
+        {/* Payment history — 5-state gradient selector */}
         {hasAmount && !formData.moneylenderNoLoans && (
           <div className="animate-slide-in" key="payment-history">
             <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
-              How is your payment history?
+              How is your repayment history with this lender?
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {PAYMENT_HISTORY_OPTIONS.map(({ value, label, emoji }) => {
-                const isSelected = formData.moneylenderPaymentHistory === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      updateField("moneylenderPaymentHistory", value)
-                    }
-                    className="flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border py-3 transition-all duration-200 active:scale-[0.96]"
-                    style={{
-                      borderColor: isSelected
-                        ? "var(--brand-blue-hex)"
-                        : "var(--border-subtle)",
-                      background: isSelected
-                        ? "var(--brand-blue-hex)"
-                        : "transparent",
-                    }}
-                  >
-                    <span className="text-xl leading-none">{emoji}</span>
-                    <span
-                      className="text-[11px] font-medium text-center leading-tight"
-                      style={{
-                        color: isSelected
-                          ? "var(--text-on-brand)"
-                          : "var(--text-secondary)",
-                      }}
-                    >
-                      {label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <PaymentHistorySelector
+              value={formData.moneylenderPaymentHistory}
+              onChange={(v) => updateField("moneylenderPaymentHistory", v)}
+            />
           </div>
         )}
 

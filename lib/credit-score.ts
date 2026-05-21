@@ -4,7 +4,7 @@
  * Rules source:
  *  - Eligibility: 18+; foreigners ≥ S$40k/year; income ≤ S$20k/year → max S$3k − O/S balance;
  *    otherwise max = incomeMultiple × monthly income − declared moneylender O/S balance.
- *    incomeMultiple: no ML loans 4.5×; on-time 4.9×; average 3.8×; bad debt 1.38×.
+ *    incomeMultiple: no ML loans 4.5×; very_good 5.3×; good 4.9×; average 3.8×; poor 2.9×; bad_debt 1.38×.
  *  - Income priority: CPF (if fresh) → NOA (if in window) → self-declared.
  */
 
@@ -17,10 +17,15 @@ export function moneylenderIncomeMultiplier(
 ): number {
   if (noLoans) return 4.5;
   switch (paymentHistory) {
-    case "on_time":
+    case "very_good":
+      return 5.3;
+    case "good":
+    case "on_time":   // legacy value — kept for backwards compat
       return 4.9;
     case "average":
       return 3.8;
+    case "poor":
+      return 2.9;
     case "bad_debt":
       return 1.38;
     default:

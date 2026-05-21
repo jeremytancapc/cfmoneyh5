@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { MobileHeader } from "@/app/mobile-header";
 import {
   Step4_Identity,
   Step6_Contact,
@@ -214,11 +215,7 @@ export function ReviewForm({ initialData }: Props) {
       </aside>
 
       <main className="flex flex-col flex-1 overflow-x-clip">
-        <div className="flex items-center px-6 pb-4 pt-8 lg:hidden">
-          <a href="/">
-            <Image src="/images/cf-money-full-color.png" alt="CF Money" width={120} height={36} className="h-4 w-auto" priority />
-          </a>
-        </div>
+        <MobileHeader />
 
         <div className="flex flex-col items-center justify-start px-5 pb-8 pt-6 sm:px-8 flex-1 lg:justify-center lg:px-12 lg:pt-10 lg:pb-10 xl:px-20">
           <div className="w-full max-w-[520px]">
