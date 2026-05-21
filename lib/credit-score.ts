@@ -270,7 +270,7 @@ export function assessCredit(params: {
   const existingLoans =
     params.moneylenderNoLoans
       ? 0
-      : Math.max(0, parseInt(params.moneylenderLoanAmount, 10) || 0);
+      : Math.max(0, parseInt(params.moneylenderLoanAmount.replace(/,/g, ""), 10) || 0);
 
   const incomeMultiple = moneylenderIncomeMultiplier(
     params.moneylenderNoLoans,

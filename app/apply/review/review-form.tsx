@@ -63,10 +63,10 @@ export function ReviewForm({ initialData }: Props) {
         return (
           formData.idType !== "" &&
           formData.fullName.trim().length > 1 &&
-          formData.nric.trim().length > 3
+          /^[STFGM]\d{7}[A-Z]$/i.test(formData.nric.trim())
         );
       case 5:
-        return formData.mobile.trim().length >= 8;
+        return /^[89]\d{7}$/.test(formData.mobile.replace(/\s/g, ""));
       case 6:
         return true;
       case 7:

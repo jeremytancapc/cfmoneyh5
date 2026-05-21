@@ -289,8 +289,8 @@ function InputField({
           </span>
         )}
         <input
-          type={type}
-          inputMode={type === "number" ? "decimal" : undefined}
+          type={type === "number" ? "text" : type}
+          inputMode={type === "number" ? "numeric" : type === "tel" ? "tel" : undefined}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -704,17 +704,17 @@ export function Step3_SingpassGate({
   redirectPending?: boolean;
 }) {
   const benefits = [
-    "No documents required — Myinfo retrieves everything automatically",
+    "No documents submission required",
     "Increases approval rate to up to 90%",
-    "Gov-grade security — your session is encrypted end-to-end",
+    "Your data is safe and will only be used for this application.",
   ];
 
   return (
     <div className="py-4 sm:py-6">
       <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-        Continue with Singpass
+        Get Approved Quicker ⚡
       </h2>
-      <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)] sm:whitespace-nowrap">
+      <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
         Verify with Singpass for higher approval rates and faster processing.
       </p>
 
@@ -735,27 +735,23 @@ export function Step3_SingpassGate({
         type="button"
         onClick={onSingpass}
         disabled={redirectPending}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 shadow-[0_1px_2px_rgba(0,0,51,0.06)] transition-all duration-200 hover:border-[var(--border-medium)] hover:shadow-[0_2px_6px_rgba(0,0,51,0.1)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 flex w-full justify-center active:scale-[0.98] transition-transform duration-150 disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Retrieve Myinfo with Singpass"
       >
         {redirectPending ? (
-          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-            <span className="h-4 w-4 rounded-full border-2 border-[var(--border-medium)] border-t-brand-blue animate-spin" />
-            Please wait…
-          </span>
+          <div className="flex h-12 w-[320px] items-center justify-center gap-2 rounded-[var(--radius-md)]" style={{ backgroundColor: "#F4333D" }}>
+            <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            <span className="text-sm font-medium text-white">Please wait…</span>
+          </div>
         ) : (
-          <>
-            <span className="text-sm font-medium text-[var(--text-secondary)]">
-              Retrieve Myinfo with
-            </span>
-            <Image
-              src="/images/singpass_logo_fullcolours.png"
-              alt="Singpass"
-              width={88}
-              height={28}
-              className="h-5 w-auto translate-y-px"
-            />
-          </>
+          <Image
+            src="/images/singpass-myinfo-red.png"
+            alt="Retrieve Myinfo with Singpass"
+            width={320}
+            height={56}
+            className="h-12 w-auto rounded-[var(--radius-md)]"
+            priority
+          />
         )}
       </button>
 
@@ -839,6 +835,11 @@ export function Step4_Identity({
           value={formData.nric}
           onChange={(v) => updateField("nric", v.toUpperCase())}
           helper="Your NRIC is encrypted and never shared with third parties."
+          validate={(v) =>
+            /^[STFGM]\d{7}[A-Z]$/i.test(v.trim())
+              ? undefined
+              : "Enter a valid Singapore NRIC or FIN (e.g. S1234567D)."
+          }
         />
       </div>
     </div>
@@ -1591,7 +1592,7 @@ export function Step9_MoneylenderLoans({
           >
             <span className="shrink-0 select-none text-sm text-[var(--text-tertiary)]">$</span>
             <input
-              type="number"
+              type="text"
               inputMode="numeric"
               placeholder="e.g. 5,000"
               value={formData.moneylenderLoanAmount}

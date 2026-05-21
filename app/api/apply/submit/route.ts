@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     idType: formData.idType,
     cpfContributions: formData.cpfContributions,
     noaHistory: formData.noaHistory,
-    selfDeclaredMonthlyIncome: parseInt(formData.monthlyIncome, 10) || 0,
+    selfDeclaredMonthlyIncome: parseInt(formData.monthlyIncome.replace(/,/g, ""), 10) || 0,
     requestedLoanAmount: formData.amount,
     moneylenderNoLoans: formData.moneylenderNoLoans,
     moneylenderLoanAmount: formData.moneylenderLoanAmount,
