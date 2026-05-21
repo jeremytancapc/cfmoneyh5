@@ -36,6 +36,7 @@ export function LoanGateForm({
     ...(initialApplySession ?? {}),
   }));
   const [incomeHighWarningShown, setIncomeHighWarningShown] = useState(false);
+  const [incomeConfirmed, setIncomeConfirmed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [step3RedirectPending, setStep3RedirectPending] = useState(false);
   const bottomCtaRef = useRef<HTMLDivElement>(null);
@@ -46,7 +47,7 @@ export function LoanGateForm({
 
   const updateField = useCallback(
     <K extends keyof FormData>(key: K, value: FormData[K]) => {
-      if (key === "monthlyIncome") setIncomeHighWarningShown(false);
+      if (key === "monthlyIncome") { setIncomeHighWarningShown(false); setIncomeConfirmed(false); }
       setFormData((prev) => ({ ...prev, [key]: value }));
     },
     [],
@@ -72,11 +73,11 @@ export function LoanGateForm({
           formData.urgency !== ""
         );
       case 2:
-        return hasDeclaredIncome;
+        return hasDeclaredIncome && incomeConfirmed;
       default:
         return false;
     }
-  }, [step, formData]);
+  }, [step, formData, incomeConfirmed]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -167,7 +168,7 @@ export function LoanGateForm({
 
   return (
     <div>
-      <StepIndicator current={history.length} total={3} />
+      <StepIndicator current={history.length} total={8} />
 
       <div key={step} className="animate-slide-in">
         {step === 1 && (
@@ -184,6 +185,8 @@ export function LoanGateForm({
             formData={formData}
             updateField={updateField}
             incomeHighWarningShown={incomeHighWarningShown}
+            incomeConfirmed={incomeConfirmed}
+            onIncomeConfirmedChange={setIncomeConfirmed}
           />
         )}
         {step === 3 && (

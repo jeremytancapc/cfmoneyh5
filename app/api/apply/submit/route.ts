@@ -28,6 +28,7 @@ import {
 import { initialLoanFormData } from "@/lib/loan-form";
 import type { LoanFormData } from "@/lib/loan-form";
 import { assessCredit } from "@/lib/credit-score";
+import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAdminClient } from "@/lib/supabase/client";
 import { peekAuthCallbackPayload } from "@/lib/auth-callback-store";
 import { buildPostSubmitSession } from "@/lib/apply-session-slim";
@@ -156,13 +157,15 @@ export async function POST(request: NextRequest) {
     idType: formData.idType,
     cpfContributions: formData.cpfContributions,
     noaHistory: formData.noaHistory,
-    selfDeclaredMonthlyIncome: parseInt(formData.monthlyIncome, 10) || 0,
+    selfDeclaredMonthlyIncome: parseInt(formData.monthlyIncome.replace(/,/g, ""), 10) || 0,
     requestedLoanAmount: formData.amount,
     moneylenderNoLoans: formData.moneylenderNoLoans,
     moneylenderLoanAmount: formData.moneylenderLoanAmount,
     moneylenderPaymentHistory: formData.moneylenderPaymentHistory,
     authMethod: formData.authMethod,
   });
+
+  const creditRejectionReason = deriveCreditRejectionReason(assessment);
 
   // ── 4. Save credit assessment ─────────────────────────────────────────────
   await admin.from("credit_assessments").insert({
@@ -172,6 +175,7 @@ export async function POST(request: NextRequest) {
     approved_loan_amount: assessment.approvedLoanAmount,
     max_eligible_loan: assessment.maxEligibleLoan,
     is_eligible: assessment.isEligible,
+    credit_rejection_reason: creditRejectionReason,
     age_at_application: assessment.age || null,
     existing_loans: assessment.existingLoans,
     moneylender_loan_amount: assessment.existingLoans > 0 ? assessment.existingLoans : null,

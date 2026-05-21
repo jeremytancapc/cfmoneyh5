@@ -9,6 +9,7 @@ import {
   CheckCircle,
   Train,
   Car,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import type { StoredBookingConfirmation } from "@/lib/booking-confirmation";
 
@@ -97,6 +98,36 @@ interface BookingConfirmedViewProps {
 export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
   const idType = booking.idType === "foreigner" ? "foreigner" : "sg_pr";
 
+  const WHAT_TO_BRING_LIST = WHAT_TO_BRING[idType];
+  const thingsToBringLines = WHAT_TO_BRING_LIST.map((item) => `• ${item}`).join("\n");
+
+  const appointmentMessage = [
+    "[ CF Money Appointment ]",
+    "",
+    `Application Ref: ${booking.cfh5Id}`,
+    "",
+    `Date: ${formatDisplayDate(booking.date)}`,
+    `Time: ${formatDisplayTime(booking.time)}`,
+    "",
+    "-- Location --",
+    "1 North Bridge Road, High Street Centre",
+    "#01-35, Singapore 179094",
+    "City Hall MRT (Exit B) or Clarke Quay MRT (Exit E)",
+    "https://maps.app.goo.gl/Cs9Av94qW3NHh7wY6",
+    "",
+    "-- Things to bring --",
+    thingsToBringLines,
+  ].join("\n");
+
+  const handleShare = () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({ text: appointmentMessage }).catch(() => {});
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(appointmentMessage)}`, "_blank");
+    }
+  };
+
+
   return (
     <div className="animate-fade-up flex flex-col gap-8 pt-6 text-center sm:pt-0 sm:text-left">
       <div className="flex flex-col gap-3">
@@ -118,8 +149,18 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
             {formatDisplayTime(booking.time)}
           </p>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-            We recommend arriving 15 mins before your timeslot so that we can facilitate your appointment on time.
+            Kindly arrive on time so we can serve you promptly.
           </p>
+        </div>
+        <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+          >
+            <DownloadSimple size={16} weight="bold" />
+            Save Details on WhatsApp
+          </button>
         </div>
       </div>
 
