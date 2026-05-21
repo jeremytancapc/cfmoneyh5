@@ -104,6 +104,8 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
   const appointmentMessage = [
     "[ CF Money Appointment ]",
     "",
+    `Application Ref: ${booking.cfh5Id}`,
+    "",
     `Date: ${formatDisplayDate(booking.date)}`,
     `Time: ${formatDisplayTime(booking.time)}`,
     "",
@@ -116,10 +118,6 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
     "-- Things to bring --",
     thingsToBringLines,
   ].join("\n");
-
-  const handleAddToCalendar = () => {
-    window.location.href = `/api/apply/calendar?date=${encodeURIComponent(booking.date)}&time=${encodeURIComponent(booking.time)}`;
-  };
 
   const handleShare = () => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -162,14 +160,6 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
           >
             <DownloadSimple size={16} weight="bold" />
             Share / Save Details
-          </button>
-          <button
-            type="button"
-            onClick={handleAddToCalendar}
-            className="flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-all duration-200 hover:bg-[var(--surface-secondary)] active:scale-[0.98]"
-          >
-            <CalendarBlank size={16} weight="duotone" className="text-brand-blue" />
-            Add to Calendar
           </button>
         </div>
       </div>
