@@ -159,7 +159,7 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
             className="flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           >
             <DownloadSimple size={16} weight="bold" />
-            Share / Save Details
+            Save Details on WhatsApp
           </button>
         </div>
       </div>
