@@ -33,6 +33,7 @@ import { createAdminClient } from "@/lib/supabase/client";
 import { peekAuthCallbackPayload } from "@/lib/auth-callback-store";
 import { buildPostSubmitSession } from "@/lib/apply-session-slim";
 import { looksLikeLeadUuid } from "@/lib/lead-id";
+import { DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
 
 export const runtime = "nodejs";
 
@@ -66,15 +67,10 @@ export async function POST(request: NextRequest) {
     formData.authMethod = sessionAuth;
   }
 
-  // Prefer session draftLeadId over an empty body value.
-  // Singpass: draftLeadId is written to the session at /api/apply/activate (not
-  // in React state), so bodyData.draftLeadId arrives as "".
-  // Manual: draft route returns draftLeadId in JSON → stored in React state → body.
-  const bodyDraftLeadId = (bodyData.draftLeadId ?? "").trim();
-  const sessionDraftLeadId = (sessionData.draftLeadId ?? "").trim();
-  if (!looksLikeLeadUuid(bodyDraftLeadId) && looksLikeLeadUuid(sessionDraftLeadId)) {
-    formData.draftLeadId = sessionDraftLeadId;
-  }
+  // Read the draft lead ID from the dedicated draft_lead cookie.
+  // This cookie is set by /api/apply/activate (Singpass) or /api/apply/draft
+  // (manual). It is separate from the session so the funnel is never affected.
+  const draftLeadId = (request.cookies.get(DRAFT_LEAD_COOKIE)?.value ?? "").trim();
 
   const admin = createAdminClient();
 
@@ -108,21 +104,20 @@ export async function POST(request: NextRequest) {
     status: "new" as const,
   };
 
-  const existingDraftLeadId = (formData.draftLeadId ?? "").trim();
   let leadId: string;
 
-  if (looksLikeLeadUuid(existingDraftLeadId)) {
+  if (looksLikeLeadUuid(draftLeadId)) {
     // Partial lead created at activate (Singpass) or draft (manual) — update it.
     const { error: updateError } = await admin
       .from("leads")
       .update(leadFields)
-      .eq("id", existingDraftLeadId);
+      .eq("id", draftLeadId);
 
     if (updateError) {
       console.error("Failed to update lead:", updateError);
       return NextResponse.json({ error: "Failed to save application" }, { status: 500 });
     }
-    leadId = existingDraftLeadId;
+    leadId = draftLeadId;
   } else {
     const { data: lead, error: leadError } = await admin
       .from("leads")
@@ -230,6 +225,9 @@ export async function POST(request: NextRequest) {
     maxEligibleLoan: assessment.maxEligibleLoan,
     explanation: assessment.explanation,
   });
+
+  // Clear draft_lead cookie — no longer needed after full submit.
+  res.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
 
   if (assessment.isEligible && assessment.approvedLoanAmount > 0) {
     const sc = sessionCookieValue(updatedSession);

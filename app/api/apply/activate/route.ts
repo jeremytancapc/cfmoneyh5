@@ -17,6 +17,7 @@ import {
 import type { LoanFormData } from "@/lib/loan-form";
 import { createAdminClient } from "@/lib/supabase/client";
 import { looksLikeLeadUuid } from "@/lib/lead-id";
+import { draftLeadCookieValue, DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
 
 export const runtime = "nodejs";
 
@@ -43,13 +44,17 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Create partial lead while MyInfo data is fresh ─────────────────────────
-  // Only if we have the minimum required fields and haven't already created one.
+  // Stored in a dedicated draft_lead cookie — NOT in the session — so the
+  // funnel gate logic is completely unaffected.
   const hasLoanDetails =
     typeof merged.amount === "number" && merged.amount > 0 &&
     typeof merged.tenure === "number" && merged.tenure > 0;
-  const alreadyHasLead = looksLikeLeadUuid(merged.leadId ?? "");
+  // Don't create a second draft if the browser already has one from this journey.
+  const existingDraftLeadId = request.cookies.get(DRAFT_LEAD_COOKIE)?.value ?? "";
+  const alreadyHasDraft = looksLikeLeadUuid(existingDraftLeadId);
 
-  if (hasLoanDetails && !alreadyHasLead) {
+  let newDraftLeadId: string | null = null;
+  if (hasLoanDetails && !alreadyHasDraft) {
     try {
       const admin = createAdminClient();
       const { data: partialLead } = await admin
@@ -75,7 +80,7 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (partialLead?.id) {
-        merged.draftLeadId = partialLead.id as string;
+        newDraftLeadId = partialLead.id as string;
       }
     } catch (err) {
       console.error("[activate] partial lead creation failed:", err);
@@ -118,6 +123,10 @@ export async function GET(request: NextRequest) {
   const sc = sessionCookieValue(merged);
   res.cookies.set({ ...sc, value: encoded });
   res.cookies.set(gateCookieValue());
+
+  if (newDraftLeadId) {
+    res.cookies.set(draftLeadCookieValue(newDraftLeadId));
+  }
 
   return res;
 }

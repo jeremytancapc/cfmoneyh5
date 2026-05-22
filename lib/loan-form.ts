@@ -52,11 +52,6 @@ export interface LoanFormData {
   // the session cookie (they would exceed the 4 KB browser limit).
   singpassRawKey: string;
 
-  // Set at /api/apply/activate (Singpass) or /api/apply/draft (manual) before
-  // final submit — lets the submit route UPDATE instead of INSERT.
-  // Intentionally NOT named leadId so the funnel logic ignores it.
-  draftLeadId: string;
-
   // Populated by /api/apply/submit — carried in session to approval + booking pages
   leadId: string;
   approvedLoanAmount: number;
@@ -90,7 +85,6 @@ export const initialLoanFormData: LoanFormData = {
   moneylenderLoanAmount: "",
   moneylenderNoLoans: false,
   moneylenderPaymentHistory: "",
-  draftLeadId: "",
   dob: "",
   cpfContributions: [],
   noaHistory: [],

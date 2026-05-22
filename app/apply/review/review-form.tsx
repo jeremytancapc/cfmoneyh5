@@ -176,28 +176,20 @@ export function ReviewForm({ initialData }: Props) {
   }, [history, scrollToTop]);
 
   // Step 8 (Review) "Yes, I confirm" → create partial lead then go to contact step.
+  // The draft endpoint sets a draft_lead cookie server-side — no state update needed.
   const handleReviewConfirm = useCallback(async () => {
-    // Only create a draft lead if one hasn't been made yet.
-    // Singpass: draftLeadId comes from the session (set at activate).
-    // Manual: we create it here so drop-offs after review confirm are captured.
-    if (!formData.draftLeadId) {
-      try {
-        const res = await fetch("/api/apply/draft", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-        if (res.ok) {
-          const result = (await res.json()) as { draftLeadId?: string };
-          if (result.draftLeadId) updateField("draftLeadId", result.draftLeadId);
-        }
-      } catch {
-        // Non-blocking — submit falls back to INSERT if draft failed.
-      }
+    try {
+      await fetch("/api/apply/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+    } catch {
+      // Non-blocking — submit falls back to INSERT if draft failed.
     }
     navigateTo(5);
     scrollToTop();
-  }, [formData, navigateTo, scrollToTop, updateField]);
+  }, [formData, navigateTo, scrollToTop]);
 
   // Progress indicator: count unique logical steps for display
   const singpassFlow = formData.authMethod === "singpass";

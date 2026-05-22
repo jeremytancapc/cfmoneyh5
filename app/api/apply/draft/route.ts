@@ -13,6 +13,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/client";
 import { initialLoanFormData } from "@/lib/loan-form";
 import type { LoanFormData } from "@/lib/loan-form";
+import { draftLeadCookieValue, DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
+import { looksLikeLeadUuid } from "@/lib/lead-id";
 
 export const runtime = "nodejs";
 
@@ -31,6 +33,12 @@ export async function POST(request: NextRequest) {
 
   if (!formData.amount || !formData.tenure) {
     return NextResponse.json({ error: "Missing loan details" }, { status: 400 });
+  }
+
+  // If this browser already has a draft lead from the same journey, reuse it.
+  const existingDraftLeadId = request.cookies.get(DRAFT_LEAD_COOKIE)?.value ?? "";
+  if (looksLikeLeadUuid(existingDraftLeadId)) {
+    return NextResponse.json({ ok: true });
   }
 
   const admin = createAdminClient();
@@ -57,5 +65,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create draft" }, { status: 500 });
   }
 
-  return NextResponse.json({ draftLeadId: lead.id as string });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(draftLeadCookieValue(lead.id as string));
+  return res;
 }
