@@ -15,6 +15,8 @@ import {
   newApplyTraceId,
 } from "@/lib/apply-flow-log";
 import type { LoanFormData } from "@/lib/loan-form";
+import { createAdminClient } from "@/lib/supabase/client";
+import { looksLikeLeadUuid } from "@/lib/lead-id";
 
 export const runtime = "nodejs";
 
@@ -38,6 +40,46 @@ export async function GET(request: NextRequest) {
   const merged: SessionWithTrace = { ...existing, ...myinfoPatch };
   if (!merged[APPLY_TRACE_ID_KEY]) {
     merged[APPLY_TRACE_ID_KEY] = existing[APPLY_TRACE_ID_KEY] ?? newApplyTraceId();
+  }
+
+  // ── Create partial lead while MyInfo data is fresh ─────────────────────────
+  // Only if we have the minimum required fields and haven't already created one.
+  const hasLoanDetails =
+    typeof merged.amount === "number" && merged.amount > 0 &&
+    typeof merged.tenure === "number" && merged.tenure > 0;
+  const alreadyHasLead = looksLikeLeadUuid(merged.leadId ?? "");
+
+  if (hasLoanDetails && !alreadyHasLead) {
+    try {
+      const admin = createAdminClient();
+      const { data: partialLead } = await admin
+        .from("leads")
+        .insert({
+          loan_amount: merged.amount!,
+          loan_tenure: merged.tenure!,
+          loan_purpose: merged.loanPurpose || null,
+          urgency: merged.urgency || null,
+          auth_method: "singpass",
+          id_type: (merged.idType || null) as "singaporean" | "pr" | "foreigner" | null,
+          full_name: merged.fullName || null,
+          nric: merged.nric || null,
+          email: merged.email || null,
+          mobile: merged.mobile || null,
+          address: merged.address || null,
+          postal_code: merged.postalCode || null,
+          monthly_income: merged.monthlyIncome || null,
+          status: "in_progress",
+          moneylender_no_loans: false,
+        })
+        .select("id")
+        .single();
+
+      if (partialLead?.id) {
+        merged.leadId = partialLead.id as string;
+      }
+    } catch (err) {
+      console.error("[activate] partial lead creation failed:", err);
+    }
   }
 
   const encoded = encodeSession(merged);

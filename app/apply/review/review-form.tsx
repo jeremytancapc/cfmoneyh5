@@ -168,15 +168,35 @@ export function ReviewForm({ initialData }: Props) {
       setHistory((h) => h.slice(0, -1));
       scrollToTop();
     } else {
-      router.push("/");
+      // First step of review: clear all apply cookies so / doesn't redirect back here.
+      void fetch("/api/apply/session", { method: "DELETE" }).finally(() => {
+        window.location.assign("/");
+      });
     }
-  }, [history, scrollToTop, router]);
+  }, [history, scrollToTop]);
 
-  // Step 8 (Review) "Yes, I confirm" → go to contact step
-  const handleReviewConfirm = useCallback(() => {
+  // Step 8 (Review) "Yes, I confirm" → create partial lead then go to contact step.
+  const handleReviewConfirm = useCallback(async () => {
+    // Only create a draft lead if one hasn't been made yet (Singpass creates it at
+    // activate; manual users need it created here so drop-offs are captured).
+    if (!formData.leadId) {
+      try {
+        const res = await fetch("/api/apply/draft", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+        if (res.ok) {
+          const result = (await res.json()) as { leadId?: string };
+          if (result.leadId) updateField("leadId", result.leadId);
+        }
+      } catch {
+        // Non-blocking — submit falls back to INSERT if draft failed.
+      }
+    }
     navigateTo(5);
     scrollToTop();
-  }, [navigateTo, scrollToTop]);
+  }, [formData, navigateTo, scrollToTop, updateField]);
 
   // Progress indicator: count unique logical steps for display
   const singpassFlow = formData.authMethod === "singpass";
@@ -280,7 +300,7 @@ export function ReviewForm({ initialData }: Props) {
               {step === 8 ? (
                 <button
                   type="button"
-                  onClick={handleReviewConfirm}
+                  onClick={() => { void handleReviewConfirm(); }}
                   disabled={mounted && !canProceed}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                 >
