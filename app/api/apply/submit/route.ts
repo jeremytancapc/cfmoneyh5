@@ -32,6 +32,8 @@ import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAdminClient } from "@/lib/supabase/client";
 import { peekAuthCallbackPayload } from "@/lib/auth-callback-store";
 import { buildPostSubmitSession } from "@/lib/apply-session-slim";
+import { looksLikeLeadUuid } from "@/lib/lead-id";
+import { DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
 
 export const runtime = "nodejs";
 
@@ -65,48 +67,70 @@ export async function POST(request: NextRequest) {
     formData.authMethod = sessionAuth;
   }
 
+  // Read the draft lead ID from the dedicated draft_lead cookie.
+  // This cookie is set by /api/apply/activate (Singpass) or /api/apply/draft
+  // (manual). It is separate from the session so the funnel is never affected.
+  const draftLeadId = (request.cookies.get(DRAFT_LEAD_COOKIE)?.value ?? "").trim();
+
   const admin = createAdminClient();
 
-  // ── 1. Save lead ───────────────────────────────────────────────────────────
-  const { data: lead, error: leadError } = await admin
-    .from("leads")
-    .insert({
-      loan_amount: formData.amount,
-      loan_tenure: formData.tenure,
-      loan_purpose: formData.loanPurpose || null,
-      urgency: formData.urgency || null,
-      auth_method: (formData.authMethod || null) as "manual" | "singpass" | null,
-      id_type: (formData.idType || null) as "singaporean" | "pr" | "foreigner" | null,
-      full_name: formData.fullName || null,
-      nric: formData.nric || null,
-      email: formData.email || null,
-      mobile: formData.mobile || null,
-      secondary_mobile: formData.secondaryMobile || null,
-      postal_code: formData.postalCode || null,
-      address: formData.address || null,
-      mailing_address: formData.mailingAddress || null,
-      employment_status: formData.employmentStatus || null,
-      monthly_income: formData.monthlyIncome || null,
-      work_industry: formData.workIndustry || null,
-      position: formData.position || null,
-      employment_duration: formData.employmentDuration || null,
-      office_phone: formData.officePhone || null,
-      marital_status: formData.maritalStatus || null,
-      bankruptcy_declaration: (formData.bankruptcyDeclaration || null) as "clear" | "discharged_lt5" | "active" | null,
-      moneylender_no_loans: formData.moneylenderNoLoans,
-      moneylender_loan_amount: formData.moneylenderLoanAmount || null,
-      moneylender_payment_history: formData.moneylenderPaymentHistory || null,
-      status: "new",
-    })
-    .select("id")
-    .single();
+  // ── 1. Save lead (UPDATE if partial lead exists, INSERT otherwise) ─────────
+  const leadFields = {
+    loan_amount: formData.amount,
+    loan_tenure: formData.tenure,
+    loan_purpose: formData.loanPurpose || null,
+    urgency: formData.urgency || null,
+    auth_method: (formData.authMethod || null) as "manual" | "singpass" | null,
+    id_type: (formData.idType || null) as "singaporean" | "pr" | "foreigner" | null,
+    full_name: formData.fullName || null,
+    nric: formData.nric || null,
+    email: formData.email || null,
+    mobile: formData.mobile || null,
+    secondary_mobile: formData.secondaryMobile || null,
+    postal_code: formData.postalCode || null,
+    address: formData.address || null,
+    mailing_address: formData.mailingAddress || null,
+    employment_status: formData.employmentStatus || null,
+    monthly_income: formData.monthlyIncome || null,
+    work_industry: formData.workIndustry || null,
+    position: formData.position || null,
+    employment_duration: formData.employmentDuration || null,
+    office_phone: formData.officePhone || null,
+    marital_status: formData.maritalStatus || null,
+    bankruptcy_declaration: (formData.bankruptcyDeclaration || null) as "clear" | "discharged_lt5" | "active" | null,
+    moneylender_no_loans: formData.moneylenderNoLoans,
+    moneylender_loan_amount: formData.moneylenderLoanAmount || null,
+    moneylender_payment_history: formData.moneylenderPaymentHistory || null,
+    status: "new" as const,
+  };
 
-  if (leadError || !lead) {
-    console.error("Failed to save lead:", leadError);
-    return NextResponse.json({ error: "Failed to save application" }, { status: 500 });
+  let leadId: string;
+
+  if (looksLikeLeadUuid(draftLeadId)) {
+    // Partial lead created at activate (Singpass) or draft (manual) — update it.
+    const { error: updateError } = await admin
+      .from("leads")
+      .update(leadFields)
+      .eq("id", draftLeadId);
+
+    if (updateError) {
+      console.error("Failed to update lead:", updateError);
+      return NextResponse.json({ error: "Failed to save application" }, { status: 500 });
+    }
+    leadId = draftLeadId;
+  } else {
+    const { data: lead, error: leadError } = await admin
+      .from("leads")
+      .insert(leadFields)
+      .select("id")
+      .single();
+
+    if (leadError || !lead) {
+      console.error("Failed to save lead:", leadError);
+      return NextResponse.json({ error: "Failed to save application" }, { status: 500 });
+    }
+    leadId = lead.id as string;
   }
-
-  const leadId = lead.id as string;
 
   // ── 2. Save MyInfo profile (if SingPass was used) ─────────────────────────
   if (formData.authMethod === "singpass") {
@@ -201,6 +225,9 @@ export async function POST(request: NextRequest) {
     maxEligibleLoan: assessment.maxEligibleLoan,
     explanation: assessment.explanation,
   });
+
+  // Clear draft_lead cookie — no longer needed after full submit.
+  res.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
 
   if (assessment.isEligible && assessment.approvedLoanAmount > 0) {
     const sc = sessionCookieValue(updatedSession);

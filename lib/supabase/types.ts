@@ -9,6 +9,7 @@
 export type IncomeSource = "cpf" | "noa" | "self_declared";
 
 export type LeadStatus =
+  | "in_progress"
   | "new"
   | "contacted"
   | "qualified"

@@ -5,6 +5,8 @@ import type { LoanFormData } from "./loan-form";
 export const SESSION_COOKIE = "apply_session";
 export const GATE_COOKIE = "apply_gate";
 export const REVIEW_GATE_COOKIE = "review_gate";
+/** Carries the in-progress lead UUID from activate/draft to submit. Invisible to funnel logic. */
+export const DRAFT_LEAD_COOKIE = "draft_lead";
 
 /** In-funnel cookies (gate, session while applying). */
 export const COOKIE_BASE_OPTS = {
@@ -69,11 +71,16 @@ export function reviewGateCookieValue(maxAgeSec = COOKIE_BASE_OPTS.maxAge) {
   };
 }
 
+export function draftLeadCookieValue(leadId: string) {
+  return { name: DRAFT_LEAD_COOKIE, value: leadId, ...COOKIE_BASE_OPTS };
+}
+
 export function clearCookies() {
   const expire = { maxAge: 0, path: "/" };
   return [
     { name: SESSION_COOKIE, value: "", ...expire },
     { name: GATE_COOKIE, value: "", ...expire },
     { name: REVIEW_GATE_COOKIE, value: "", ...expire },
+    { name: DRAFT_LEAD_COOKIE, value: "", ...expire },
   ];
 }

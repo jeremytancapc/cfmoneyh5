@@ -15,6 +15,9 @@ import {
   newApplyTraceId,
 } from "@/lib/apply-flow-log";
 import type { LoanFormData } from "@/lib/loan-form";
+import { createAdminClient } from "@/lib/supabase/client";
+import { looksLikeLeadUuid } from "@/lib/lead-id";
+import { draftLeadCookieValue, DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
 
 export const runtime = "nodejs";
 
@@ -38,6 +41,50 @@ export async function GET(request: NextRequest) {
   const merged: SessionWithTrace = { ...existing, ...myinfoPatch };
   if (!merged[APPLY_TRACE_ID_KEY]) {
     merged[APPLY_TRACE_ID_KEY] = existing[APPLY_TRACE_ID_KEY] ?? newApplyTraceId();
+  }
+
+  // ── Create partial lead while MyInfo data is fresh ─────────────────────────
+  // Stored in a dedicated draft_lead cookie — NOT in the session — so the
+  // funnel gate logic is completely unaffected.
+  const hasLoanDetails =
+    typeof merged.amount === "number" && merged.amount > 0 &&
+    typeof merged.tenure === "number" && merged.tenure > 0;
+  // Don't create a second draft if the browser already has one from this journey.
+  const existingDraftLeadId = request.cookies.get(DRAFT_LEAD_COOKIE)?.value ?? "";
+  const alreadyHasDraft = looksLikeLeadUuid(existingDraftLeadId);
+
+  let newDraftLeadId: string | null = null;
+  if (hasLoanDetails && !alreadyHasDraft) {
+    try {
+      const admin = createAdminClient();
+      const { data: partialLead } = await admin
+        .from("leads")
+        .insert({
+          loan_amount: merged.amount!,
+          loan_tenure: merged.tenure!,
+          loan_purpose: merged.loanPurpose || null,
+          urgency: merged.urgency || null,
+          auth_method: "singpass",
+          id_type: (merged.idType || null) as "singaporean" | "pr" | "foreigner" | null,
+          full_name: merged.fullName || null,
+          nric: merged.nric || null,
+          email: merged.email || null,
+          mobile: merged.mobile || null,
+          address: merged.address || null,
+          postal_code: merged.postalCode || null,
+          monthly_income: merged.monthlyIncome || null,
+          status: "in_progress",
+          moneylender_no_loans: false,
+        })
+        .select("id")
+        .single();
+
+      if (partialLead?.id) {
+        newDraftLeadId = partialLead.id as string;
+      }
+    } catch (err) {
+      console.error("[activate] partial lead creation failed:", err);
+    }
   }
 
   const encoded = encodeSession(merged);
@@ -76,6 +123,10 @@ export async function GET(request: NextRequest) {
   const sc = sessionCookieValue(merged);
   res.cookies.set({ ...sc, value: encoded });
   res.cookies.set(gateCookieValue());
+
+  if (newDraftLeadId) {
+    res.cookies.set(draftLeadCookieValue(newDraftLeadId));
+  }
 
   return res;
 }

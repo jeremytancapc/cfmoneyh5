@@ -16,6 +16,8 @@ This means the schema can never be lost — any developer or environment can rec
 | `20260512000005_rls_anon_write_policies.sql` | RLS INSERT policies for the publishable key |
 | `20260512000006_create_credit_assessments.sql` | `credit_assessments` table — scoring audit trail |
 | `20260517000001_create_apply_flow_events.sql` | `apply_flow_events` — Singpass / apply funnel diagnostics (production support) |
+| `20260522000001_apply_flow_events_rls_policy.sql` | RLS policy on `apply_flow_events` (matches `leads`; fixes insert failures) |
+| `20260522000002_leads_add_in_progress_status.sql` | Adds `in_progress` to `lead_status` enum for partial leads captured before final submit |
 
 ---
 
@@ -30,6 +32,8 @@ Production/stg Route Handlers write one row per funnel step when a customer uses
 | `activate_merged` | Browser returns (`GET /api/apply/activate`) |
 
 **Apply the migration** (SQL Editor or `supabase db push`) before deploying the app code that logs to this table.
+
+If Vercel logs show `[apply-flow-log] insert failed … row-level security policy for table "apply_flow_events"` while `leads` inserts work, run migration `20260522000001_apply_flow_events_rls_policy.sql` on that project and confirm `SUPABASE_SERVICE_ROLE_KEY` is the **service_role** secret (not the publishable/anon key).
 
 ### Investigating a customer complaint
 
