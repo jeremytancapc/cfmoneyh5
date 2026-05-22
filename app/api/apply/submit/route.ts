@@ -66,14 +66,14 @@ export async function POST(request: NextRequest) {
     formData.authMethod = sessionAuth;
   }
 
-  // Prefer session leadId over an empty body value.
-  // Singpass: leadId is written to the session at /api/apply/activate (not in
-  // React state), so bodyData.leadId arrives as "". Manual: draft route returns
-  // leadId in JSON which the client stores in state, so body takes precedence.
-  const bodyLeadId = (bodyData.leadId ?? "").trim();
-  const sessionLeadId = (sessionData.leadId ?? "").trim();
-  if (!looksLikeLeadUuid(bodyLeadId) && looksLikeLeadUuid(sessionLeadId)) {
-    formData.leadId = sessionLeadId;
+  // Prefer session draftLeadId over an empty body value.
+  // Singpass: draftLeadId is written to the session at /api/apply/activate (not
+  // in React state), so bodyData.draftLeadId arrives as "".
+  // Manual: draft route returns draftLeadId in JSON → stored in React state → body.
+  const bodyDraftLeadId = (bodyData.draftLeadId ?? "").trim();
+  const sessionDraftLeadId = (sessionData.draftLeadId ?? "").trim();
+  if (!looksLikeLeadUuid(bodyDraftLeadId) && looksLikeLeadUuid(sessionDraftLeadId)) {
+    formData.draftLeadId = sessionDraftLeadId;
   }
 
   const admin = createAdminClient();
@@ -108,21 +108,21 @@ export async function POST(request: NextRequest) {
     status: "new" as const,
   };
 
-  const existingLeadId = formData.leadId?.trim() ?? "";
+  const existingDraftLeadId = (formData.draftLeadId ?? "").trim();
   let leadId: string;
 
-  if (looksLikeLeadUuid(existingLeadId)) {
+  if (looksLikeLeadUuid(existingDraftLeadId)) {
     // Partial lead created at activate (Singpass) or draft (manual) — update it.
     const { error: updateError } = await admin
       .from("leads")
       .update(leadFields)
-      .eq("id", existingLeadId);
+      .eq("id", existingDraftLeadId);
 
     if (updateError) {
       console.error("Failed to update lead:", updateError);
       return NextResponse.json({ error: "Failed to save application" }, { status: 500 });
     }
-    leadId = existingLeadId;
+    leadId = existingDraftLeadId;
   } else {
     const { data: lead, error: leadError } = await admin
       .from("leads")

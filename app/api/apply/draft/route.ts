@@ -57,5 +57,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create draft" }, { status: 500 });
   }
 
-  return NextResponse.json({ leadId: lead.id as string });
+  return NextResponse.json({ draftLeadId: lead.id as string });
 }

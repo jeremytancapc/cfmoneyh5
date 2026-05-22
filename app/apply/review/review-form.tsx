@@ -177,9 +177,10 @@ export function ReviewForm({ initialData }: Props) {
 
   // Step 8 (Review) "Yes, I confirm" → create partial lead then go to contact step.
   const handleReviewConfirm = useCallback(async () => {
-    // Only create a draft lead if one hasn't been made yet (Singpass creates it at
-    // activate; manual users need it created here so drop-offs are captured).
-    if (!formData.leadId) {
+    // Only create a draft lead if one hasn't been made yet.
+    // Singpass: draftLeadId comes from the session (set at activate).
+    // Manual: we create it here so drop-offs after review confirm are captured.
+    if (!formData.draftLeadId) {
       try {
         const res = await fetch("/api/apply/draft", {
           method: "POST",
@@ -187,8 +188,8 @@ export function ReviewForm({ initialData }: Props) {
           body: JSON.stringify(formData),
         });
         if (res.ok) {
-          const result = (await res.json()) as { leadId?: string };
-          if (result.leadId) updateField("leadId", result.leadId);
+          const result = (await res.json()) as { draftLeadId?: string };
+          if (result.draftLeadId) updateField("draftLeadId", result.draftLeadId);
         }
       } catch {
         // Non-blocking — submit falls back to INSERT if draft failed.

@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (partialLead?.id) {
-        merged.leadId = partialLead.id as string;
+        merged.draftLeadId = partialLead.id as string;
       }
     } catch (err) {
       console.error("[activate] partial lead creation failed:", err);
