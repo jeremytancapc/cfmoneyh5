@@ -18,6 +18,8 @@ import type { LoanFormData } from "@/lib/loan-form";
 import { createAdminClient } from "@/lib/supabase/client";
 import { looksLikeLeadUuid } from "@/lib/lead-id";
 import { draftLeadCookieValue, DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
+import { buildActivateSessionCookie } from "@/lib/apply-session-slim";
+import { upsertMyinfoProfileForLead } from "@/lib/myinfo-profile";
 
 export const runtime = "nodejs";
 
@@ -87,9 +89,28 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const encoded = encodeSession(merged);
+  const draftLeadId =
+    newDraftLeadId ??
+    (alreadyHasDraft ? existingDraftLeadId : null);
+
+  if (
+    draftLeadId &&
+    merged.authMethod === "singpass" &&
+    merged.nric?.trim() &&
+    merged.fullName?.trim()
+  ) {
+    try {
+      const admin = createAdminClient();
+      await upsertMyinfoProfileForLead(admin, draftLeadId, merged);
+    } catch (err) {
+      console.error("[activate] myinfo_profiles upsert failed:", err);
+    }
+  }
+
+  const slimSession = buildActivateSessionCookie(merged);
+  const encoded = encodeSession(slimSession);
   const hadApplyGateBefore = request.cookies.get(GATE_COOKIE)?.value === "1";
-  const resumeWouldPass = computeResumeWouldPass(merged, true);
+  const resumeWouldPass = computeResumeWouldPass(slimSession, true);
 
   await logApplyFlowEvent({
     event: "activate_merged",
@@ -107,10 +128,12 @@ export async function GET(request: NextRequest) {
     cookieMergedBytes: byteLength(encoded),
     resumeWouldPass,
     sessionBefore: existing,
-    sessionAfter: merged,
+    sessionAfter: slimSession,
     details: {
       redirect_to: "/apply/review",
       had_apply_gate_before: hadApplyGateBefore,
+      draft_lead_id: draftLeadId,
+      myinfo_persisted: Boolean(draftLeadId),
       singpass_raw_key_from_token: Boolean(
         (myinfoPatch as Partial<LoanFormData>).singpassRawKey,
       ),
@@ -120,12 +143,14 @@ export async function GET(request: NextRequest) {
   const reviewUrl = new URL("/apply/review", request.nextUrl.origin);
   const res = NextResponse.redirect(reviewUrl, { status: 302 });
 
-  const sc = sessionCookieValue(merged);
+  const sc = sessionCookieValue(slimSession);
   res.cookies.set({ ...sc, value: encoded });
   res.cookies.set(gateCookieValue());
 
   if (newDraftLeadId) {
     res.cookies.set(draftLeadCookieValue(newDraftLeadId));
+  } else if (draftLeadId && alreadyHasDraft) {
+    res.cookies.set(draftLeadCookieValue(draftLeadId));
   }
 
   return res;
