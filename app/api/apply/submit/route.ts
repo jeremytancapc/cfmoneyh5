@@ -30,10 +30,14 @@ import type { LoanFormData } from "@/lib/loan-form";
 import { assessCredit } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAdminClient } from "@/lib/supabase/client";
-import { peekAuthCallbackPayload } from "@/lib/auth-callback-store";
 import { buildPostSubmitSession } from "@/lib/apply-session-slim";
 import { looksLikeLeadUuid } from "@/lib/lead-id";
 import { DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
+import {
+  loadMyinfoProcessedPayload,
+  processedPayloadFromAuthStore,
+  upsertMyinfoProfileForLead,
+} from "@/lib/myinfo-profile";
 
 export const runtime = "nodejs";
 
@@ -132,47 +136,43 @@ export async function POST(request: NextRequest) {
     leadId = lead.id as string;
   }
 
-  // ── 2. Save MyInfo profile (if SingPass was used) ─────────────────────────
+  // ── 2. MyInfo profile (Singpass) — upsert; hydrate CPF/NOA from DB if cookie was slim ─
   if (formData.authMethod === "singpass") {
-    const noaMonthly =
-      formData.noaHistory.length > 0
-        ? formData.noaHistory[0].employmentIncome / 12
+    let cpfContributions = formData.cpfContributions;
+    let noaHistory = formData.noaHistory;
+    let dob = formData.dob;
+
+    if (cpfContributions.length === 0 && noaHistory.length === 0) {
+      const fromDb = looksLikeLeadUuid(leadId)
+        ? await loadMyinfoProcessedPayload(admin, leadId)
         : null;
+      const fromStore =
+        !fromDb && formData.singpassRawKey
+          ? processedPayloadFromAuthStore(formData.singpassRawKey)
+          : null;
+      const fallback = fromDb ?? fromStore;
+      if (fallback) {
+        cpfContributions = fallback.cpfContributions;
+        noaHistory = fallback.noaHistory;
+        dob = dob || fallback.dob;
+      }
+    }
 
-    // Look up the raw MyInfo payload from the server-side store (keyed by the
-    // UUID stored in the session as singpassRawKey).  Raw blobs are never stored
-    // in the cookie to avoid exceeding the 4 KB browser limit.
-    type RawCallbackPayload = {
-      myinfo?: Record<string, unknown>;
-    };
-    const rawCallbackPayload = formData.singpassRawKey
-      ? (peekAuthCallbackPayload(formData.singpassRawKey) as RawCallbackPayload | null)
-      : null;
-    const myinfoRaw = rawCallbackPayload?.myinfo ?? null;
-    const cpfRaw = (myinfoRaw?.cpfcontributions as Record<string, unknown>) ?? null;
-    const noaRaw = (myinfoRaw?.noahistory as Record<string, unknown>) ?? null;
+    try {
+      await upsertMyinfoProfileForLead(admin, leadId, {
+        ...formData,
+        cpfContributions,
+        noaHistory,
+        dob,
+      });
+    } catch (err) {
+      console.error("Failed to save MyInfo profile:", err);
+      return NextResponse.json({ error: "Failed to save application" }, { status: 500 });
+    }
 
-    await admin.from("myinfo_profiles").insert({
-      lead_id: leadId,
-      nric: formData.nric || null,
-      full_name: formData.fullName || null,
-      email: formData.email || null,
-      mobile: formData.mobile || null,
-      address: formData.address || null,
-      postal_code: formData.postalCode || null,
-      residential_status: formData.idType || null,
-      monthly_income_noa: noaMonthly,
-      // Separate raw columns for easy querying (null if store TTL expired)
-      cpf_raw: cpfRaw,
-      noa_raw: noaRaw,
-      myinfo_raw: myinfoRaw,
-      // Processed convenience payload (mapped fields + dob for age calc)
-      raw_payload: {
-        cpfContributions: formData.cpfContributions,
-        noaHistory: formData.noaHistory,
-        dob: formData.dob,
-      },
-    });
+    formData.cpfContributions = cpfContributions;
+    formData.noaHistory = noaHistory;
+    formData.dob = dob;
   }
 
   // ── 3. Run credit scoring ─────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { initialLoanFormData, type LoanFormData } from "@/lib/loan-form";
 import { getApplySession } from "@/lib/apply-session";
 import { enforceApplyFunnel } from "@/lib/apply-funnel-enforce";
+import { hydrateSingpassReviewSession } from "@/lib/singpass-session-hydrate";
 
 import { ReviewForm } from "./review-form";
 
@@ -14,9 +15,10 @@ export default async function ReviewPage() {
   await enforceApplyFunnel("/apply/review");
 
   const session = await getApplySession();
+  const hydrated = await hydrateSingpassReviewSession(session);
   const initialData: LoanFormData = {
     ...initialLoanFormData,
-    ...session,
+    ...hydrated,
   };
 
   return <ReviewForm initialData={initialData} />;

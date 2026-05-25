@@ -1,4 +1,39 @@
+import { APPLY_TRACE_ID_KEY } from "@/lib/apply-flow-log";
 import type { LoanFormData } from "@/lib/loan-form";
+
+type SessionWithTrace = Partial<LoanFormData> & { applyTraceId?: string };
+
+/**
+ * Session cookie after Singpass activate — identity + loan fields only.
+ * Full CPF/NOA live in myinfo_profiles (keyed by draft_lead) and are hydrated
+ * on /apply/review. singpassRawKey stays for short-lived auth-callback-store fallback.
+ */
+export function buildActivateSessionCookie(
+  merged: SessionWithTrace,
+): SessionWithTrace {
+  return {
+    amount: merged.amount,
+    tenure: merged.tenure,
+    urgency: merged.urgency,
+    authMethod: merged.authMethod,
+    idType: merged.idType,
+    fullName: merged.fullName,
+    nric: merged.nric,
+    email: merged.email,
+    mobile: merged.mobile,
+    secondaryMobile: merged.secondaryMobile,
+    postalCode: merged.postalCode,
+    address: merged.address,
+    loanPurpose: merged.loanPurpose,
+    monthlyIncome: merged.monthlyIncome,
+    maritalStatus: merged.maritalStatus,
+    dob: merged.dob,
+    singpassRawKey: merged.singpassRawKey,
+    [APPLY_TRACE_ID_KEY]: merged[APPLY_TRACE_ID_KEY],
+    cpfContributions: [],
+    noaHistory: [],
+  };
+}
 
 /**
  * Strip heavy MyInfo arrays from the session cookie after submit so Set-Cookie
