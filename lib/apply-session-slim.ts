@@ -1,4 +1,7 @@
+import { APPLY_TRACE_ID_KEY } from "@/lib/apply-flow-log";
 import type { LoanFormData } from "@/lib/loan-form";
+
+type SessionWithTrace = Partial<LoanFormData> & { applyTraceId?: string };
 
 /**
  * Session cookie after Singpass activate — identity + loan fields only.
@@ -6,8 +9,8 @@ import type { LoanFormData } from "@/lib/loan-form";
  * on /apply/review. singpassRawKey stays for short-lived auth-callback-store fallback.
  */
 export function buildActivateSessionCookie(
-  merged: Partial<LoanFormData>,
-): Partial<LoanFormData> {
+  merged: SessionWithTrace,
+): SessionWithTrace {
   return {
     amount: merged.amount,
     tenure: merged.tenure,
@@ -26,7 +29,7 @@ export function buildActivateSessionCookie(
     maritalStatus: merged.maritalStatus,
     dob: merged.dob,
     singpassRawKey: merged.singpassRawKey,
-    applyTraceId: merged.applyTraceId,
+    [APPLY_TRACE_ID_KEY]: merged[APPLY_TRACE_ID_KEY],
     cpfContributions: [],
     noaHistory: [],
   };
