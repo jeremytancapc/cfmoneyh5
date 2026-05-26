@@ -3,7 +3,12 @@
 import Image from "next/image";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { LoanFormData as FormData } from "@/lib/loan-form";
-import { initialLoanFormData as initialFormData, calculateMonthlyRepayment, formatCurrency } from "@/lib/loan-form";
+import {
+  initialLoanFormData as initialFormData,
+  calculateMonthlyRepayment,
+  formatCurrency,
+  MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER,
+} from "@/lib/loan-form";
 import { createPortal } from "react-dom";
 import { trackDisplayStep } from "@/lib/analytics";
 import { LoanGateForm } from "@/app/loan-gate-form";
@@ -531,7 +536,7 @@ export function Step1_LoanDetails({
             </div>
           </div>
           <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
-            *Estimate only. Maybe lower based on your credit score.
+            *{MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER}
           </p>
         </div>
 
@@ -2182,7 +2187,7 @@ export function Step8_Review({
   const loanRows = [
     { label: "Amount", value: formatCurrency(formData.amount) },
     { label: "Tenure", value: `${formData.tenure} months` },
-    { label: "Monthly instalment", value: formatCurrency(monthlyRepayment) },
+    { label: "Monthly instalment (est.)", value: `${formatCurrency(monthlyRepayment)}*` },
     { label: "Urgency", value: URGENCY_OPTIONS.find((o) => o.value === formData.urgency)?.label ?? "—" },
     { label: "Monthly income", value: formData.monthlyIncome ? formatCurrency(parseInt(formData.monthlyIncome, 10) || 0) : "—" },
     { label: "Verification", value: authLabel },
@@ -2221,6 +2226,9 @@ export function Step8_Review({
               </div>
             ))}
           </div>
+          <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
+            *{MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER}
+          </p>
         </div>
 
         {/* Personal Info — with editable Marital Status + Email */}
