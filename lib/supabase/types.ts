@@ -18,7 +18,7 @@ export type LeadStatus =
   | "rejected"
   | "withdrawn";
 
-export type AuthMethod = "manual" | "singpass";
+export type AuthMethod = "manual" | "singpass" | "aip";
 export type IdType = "singaporean" | "pr" | "foreigner";
 export type BankruptcyDeclaration = "clear" | "discharged_lt5" | "active";
 export type AppointmentStatus = "pending" | "confirmed" | "cancelled" | "completed";
