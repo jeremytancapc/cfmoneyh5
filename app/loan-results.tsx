@@ -9,10 +9,11 @@ import {
   ArrowLeft,
   X,
   TrendUp,
+  CheckCircle,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { TextAnimation } from "@/components/ui/text-animation";
 import { trackEvent } from "@/lib/analytics";
+import { APPROVAL_PAGE_DISCLAIMER } from "@/lib/loan-form";
 
 // ── Offer expiry helpers ──────────────────────────────────────────────────────
 
@@ -500,6 +501,25 @@ function blurIn(active: boolean, delay = 0, extraStyle?: React.CSSProperties) {
   };
 }
 
+function ApprovalHeading() {
+  return (
+    <motion.div
+      className="flex flex-col items-center gap-3 text-center"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: EASE }}
+    >
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-blue/15 bg-brand-blue/[0.06] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-blue">
+        <CheckCircle size={14} weight="fill" aria-hidden="true" />
+        In-principle approval
+      </span>
+      <h1 className="font-display text-[clamp(1.75rem,6vw,2.25rem)] font-bold tracking-tight text-[var(--text-primary)] leading-[1.15]">
+        You&apos;re pre-approved
+      </h1>
+    </motion.div>
+  );
+}
+
 /* ── Main component ───────────────────────────────────────────────── */
 export function LoanResults({
   formData,
@@ -546,12 +566,7 @@ export function LoanResults({
   return (
     <>
       <div className="relative z-[1] flex flex-col gap-8">
-        <TextAnimation
-          text="Approved in Principle!"
-          color="#0033AA"
-          fontSize="clamp(2.5rem, 10vw, 3.75rem)"
-          animationDuration="900ms"
-        />
+        <ApprovalHeading />
 
         <motion.p
           className="font-display text-5xl sm:text-6xl font-black tracking-tighter text-brand-blue tabular-nums text-center mt-1"
@@ -570,7 +585,7 @@ export function LoanResults({
             {formData.tenure} months
           </span>
           <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
-            {formatCurrency(monthlyRepayment)}/mo est.
+            {formatCurrency(monthlyRepayment)}/mo est.*
           </span>
         </motion.div>
 
@@ -625,7 +640,7 @@ export function LoanResults({
             animate={{ opacity: revealStage >= 4 ? 1 : 0 }}
             transition={{ duration: 0.4, delay: revealStage >= 4 ? NOTICE_ITEMS.length * 0.1 + 0.1 : 0 }}
           >
-            * The pre-approved amount shown is indicative and may vary if there are changes to your profile between now and your appointment.
+            *{APPROVAL_PAGE_DISCLAIMER}
           </motion.p>
         </motion.div>
 
