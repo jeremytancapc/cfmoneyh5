@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { trackEvent } from "@/lib/analytics";
 import type { LoanFormData as FormData } from "@/lib/loan-form";
@@ -242,7 +242,23 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
         : Math.max(8, rect.top - POPUP_GAP - TIME_HEIGHT_EST);
     setTimePos({ top, left: rect.left, width: rect.width });
     setTimeDropdownOpen(true);
+    setCalendarOpen(false);
   };
+
+  // Close both dropdowns if the page scrolls or resizes so stale fixed positions don't mislead taps
+  useEffect(() => {
+    if (!timeDropdownOpen && !calendarOpen) return;
+    const close = () => {
+      setTimeDropdownOpen(false);
+      setCalendarOpen(false);
+    };
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("resize", close, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("resize", close);
+    };
+  }, [timeDropdownOpen, calendarOpen]);
 
   // Calendar month state — 1st of the displayed month
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
@@ -743,7 +759,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
                   <div className="fixed inset-0 z-[9998]" onClick={() => setTimeDropdownOpen(false)} />
                   <div
                     className="fixed z-[9999] overflow-hidden overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-xl"
-                    style={{ top: timePos.top, left: timePos.left, width: timePos.width, maxHeight: 280 }}
+                    style={{ top: timePos.top, left: timePos.left, width: timePos.width, maxHeight: 280, overscrollBehavior: "contain" }}
                   >
                     {(() => {
                       const bookedIdx = fullyBookedIndex(selectedDate);
