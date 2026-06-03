@@ -274,10 +274,10 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
     return d;
   }, []);
 
-  // Generate the next 14 days as the booking window
+  // Generate the next 7 days as the booking window
   const maxDate = useMemo(() => {
     const d = new Date(today);
-    d.setDate(today.getDate() + 14);
+    d.setDate(today.getDate() + 7);
     return d;
   }, [today]);
 
