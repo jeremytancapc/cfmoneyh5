@@ -137,10 +137,9 @@ interface AppointmentBookingProps {
 
 const WHAT_TO_BRING = {
   sg_pr: [
-    "NRIC (original / SingPass)",
-    "Latest 1–3 months payslip or income documents or bank statement",
-    "SingPass on your phone",
-    "If you have CPF / NOA history, no need to bring any income documents",
+    "NRIC (Original / Singpass)",
+    "Singpass on your phone",
+    "Latest 1–3 months payslip or bank statement (Not required if you have regular CPF/NOA record, unless your salary is above the CPF monthly cap)",
   ],
   foreigner: [
     "Work Pass (WP / SP / EP / LTVP) with at least 3 months validity",
