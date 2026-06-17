@@ -5,10 +5,44 @@
  *  - Eligibility: 18+; foreigners ≥ S$40k/year; income ≤ S$20k/year → max S$3k − O/S balance;
  *    otherwise max = incomeMultiple × monthly income − declared moneylender O/S balance.
  *    incomeMultiple: no ML loans 4.5×; on_time 5.3×; late_14 4.9×; late_30 3.8×; late_60 2.9×; bad_debt 1.38×.
- *  - Income priority: CPF (if fresh) → NOA (if in window) → self-declared.
+ *  - Income priority: CPF (if fresh, non-platform) → NOA (employmentIncome + tradeIncome) → self-declared.
+ *  - Platform workers (Grab, Gojek, Foodpanda etc.) have CPF contribution rates far below the standard
+ *    employee rate, so back-calculating their income from CPF gives a severe underestimate. Their CPF
+ *    is detected by employer name and skipped; NOA trade income is used instead.
  */
 
 import type { CpfContribution, NoaRecord } from "./loan-form";
+
+// ─── Platform worker detection ────────────────────────────────────────────────
+
+/**
+ * Known platform operator name prefixes as they appear in Singpass CPF data.
+ * Singpass truncates employer names at 30 characters, so some entries like
+ * "TADA MOBILITY (SINGAPORE) (PLA" never show the full "(PLATFORM)" suffix —
+ * prefix matching is the only reliable way to catch them.
+ */
+const PLATFORM_EMPLOYER_PREFIXES = [
+  "GRABCAR",
+  "GRAB SERVICES",
+  "GOJEK",
+  "DELIVERY HERO",
+  "TADA MOBILITY",
+  "EASYVAN",
+  "RYDE TECHNOLOGIES",
+  "FOODPANDA",
+  "LALAMOVE",
+];
+
+/**
+ * Returns true if the CPF employer string is a platform worker operator.
+ * Checks for the full "(PLATFORM)" tag first, then falls back to known
+ * company name prefixes to handle Singpass 30-char truncation.
+ */
+export function isPlatformEmployer(employer: string): boolean {
+  const name = String(employer).toUpperCase().trim();
+  if (name.includes("(PLATFORM)")) return true;
+  return PLATFORM_EMPLOYER_PREFIXES.some((p) => name.startsWith(p));
+}
 
 /** Max loan = multiplier × verified monthly income − declared moneylender outstanding balance. */
 export function moneylenderIncomeMultiplier(
@@ -87,6 +121,12 @@ export interface CpfScoringResult {
   grossMonthlyIncome: number;
   cpfRate: number;
   ageUsed: number;
+  /**
+   * True when every CPF contribution is from a platform operator (Grab, Gojek etc.).
+   * These workers have CPF rates well below the standard employee rate so back-calculating
+   * income from contributions gives a severe underestimate — income source is skipped.
+   */
+  isPlatformWorker: boolean;
 }
 
 export function scoreCpf(
@@ -98,8 +138,16 @@ export function scoreCpf(
   const age = ageAt(dob, ref);
   const rate = dob ? cpfTotalRate(age) : 0.37; // fallback for foreigners / unknown
 
+  // Detect platform workers from ALL contributions regardless of staleness.
+  // If every entry is from a known platform operator, the standard CPF back-calculation
+  // would severely underestimate income (platform CPF rates are ~18% in 2026 vs 37% for
+  // regular employees). assessCredit() uses this flag to skip CPF and fall through to NOA.
+  const isPlatformWorker =
+    contributions.length > 0 &&
+    contributions.every((c) => isPlatformEmployer(c.employer));
+
   if (!contributions.length) {
-    return { eligible: false, latestMonth: null, monthsStale: Infinity, avgMonthlyContribution: 0, grossMonthlyIncome: 0, cpfRate: rate, ageUsed: age };
+    return { eligible: false, latestMonth: null, monthsStale: Infinity, avgMonthlyContribution: 0, grossMonthlyIncome: 0, cpfRate: rate, ageUsed: age, isPlatformWorker: false };
   }
 
   // Step 1 — aggregate by month
@@ -118,7 +166,7 @@ export function scoreCpf(
   const eligible = monthsStale <= 2;
 
   if (!eligible) {
-    return { eligible: false, latestMonth, monthsStale, avgMonthlyContribution: 0, grossMonthlyIncome: 0, cpfRate: rate, ageUsed: age };
+    return { eligible: false, latestMonth, monthsStale, avgMonthlyContribution: 0, grossMonthlyIncome: 0, cpfRate: rate, ageUsed: age, isPlatformWorker };
   }
 
   // Step 4 — 3-month average ending at latestIdx
@@ -134,7 +182,7 @@ export function scoreCpf(
   // Step 5 — back-calculate gross income
   const grossMonthlyIncome = rate > 0 ? avgMonthlyContribution / rate : 0;
 
-  return { eligible, latestMonth, monthsStale, avgMonthlyContribution, grossMonthlyIncome, cpfRate: rate, ageUsed: age };
+  return { eligible, latestMonth, monthsStale, avgMonthlyContribution, grossMonthlyIncome, cpfRate: rate, ageUsed: age, isPlatformWorker };
 }
 
 // ─── Source 2: NOA ────────────────────────────────────────────────────────────
@@ -154,8 +202,13 @@ export function scoreNoa(
   const appYear = ref.getFullYear();
 
   const parsed = noaHistory
-    .filter((r) => r.yearOfAssessment && r.employmentIncome != null)
-    .map((r) => ({ ya: Number(r.yearOfAssessment), income: r.employmentIncome }))
+    .filter((r) => r.yearOfAssessment)
+    .map((r) => ({
+      ya: Number(r.yearOfAssessment),
+      // Include trade income so gig workers / SEPs (Grab, freelancers etc.) are assessed correctly.
+      // For regular employees tradeIncome is 0, so this is backward-compatible.
+      income: (r.employmentIncome ?? 0) + (r.tradeIncome ?? 0),
+    }))
     .sort((a, b) => b.ya - a.ya);
 
   if (!parsed.length) {
@@ -244,26 +297,37 @@ export function assessCredit(params: {
   const noa = scoreNoa(params.noaHistory, ref);
   const selfDeclared = Math.max(0, params.selfDeclaredMonthlyIncome);
 
-  // Income selection — exact priority order from spec
+  // Income selection — priority: CPF (if fresh AND not a platform worker) → NOA → self-declared.
+  // Platform workers (Grab, Gojek etc.) have CPF rates well below the standard employee rate so
+  // back-calculating income from their CPF gives a severe underestimate — skip it entirely.
+  const cpfUsableForIncome = cpf.eligible && !cpf.isPlatformWorker;
+
   let incomeSource: IncomeSource;
   let verifiedMonthlyIncome: number;
   let explanation: string;
 
-  if (!cpf.eligible && !noa.eligible) {
+  if (!cpfUsableForIncome && !noa.eligible) {
     incomeSource = "self_declared";
     verifiedMonthlyIncome = selfDeclared;
-    explanation =
-      cpf.latestMonth
-        ? `CPF data is ${cpf.monthsStale} month(s) old (>2) and NOA is outside the scoring window. Using your declared income of S$${selfDeclared.toLocaleString()}/month.`
-        : "No CPF or NOA data available. Using your declared income.";
-  } else if (cpf.eligible && (!noa.eligible || cpf.grossMonthlyIncome >= noa.grossMonthlyIncome)) {
+    if (cpf.isPlatformWorker) {
+      explanation = `CPF contributions are from a platform employer — the standard income back-calculation does not apply. No NOA data is available. Using your declared income of S$${selfDeclared.toLocaleString()}/month.`;
+    } else {
+      explanation =
+        cpf.latestMonth
+          ? `CPF data is ${cpf.monthsStale} month(s) old (>2) and NOA is outside the scoring window. Using your declared income of S$${selfDeclared.toLocaleString()}/month.`
+          : "No CPF or NOA data available. Using your declared income.";
+    }
+  } else if (cpfUsableForIncome && (!noa.eligible || cpf.grossMonthlyIncome >= noa.grossMonthlyIncome)) {
     incomeSource = "cpf";
     verifiedMonthlyIncome = cpf.grossMonthlyIncome;
     explanation = `Based on your CPF contributions (${cpf.latestMonth}, 3-month avg S$${Math.round(cpf.avgMonthlyContribution).toLocaleString()}/month), your gross monthly income is estimated at S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
   } else {
     incomeSource = "noa";
     verifiedMonthlyIncome = noa.grossMonthlyIncome;
-    explanation = `Based on your Notice of Assessment (YA ${noa.latestYa}, annual income S$${noa.annualIncome.toLocaleString()}), your monthly income is S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
+    const noaPrefix = cpf.isPlatformWorker
+      ? "CPF contributions are from a platform employer — income back-calculation skipped. "
+      : "";
+    explanation = `${noaPrefix}Based on your Notice of Assessment (YA ${noa.latestYa}, annual income S$${noa.annualIncome.toLocaleString()}), your monthly income is S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
   }
 
   // Declared moneylender balance (stored on lead / audit — not used to reduce max loan).

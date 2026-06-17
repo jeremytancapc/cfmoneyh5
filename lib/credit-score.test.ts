@@ -5,15 +5,19 @@ import {
   scoreCpf,
   scoreNoa,
   assessCredit,
+  isPlatformEmployer,
 } from "./credit-score";
 
 // ─── Fixed reference date for all tests ──────────────────────────────────────
 const REF = new Date("2026-05-21T10:00:00+08:00");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function cpfMonth(month: string, amount: number) {
-  return { month, amount, employer: amount * 0.17, paidOn: month + "-14" };
+function cpfMonth(month: string, amount: number, employer = "REGULAR EMPLOYER PTE. LTD.") {
+  return { month, amount, employer, paidOn: month + "-14" };
 }
+const GRAB = "GRABCAR PTE. LTD. (PLATFORM)";
+const GOJEK = "GOJEK SINGAPORE (PLATFORM)";
+const TADA_TRUNCATED = "TADA MOBILITY (SINGAPORE) (PLA"; // truncated at 30 chars by Singpass
 
 // ─── 1. moneylenderIncomeMultiplier ──────────────────────────────────────────
 
@@ -397,5 +401,155 @@ describe("assessCredit — all 5 payment history multipliers end-to-end", () => 
   it("bad_debt → 1.38× → max $6,900", () => {
     const r = assessCredit({ ...incomeParams, moneylenderPaymentHistory: "bad_debt" });
     expect(r.maxEligibleLoan).toBeCloseTo(6900, 0);
+  });
+});
+
+// ─── 6. isPlatformEmployer ───────────────────────────────────────────────────
+
+describe("isPlatformEmployer", () => {
+  it("detects full (PLATFORM) suffix — Grab", () => {
+    expect(isPlatformEmployer(GRAB)).toBe(true);
+  });
+
+  it("detects full (PLATFORM) suffix — Gojek", () => {
+    expect(isPlatformEmployer(GOJEK)).toBe(true);
+  });
+
+  it("detects Singpass-truncated name via prefix — Tada", () => {
+    expect(isPlatformEmployer(TADA_TRUNCATED)).toBe(true);
+  });
+
+  it("detects Singpass-truncated name via prefix — Delivery Hero", () => {
+    expect(isPlatformEmployer("DELIVERY HERO (SINGAPORE) (PLA")).toBe(true);
+  });
+
+  it("detects Singpass-truncated name via prefix — Ryde", () => {
+    expect(isPlatformEmployer("RYDE TECHNOLOGIES PTE. LTD. (P")).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(isPlatformEmployer("grabcar pte. ltd. (platform)")).toBe(true);
+    expect(isPlatformEmployer("Gojek Singapore (Platform)")).toBe(true);
+  });
+
+  it("does not flag regular employers", () => {
+    expect(isPlatformEmployer("MINISTRY OF DEFENCE")).toBe(false);
+    expect(isPlatformEmployer("SINGAPORE AIRLINES LIMITED")).toBe(false);
+    expect(isPlatformEmployer("NTUC FAIRPRICE CO-OPERATIVE L")).toBe(false);
+  });
+});
+
+// ─── 7. scoreCpf — platform worker detection ─────────────────────────────────
+
+describe("scoreCpf — platform worker detection", () => {
+  it("flags isPlatformWorker when all contributions are from a platform employer", () => {
+    const contributions = [
+      cpfMonth("2026-04", 500, GRAB),
+      cpfMonth("2026-03", 500, GRAB),
+      cpfMonth("2026-02", 500, GRAB),
+    ];
+    const r = scoreCpf(contributions, "1990-01-01", REF);
+    expect(r.isPlatformWorker).toBe(true);
+    expect(r.eligible).toBe(true);
+  });
+
+  it("flags isPlatformWorker even with a truncated Singpass employer name", () => {
+    const contributions = [
+      cpfMonth("2026-04", 400, TADA_TRUNCATED),
+      cpfMonth("2026-03", 400, TADA_TRUNCATED),
+    ];
+    const r = scoreCpf(contributions, "1990-01-01", REF);
+    expect(r.isPlatformWorker).toBe(true);
+  });
+
+  it("does NOT flag isPlatformWorker when any entry is a regular employer", () => {
+    const contributions = [
+      cpfMonth("2026-04", 1850, GRAB),
+      cpfMonth("2026-03", 1850, "REGULAR EMPLOYER PTE. LTD."),
+      cpfMonth("2026-02", 1850, "REGULAR EMPLOYER PTE. LTD."),
+    ];
+    const r = scoreCpf(contributions, "1990-01-01", REF);
+    expect(r.isPlatformWorker).toBe(false);
+  });
+
+  it("sets isPlatformWorker false for empty contributions", () => {
+    const r = scoreCpf([], "1990-01-01", REF);
+    expect(r.isPlatformWorker).toBe(false);
+  });
+});
+
+// ─── 8. scoreNoa — trade income ───────────────────────────────────────────────
+
+describe("scoreNoa — trade income for gig workers", () => {
+  it("uses tradeIncome when employmentIncome is zero (pure gig worker)", () => {
+    const r = scoreNoa(
+      [{ yearOfAssessment: "2025", employmentIncome: 0, tradeIncome: 48000, assessableIncome: 48000, type: "", taxClearance: "", rentIncome: 0, interestIncome: 0 }],
+      REF,
+    );
+    expect(r.eligible).toBe(true);
+    expect(r.grossMonthlyIncome).toBeCloseTo(4000, 0);
+  });
+
+  it("combines employmentIncome + tradeIncome for dual-income workers", () => {
+    const r = scoreNoa(
+      [{ yearOfAssessment: "2025", employmentIncome: 36000, tradeIncome: 12000, assessableIncome: 48000, type: "", taxClearance: "", rentIncome: 0, interestIncome: 0 }],
+      REF,
+    );
+    expect(r.eligible).toBe(true);
+    expect(r.grossMonthlyIncome).toBeCloseTo(4000, 0); // (36000 + 12000) / 12
+  });
+
+  it("still works correctly when tradeIncome is absent (regular employees)", () => {
+    const r = scoreNoa(
+      [{ yearOfAssessment: "2025", employmentIncome: 60000, assessableIncome: 60000 } as never],
+      REF,
+    );
+    expect(r.eligible).toBe(true);
+    expect(r.grossMonthlyIncome).toBeCloseTo(5000, 0);
+  });
+});
+
+// ─── 9. assessCredit — platform worker fallback ───────────────────────────────
+
+describe("assessCredit — platform worker income fallback", () => {
+  it("skips CPF and uses NOA trade income when all CPF employers are platform", () => {
+    const cpf = [
+      cpfMonth("2026-04", 500, GRAB),
+      cpfMonth("2026-03", 500, GRAB),
+      cpfMonth("2026-02", 500, GRAB),
+    ];
+    const noa = [{ yearOfAssessment: "2025", employmentIncome: 0, tradeIncome: 48000, assessableIncome: 48000, type: "", taxClearance: "", rentIncome: 0, interestIncome: 0 }];
+    const r = assessCredit({ ...BASE, cpfContributions: cpf, noaHistory: noa, selfDeclaredMonthlyIncome: 2000 });
+    expect(r.incomeSource).toBe("noa");
+    expect(r.verifiedMonthlyIncome).toBeCloseTo(4000, 0);
+  });
+
+  it("skips CPF and falls back to self-declared when platform CPF and no NOA", () => {
+    const cpf = [
+      cpfMonth("2026-04", 500, GRAB),
+      cpfMonth("2026-03", 500, GRAB),
+      cpfMonth("2026-02", 500, GRAB),
+    ];
+    const r = assessCredit({ ...BASE, cpfContributions: cpf, selfDeclaredMonthlyIncome: 3500 });
+    expect(r.incomeSource).toBe("self_declared");
+    expect(r.verifiedMonthlyIncome).toBe(3500);
+  });
+
+  it("does NOT skip CPF when worker has mixed platform + regular employer entries", () => {
+    const cpf = [
+      cpfMonth("2026-04", 1850, "REGULAR EMPLOYER PTE. LTD."),
+      cpfMonth("2026-03", 1850, GRAB),
+      cpfMonth("2026-02", 1850, "REGULAR EMPLOYER PTE. LTD."),
+    ];
+    const r = assessCredit({ ...BASE, cpfContributions: cpf, selfDeclaredMonthlyIncome: 2000 });
+    expect(r.incomeSource).toBe("cpf");
+    expect(r.verifiedMonthlyIncome).toBeCloseTo(5000, 0);
+  });
+
+  it("explanation mentions platform employer when CPF is skipped in favour of NOA", () => {
+    const cpf = [cpfMonth("2026-04", 500, GRAB), cpfMonth("2026-03", 500, GRAB), cpfMonth("2026-02", 500, GRAB)];
+    const noa = [{ yearOfAssessment: "2025", employmentIncome: 0, tradeIncome: 48000, assessableIncome: 48000, type: "", taxClearance: "", rentIncome: 0, interestIncome: 0 }];
+    const r = assessCredit({ ...BASE, cpfContributions: cpf, noaHistory: noa });
+    expect(r.explanation.toLowerCase()).toContain("platform");
   });
 });
