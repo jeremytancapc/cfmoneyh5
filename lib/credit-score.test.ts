@@ -512,7 +512,7 @@ describe("scoreNoa — trade income for gig workers", () => {
 // ─── 9. assessCredit — platform worker fallback ───────────────────────────────
 
 describe("assessCredit — platform worker income fallback", () => {
-  it("skips CPF and uses NOA trade income when all CPF employers are platform", () => {
+  it("skips both CPF and NOA for platform workers, uses self-declared even when NOA is available", () => {
     const cpf = [
       cpfMonth("2026-04", 500, GRAB),
       cpfMonth("2026-03", 500, GRAB),
@@ -520,8 +520,8 @@ describe("assessCredit — platform worker income fallback", () => {
     ];
     const noa = [{ yearOfAssessment: "2025", employmentIncome: 0, tradeIncome: 48000, assessableIncome: 48000, type: "", taxClearance: "", rentIncome: 0, interestIncome: 0 }];
     const r = assessCredit({ ...BASE, cpfContributions: cpf, noaHistory: noa, selfDeclaredMonthlyIncome: 2000 });
-    expect(r.incomeSource).toBe("noa");
-    expect(r.verifiedMonthlyIncome).toBeCloseTo(4000, 0);
+    expect(r.incomeSource).toBe("self_declared");
+    expect(r.verifiedMonthlyIncome).toBe(2000);
   });
 
   it("skips CPF and falls back to self-declared when platform CPF and no NOA", () => {
@@ -546,10 +546,11 @@ describe("assessCredit — platform worker income fallback", () => {
     expect(r.verifiedMonthlyIncome).toBeCloseTo(5000, 0);
   });
 
-  it("explanation mentions platform employer when CPF is skipped in favour of NOA", () => {
+  it("explanation mentions platform employer when both CPF and NOA are skipped", () => {
     const cpf = [cpfMonth("2026-04", 500, GRAB), cpfMonth("2026-03", 500, GRAB), cpfMonth("2026-02", 500, GRAB)];
     const noa = [{ yearOfAssessment: "2025", employmentIncome: 0, tradeIncome: 48000, assessableIncome: 48000, type: "", taxClearance: "", rentIncome: 0, interestIncome: 0 }];
-    const r = assessCredit({ ...BASE, cpfContributions: cpf, noaHistory: noa });
+    const r = assessCredit({ ...BASE, cpfContributions: cpf, noaHistory: noa, selfDeclaredMonthlyIncome: 3000 });
+    expect(r.incomeSource).toBe("self_declared");
     expect(r.explanation.toLowerCase()).toContain("platform");
   });
 });

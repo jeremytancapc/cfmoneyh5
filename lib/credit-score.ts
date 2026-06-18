@@ -298,36 +298,37 @@ export function assessCredit(params: {
   const selfDeclared = Math.max(0, params.selfDeclaredMonthlyIncome);
 
   // Income selection — priority: CPF (if fresh AND not a platform worker) → NOA → self-declared.
-  // Platform workers (Grab, Gojek etc.) have CPF rates well below the standard employee rate so
-  // back-calculating income from their CPF gives a severe underestimate — skip it entirely.
-  const cpfUsableForIncome = cpf.eligible && !cpf.isPlatformWorker;
+  // Platform workers (Grab, Gojek etc.) skip BOTH CPF and NOA and go straight to self-declared.
+  // CPF rates for platform workers are well below the standard employee rate so back-calculation
+  // gives a severe underestimate. NOA trade income also lags a full year and may not reflect current
+  // gig earnings accurately. Self-declared income verified at appointment instead.
+  const isPlatformWorker = cpf.isPlatformWorker;
+  const cpfUsableForIncome = cpf.eligible && !isPlatformWorker;
+  const noaUsableForIncome = noa.eligible && !isPlatformWorker;
 
   let incomeSource: IncomeSource;
   let verifiedMonthlyIncome: number;
   let explanation: string;
 
-  if (!cpfUsableForIncome && !noa.eligible) {
+  if (!cpfUsableForIncome && !noaUsableForIncome) {
     incomeSource = "self_declared";
     verifiedMonthlyIncome = selfDeclared;
-    if (cpf.isPlatformWorker) {
-      explanation = `CPF contributions are from a platform employer — the standard income back-calculation does not apply. No NOA data is available. Using your declared income of S$${selfDeclared.toLocaleString()}/month.`;
+    if (isPlatformWorker) {
+      explanation = `CPF contributions are from a platform employer — income back-calculation does not apply and NOA is not used. Income will be verified at appointment. Using your declared income of S$${selfDeclared.toLocaleString()}/month.`;
     } else {
       explanation =
         cpf.latestMonth
           ? `CPF data is ${cpf.monthsStale} month(s) old (>2) and NOA is outside the scoring window. Using your declared income of S$${selfDeclared.toLocaleString()}/month.`
           : "No CPF or NOA data available. Using your declared income.";
     }
-  } else if (cpfUsableForIncome && (!noa.eligible || cpf.grossMonthlyIncome >= noa.grossMonthlyIncome)) {
+  } else if (cpfUsableForIncome && (!noaUsableForIncome || cpf.grossMonthlyIncome >= noa.grossMonthlyIncome)) {
     incomeSource = "cpf";
     verifiedMonthlyIncome = cpf.grossMonthlyIncome;
     explanation = `Based on your CPF contributions (${cpf.latestMonth}, 3-month avg S$${Math.round(cpf.avgMonthlyContribution).toLocaleString()}/month), your gross monthly income is estimated at S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
   } else {
     incomeSource = "noa";
     verifiedMonthlyIncome = noa.grossMonthlyIncome;
-    const noaPrefix = cpf.isPlatformWorker
-      ? "CPF contributions are from a platform employer — income back-calculation skipped. "
-      : "";
-    explanation = `${noaPrefix}Based on your Notice of Assessment (YA ${noa.latestYa}, annual income S$${noa.annualIncome.toLocaleString()}), your monthly income is S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
+    explanation = `Based on your Notice of Assessment (YA ${noa.latestYa}, annual income S$${noa.annualIncome.toLocaleString()}), your monthly income is S$${Math.round(verifiedMonthlyIncome).toLocaleString()}.`;
   }
 
   // Declared moneylender balance (stored on lead / audit — not used to reduce max loan).
