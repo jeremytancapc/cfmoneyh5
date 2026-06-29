@@ -18,6 +18,7 @@ import {
   clearAipSessionCookie,
 } from "@/lib/aip-session";
 import { createAdminClient } from "@/lib/supabase/client";
+import { logExternalApi } from "@/lib/external-api-logger";
 
 export const runtime = "nodejs";
 
@@ -55,45 +56,53 @@ async function notifyAirConnect(payload: {
     bookingUrl.searchParams.set("cfh5Id", cfh5Id);
     bookingUrl.searchParams.set("leadId", payload.leadId);
 
-    console.info(`${LOG} AirConnect POST`, {
-      host: bookingUrl.hostname,
-      cfh5Id,
+    const headers: Record<string, string> = {
+      apikey: apiKey,
+      "Content-Type": "application/json",
+    };
+
+    const requestBody = {
+      app: "dashboard",
+      customerName: payload.customerName,
+      phoneNumber: payload.phoneNumber,
       appointmentDate: payload.appointmentDate,
       timeSlot: payload.timeSlot,
-    });
+      cfh5Id,
+      leadId: payload.leadId,
+      loanAmount: 0,
+      source: "aip",
+    };
 
     const started = Date.now();
     const res = await fetch(bookingUrl.toString(), {
       method: "POST",
-      headers: {
-        apikey: apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        app: "dashboard",
-        customerName: payload.customerName,
-        phoneNumber: payload.phoneNumber,
-        appointmentDate: payload.appointmentDate,
-        timeSlot: payload.timeSlot,
-        cfh5Id,
-        leadId: payload.leadId,
-        loanAmount: 0,
-        source: "aip",
-      }),
+      headers,
+      body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(25_000),
     });
 
     const ms = Date.now() - started;
+    const responseBody = !res.ok ? await res.text() : undefined;
+
+    logExternalApi({
+      tag: LOG,
+      url: bookingUrl.toString(),
+      method: "POST",
+      headers,
+      body: requestBody,
+      status: res.status,
+      ok: res.ok,
+      ms,
+      responseBody,
+      leadId: payload.leadId,
+    });
 
     if (!res.ok) {
-      const text = await res.text();
       console.error(`${LOG} AirConnect notification failed`, {
         status: res.status,
         ms,
-        body: text.slice(0, 500),
+        body: responseBody?.slice(0, 500),
       });
-    } else {
-      console.info(`${LOG} AirConnect OK`, { status: res.status, ms, cfh5Id });
     }
   } catch (err) {
     console.error(`${LOG} AirConnect notification error`, err);
