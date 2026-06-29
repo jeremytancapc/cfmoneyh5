@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "date and time are required" }, { status: 400 });
   }
 
-  console.info(`${LOG} booking slot`, { date, time, cfh5Hint: cfh5ApplicationRef(leadId) });
+  console.info(`${LOG} booking slot`, { date, time, idNumber: idNumber ?? null, cfh5Hint: cfh5ApplicationRef(leadId) });
 
   const admin = createAdminClient();
 
