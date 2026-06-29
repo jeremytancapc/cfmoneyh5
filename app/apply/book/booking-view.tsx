@@ -31,10 +31,16 @@ export function BookingView({ formData }: Props) {
   async function handleConfirm(date: string, time: string): Promise<BookingConfirmation | null> {
     console.info(`${LOG} POST /api/apply/book`, { date, time });
 
+    // Include idNumber when customer authenticated via Singpass
+    const payload: Record<string, string> = { date, time };
+    if (formData.authMethod === "singpass" && formData.nric) {
+      payload.idNumber = formData.nric;
+    }
+
     const res = await fetch("/api/apply/book", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ date, time }),
+      body: JSON.stringify(payload),
     });
 
     console.info(`${LOG} response`, { status: res.status, ok: res.ok });

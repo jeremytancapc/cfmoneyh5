@@ -25,7 +25,7 @@ export const runtime = "nodejs";
 
 const LOG = "[apply/book]";
 
-type Body = { date: string; time: string };
+type Body = { date: string; time: string; idNumber?: string };
 
 /** Same convention as the pending UI — last 8 chars of lead UUID, uppercased. */
 function cfh5ApplicationRef(leadId: string): string {
@@ -42,6 +42,7 @@ async function notifyAirConnect(payload: {
   timeSlot: string;
   leadId: string;
   loanAmount: number;
+  idNumber?: string;
 }) {
   const apiKey = process.env.AIRCONNECT_API_KEY;
   const url = process.env.AIRCONNECT_APPOINTMENTS_URL;
@@ -88,6 +89,7 @@ async function notifyAirConnect(payload: {
         cfh5Id,
         leadId: payload.leadId,
         loanAmount: payload.loanAmount,
+        ...(payload.idNumber ? { idNumber: payload.idNumber } : {}),
       }),
       signal: AbortSignal.timeout(25_000),
     });
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json()) as Partial<Body>;
-  const { date, time } = body;
+  const { date, time, idNumber } = body;
 
   if (!date || !time) {
     console.warn(`${LOG} reject: missing date or time`, { hasDate: Boolean(date), hasTime: Boolean(time) });
@@ -209,6 +211,7 @@ export async function POST(request: NextRequest) {
     timeSlot: time,
     leadId,
     loanAmount,
+    ...(idNumber ? { idNumber } : {}),
   });
 
   const res = NextResponse.json({
