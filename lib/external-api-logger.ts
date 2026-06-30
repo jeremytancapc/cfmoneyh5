@@ -113,7 +113,7 @@ async function persistToDb(log: ExternalApiLog): Promise<void> {
   try {
     const admin = createAdminClient();
 
-    await admin.from("api_logs").insert({
+    const { error } = await admin.from("api_logs").insert({
       tag: log.tag,
       method: log.method,
       url: log.url,
@@ -126,6 +126,12 @@ async function persistToDb(log: ExternalApiLog): Promise<void> {
       lead_id: log.leadId ?? null,
       error: log.error ?? null,
     });
+
+    if (error) {
+      console.error(`[api-logger] DB insert error`, { code: error.code, message: error.message, details: error.details });
+    } else {
+      console.info(`[api-logger] Persisted to api_logs`, { tag: log.tag, leadId: log.leadId ?? null });
+    }
   } catch (err) {
     // Swallow — we never want DB logging to crash the main flow
     console.error(`[api-logger] DB insert failed`, err);
