@@ -44,7 +44,8 @@ import {
 /** 1–2: loan + income · 3: Singpass vs manual · 4: identity · 8: review · 5: contact · 7: bankruptcy · 9: moneylender loans */
 const TOTAL_STEPS = 8; // review is still at internal step 8
 
-const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18, 24];
+const MAX_LOAN_TENURE_MONTHS = 18;
+const TENURE_OPTIONS = [1, 3, 6, 9, 12, 18];
 
 const URGENCY_OPTIONS = [
   { value: "today", label: "Today", emoji: "⚡" },
@@ -402,7 +403,7 @@ export function Step1_LoanDetails({
     setTenureFocused(false);
     const num = parseInt(tenureRaw, 10);
     if (Number.isNaN(num) || num <= 0) { setTenureRaw(String(formData.tenure)); return; }
-    const clamped = Math.min(Math.max(num, 1), 24);
+    const clamped = Math.min(Math.max(num, 1), MAX_LOAN_TENURE_MONTHS);
     updateField("tenure", clamped);
     setTenureRaw(String(clamped));
   }, [tenureRaw, formData.tenure, updateField]);
@@ -460,7 +461,7 @@ export function Step1_LoanDetails({
               className="relative z-10 w-full cursor-pointer"
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
+          <div className="mt-2 flex justify-between text-xs text-[var(--text-primary)]">
             <span>$500</span>
             <span>$20,000+</span>
           </div>
@@ -478,7 +479,7 @@ export function Step1_LoanDetails({
               <input
                 type="text"
                 inputMode="numeric"
-                value={tenureFocused ? tenureRaw : String(formData.tenure)}
+                value={tenureFocused ? tenureRaw : String(Math.min(formData.tenure, MAX_LOAN_TENURE_MONTHS))}
                 onFocus={() => { setTenureFocused(true); setTenureRaw(String(formData.tenure)); }}
                 onBlur={handleTenureBlur}
                 onChange={(e) => {
@@ -489,35 +490,38 @@ export function Step1_LoanDetails({
                 style={{ width: `${Math.max((tenureFocused ? tenureRaw : String(formData.tenure)).length, 2)}ch` }}
                 aria-label="Loan tenure in months"
               />
-              <span className="text-base sm:text-lg font-semibold text-brand-blue">months</span>
+              <span className="text-base sm:text-lg font-semibold text-brand-blue">months*</span>
             </div>
           </div>
           <div className="relative">
             <div
               className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full"
               style={{
-                width: `${((formData.tenure - 1) / (24 - 1)) * 100}%`,
+                width: `${((Math.min(formData.tenure, MAX_LOAN_TENURE_MONTHS) - 1) / (MAX_LOAN_TENURE_MONTHS - 1)) * 100}%`,
                 background: "var(--brand-blue-hex)",
               }}
             />
             <input
               type="range"
               min={1}
-              max={24}
+              max={MAX_LOAN_TENURE_MONTHS}
               step={1}
-              value={formData.tenure}
+              value={Math.min(formData.tenure, MAX_LOAN_TENURE_MONTHS)}
               onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
+                const val = Math.min(parseInt(e.target.value, 10), MAX_LOAN_TENURE_MONTHS);
                 updateField("tenure", val);
                 setTenureRaw(String(val));
               }}
               className="relative z-10 w-full cursor-pointer"
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs text-[var(--text-tertiary)]">
+          <div className="mt-2 flex justify-between text-xs text-[var(--text-primary)]">
             <span>1 month</span>
-            <span>24 months+</span>
+            <span>18 months</span>
           </div>
+          <p className="mt-1.5 text-right text-xs text-[var(--text-tertiary)]">
+            *Longer terms subject to good credit standing
+          </p>
         </div>
 
         <div>
@@ -535,7 +539,7 @@ export function Step1_LoanDetails({
               <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
             </div>
           </div>
-          <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
+          <p className="mt-1.5 text-right text-xs text-[var(--text-tertiary)]">
             *{MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER}
           </p>
         </div>
