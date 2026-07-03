@@ -38,6 +38,7 @@ import {
   processedPayloadFromAuthStore,
   upsertMyinfoProfileForLead,
 } from "@/lib/myinfo-profile";
+import { checkLeadEligibility } from "@/lib/eligibility-check";
 
 export const runtime = "nodejs";
 
@@ -176,6 +177,44 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 3. Run credit scoring ─────────────────────────────────────────────────
+  // First, check eligibility against Crawford/AirConnect systems
+  const e164Phone = formData.mobile
+    ? (formData.mobile.startsWith("+") ? formData.mobile : `+65${formData.mobile}`)
+    : "";
+  const eligibility = await checkLeadEligibility({
+    phoneNumber: e164Phone,
+    idNumber: formData.authMethod === "singpass" && formData.nric ? formData.nric : undefined,
+    leadId,
+  });
+
+  // Save eligibility result to the lead
+  await admin
+    .from("leads")
+    .update({
+      eligibility_status: eligibility.status,
+      eligibility_notes: eligibility.notes,
+      eligibility_reloan_reason: eligibility.reloanReason,
+    })
+    .eq("id", leadId);
+
+  // If NOT ELIGIBLE per AirConnect, reject immediately (skip credit scoring)
+  if (eligibility.status === "NOT_ELIGIBLE") {
+    const notEligibleRes = NextResponse.json({
+      leadId,
+      approvedLoanAmount: 0,
+      verifiedMonthlyIncome: 0,
+      incomeSource: "self_declared",
+      isEligible: false,
+      maxEligibleLoan: 0,
+      explanation: `Application not eligible: ${eligibility.notes}`,
+      eligibilityStatus: eligibility.status,
+      eligibilityNotes: eligibility.notes,
+    });
+    notEligibleRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
+    applyClearApplyCookiesOnResponse(notEligibleRes);
+    return notEligibleRes;
+  }
+
   const assessment = assessCredit({
     dob: formData.dob,
     idType: formData.idType,
@@ -224,6 +263,9 @@ export async function POST(request: NextRequest) {
     isEligible: assessment.isEligible,
     maxEligibleLoan: assessment.maxEligibleLoan,
     explanation: assessment.explanation,
+    eligibilityStatus: eligibility.status,
+    eligibilityNotes: eligibility.notes,
+    reloanReason: eligibility.reloanReason,
   });
 
   // Clear draft_lead cookie — no longer needed after full submit.
