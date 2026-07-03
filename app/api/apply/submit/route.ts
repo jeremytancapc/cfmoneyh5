@@ -197,8 +197,12 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", leadId);
 
-  // If NOT ELIGIBLE per AirConnect, reject immediately (skip credit scoring)
-  if (eligibility.status === "NOT_ELIGIBLE") {
+  // If NOT ELIGIBLE or RELOAN per AirConnect, reject immediately (skip credit scoring)
+  if (eligibility.status === "NOT_ELIGIBLE" || eligibility.status === "RELOAN") {
+    const rejectionReason = eligibility.status === "RELOAN"
+      ? "airconnect_reloan"
+      : "airconnect_not_eligible";
+
     // Save a credit assessment record for analytics
     await admin.from("credit_assessments").insert({
       lead_id: leadId,
@@ -207,28 +211,31 @@ export async function POST(request: NextRequest) {
       approved_loan_amount: 0,
       max_eligible_loan: 0,
       is_eligible: false,
-      credit_rejection_reason: "airconnect_not_eligible",
-      explanation: `AirConnect eligibility check: ${eligibility.notes}`,
+      credit_rejection_reason: rejectionReason,
+      explanation: `AirConnect eligibility check: ${eligibility.notes}${eligibility.reloanReason ? ` (reloan: ${eligibility.reloanReason})` : ""}`,
       raw_assessment: { eligibility: eligibility.raw } as unknown as Record<string, unknown>,
     });
 
     // Update lead status
     await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
 
-    const notEligibleRes = NextResponse.json({
+    const rejectRes = NextResponse.json({
       leadId,
       approvedLoanAmount: 0,
       verifiedMonthlyIncome: 0,
       incomeSource: "self_declared",
       isEligible: false,
       maxEligibleLoan: 0,
-      explanation: `Application not eligible: ${eligibility.notes}`,
+      explanation: eligibility.status === "RELOAN"
+        ? `Existing customer — please contact our office directly.`
+        : `Application not eligible: ${eligibility.notes}`,
       eligibilityStatus: eligibility.status,
       eligibilityNotes: eligibility.notes,
+      reloanReason: eligibility.reloanReason,
     });
-    notEligibleRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
-    applyClearApplyCookiesOnResponse(notEligibleRes);
-    return notEligibleRes;
+    rejectRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
+    applyClearApplyCookiesOnResponse(rejectRes);
+    return rejectRes;
   }
 
   const assessment = assessCredit({
