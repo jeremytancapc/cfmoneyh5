@@ -113,8 +113,9 @@ export async function checkLeadEligibility(params: {
     const notes = (responseJson.notes ?? "").toLowerCase();
     const reloanReason = responseJson.reloanReason ?? null;
 
-    // RELOAN: notes contains "ascend" OR reloanReason exists
-    if (notes.includes("ascend") || reloanReason) {
+    // RELOAN: reloanReason exists OR notes contains "ascend" (but not blacklisted)
+    // These customers pass through but are flagged for reloan handling
+    if (reloanReason || (notes.includes("ascend") && !notes.includes("blacklist"))) {
       return {
         status: "RELOAN",
         notes: responseJson.notes,
@@ -123,8 +124,8 @@ export async function checkLeadEligibility(params: {
       };
     }
 
-    // NOT ELIGIBLE
-    if (!responseJson.isEligible) {
+    // BLACKLISTED: only hard block
+    if (notes.includes("blacklist")) {
       return {
         status: "NOT_ELIGIBLE",
         notes: responseJson.notes,
@@ -133,7 +134,7 @@ export async function checkLeadEligibility(params: {
       };
     }
 
-    // ELIGIBLE (existing or brand new)
+    // Everything else passes through (CAPC lists, duplicate leads, brand new, etc.)
     return {
       status: "ELIGIBLE",
       notes: responseJson.notes,

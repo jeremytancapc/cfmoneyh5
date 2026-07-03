@@ -197,12 +197,9 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", leadId);
 
-  // If NOT ELIGIBLE or RELOAN per AirConnect, reject immediately (skip credit scoring)
-  if (eligibility.status === "NOT_ELIGIBLE" || eligibility.status === "RELOAN") {
-    const rejectionReason = eligibility.status === "RELOAN"
-      ? "airconnect_reloan"
-      : "airconnect_not_eligible";
-
+  // If NOT ELIGIBLE (blacklisted) per AirConnect, reject immediately (skip credit scoring)
+  // RELOAN customers pass through — they're flagged but still get to book
+  if (eligibility.status === "NOT_ELIGIBLE") {
     // Save a credit assessment record for analytics
     await admin.from("credit_assessments").insert({
       lead_id: leadId,
@@ -211,8 +208,8 @@ export async function POST(request: NextRequest) {
       approved_loan_amount: 0,
       max_eligible_loan: 0,
       is_eligible: false,
-      credit_rejection_reason: rejectionReason,
-      explanation: `AirConnect eligibility check: ${eligibility.notes}${eligibility.reloanReason ? ` (reloan: ${eligibility.reloanReason})` : ""}`,
+      credit_rejection_reason: "airconnect_not_eligible",
+      explanation: `AirConnect eligibility check: ${eligibility.notes}`,
       raw_assessment: { eligibility: eligibility.raw } as unknown as Record<string, unknown>,
     });
 
@@ -226,12 +223,9 @@ export async function POST(request: NextRequest) {
       incomeSource: "self_declared",
       isEligible: false,
       maxEligibleLoan: 0,
-      explanation: eligibility.status === "RELOAN"
-        ? `Existing customer — please contact our office directly.`
-        : `Application not eligible: ${eligibility.notes}`,
+      explanation: `We're unable to process your application at this time.`,
       eligibilityStatus: eligibility.status,
       eligibilityNotes: eligibility.notes,
-      reloanReason: eligibility.reloanReason,
     });
     rejectRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
     applyClearApplyCookiesOnResponse(rejectRes);
