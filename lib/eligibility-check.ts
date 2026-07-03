@@ -45,7 +45,7 @@ export async function checkLeadEligibility(params: {
   idNumber?: string;
   leadId?: string;
 }): Promise<EligibilityResult> {
-  const apiKey = process.env.AIRCONNECT_API_KEY;
+  const apiKey = process.env.AIRCONNECT_ELIGIBILITY_API_KEY;
   const url = process.env.AIRCONNECT_ELIGIBILITY_URL;
 
   if (!apiKey || !url) {
