@@ -199,6 +199,22 @@ export async function POST(request: NextRequest) {
 
   // If NOT ELIGIBLE per AirConnect, reject immediately (skip credit scoring)
   if (eligibility.status === "NOT_ELIGIBLE") {
+    // Save a credit assessment record for analytics
+    await admin.from("credit_assessments").insert({
+      lead_id: leadId,
+      income_source: "self_declared",
+      verified_monthly_income: 0,
+      approved_loan_amount: 0,
+      max_eligible_loan: 0,
+      is_eligible: false,
+      credit_rejection_reason: "airconnect_not_eligible",
+      explanation: `AirConnect eligibility check: ${eligibility.notes}`,
+      raw_assessment: { eligibility: eligibility.raw } as unknown as Record<string, unknown>,
+    });
+
+    // Update lead status
+    await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
+
     const notEligibleRes = NextResponse.json({
       leadId,
       approvedLoanAmount: 0,

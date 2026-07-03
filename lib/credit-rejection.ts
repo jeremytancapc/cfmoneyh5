@@ -8,13 +8,17 @@ export type CreditRejectionCode =
   | "under_18"
   | "foreigner_income_floor"
   | "zero_cap_moneylender_os"
-  | "zero_cap_income_too_low";
+  | "zero_cap_income_too_low"
+  | "airconnect_not_eligible"
+  | "airconnect_reloan";
 
 const REJECTION_LABELS: Record<CreditRejectionCode, string> = {
   under_18: "Under 18",
   foreigner_income_floor: "Foreigner income below minimum",
   zero_cap_moneylender_os: "Cap zero — moneylender O/S",
   zero_cap_income_too_low: "Cap zero — income too low",
+  airconnect_not_eligible: "AirConnect — not eligible",
+  airconnect_reloan: "AirConnect — reloan (send to lender)",
 };
 
 /** Derive system credit rejection from assessCredit output. Returns null when approved. */
