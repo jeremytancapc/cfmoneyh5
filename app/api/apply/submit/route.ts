@@ -38,6 +38,7 @@ import {
   processedPayloadFromAuthStore,
   upsertMyinfoProfileForLead,
 } from "@/lib/myinfo-profile";
+import { checkLeadEligibility } from "@/lib/eligibility-check";
 
 export const runtime = "nodejs";
 
@@ -176,6 +177,65 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 3. Run credit scoring ─────────────────────────────────────────────────
+  // First, check eligibility against Crawford/AirConnect systems
+  const e164Phone = formData.mobile
+    ? (formData.mobile.startsWith("+") ? formData.mobile : `+65${formData.mobile}`)
+    : "";
+  const eligibility = await checkLeadEligibility({
+    phoneNumber: e164Phone,
+    idNumber: formData.authMethod === "singpass" && formData.nric ? formData.nric : undefined,
+    leadId,
+  });
+
+  // Save eligibility result to the lead
+  await admin
+    .from("leads")
+    .update({
+      eligibility_status: eligibility.status,
+      eligibility_notes: eligibility.notes,
+      eligibility_reloan_reason: eligibility.reloanReason,
+    })
+    .eq("id", leadId);
+
+  // If NOT ELIGIBLE (blacklisted) or RELOAN per AirConnect, reject immediately
+  if (eligibility.status === "NOT_ELIGIBLE" || eligibility.status === "RELOAN") {
+    const rejectionReason = eligibility.status === "RELOAN"
+      ? "airconnect_reloan"
+      : "airconnect_not_eligible";
+
+    // Save a credit assessment record for analytics
+    await admin.from("credit_assessments").insert({
+      lead_id: leadId,
+      income_source: "self_declared",
+      verified_monthly_income: 0,
+      approved_loan_amount: 0,
+      max_eligible_loan: 0,
+      is_eligible: false,
+      credit_rejection_reason: rejectionReason,
+      explanation: `AirConnect eligibility check: ${eligibility.notes}${eligibility.reloanReason ? ` (reloan: ${eligibility.reloanReason})` : ""}`,
+      raw_assessment: { eligibility: eligibility.raw } as unknown as Record<string, unknown>,
+    });
+
+    // Update lead status
+    await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
+
+    const rejectRes = NextResponse.json({
+      leadId,
+      approvedLoanAmount: 0,
+      verifiedMonthlyIncome: 0,
+      incomeSource: "self_declared",
+      isEligible: false,
+      maxEligibleLoan: 0,
+      explanation: `We're unable to process your application at this time.`,
+      eligibilityStatus: eligibility.status,
+      eligibilityNotes: eligibility.notes,
+      reloanReason: eligibility.reloanReason,
+    });
+    rejectRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
+    applyClearApplyCookiesOnResponse(rejectRes);
+    return rejectRes;
+  }
+
   const assessment = assessCredit({
     dob: formData.dob,
     idType: formData.idType,
@@ -224,6 +284,9 @@ export async function POST(request: NextRequest) {
     isEligible: assessment.isEligible,
     maxEligibleLoan: assessment.maxEligibleLoan,
     explanation: assessment.explanation,
+    eligibilityStatus: eligibility.status,
+    eligibilityNotes: eligibility.notes,
+    reloanReason: eligibility.reloanReason,
   });
 
   // Clear draft_lead cookie — no longer needed after full submit.
