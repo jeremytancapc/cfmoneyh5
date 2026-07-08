@@ -427,7 +427,7 @@ export function AxsOfferView() {
           style={{ pointerEvents: stage >= 3 ? "auto" : "none" }}
         >
           <div
-            className="flex flex-col gap-0.5 rounded-xl px-4 py-3.5"
+            className="flex flex-col gap-2 rounded-xl px-4 py-3.5"
             style={{
               background: "var(--surface-elevated)",
               boxShadow: "0 0 0 1px var(--border-subtle)",
@@ -449,11 +449,11 @@ export function AxsOfferView() {
               }}
             >
               {formatCurrency(monthlyRepayment)}
-              <span className="text-xs font-normal opacity-50">/mo*</span>
+              <span className="ml-1 text-xs font-normal opacity-50" style={{ letterSpacing: "0.04em" }}>/month*</span>
             </span>
           </div>
           <div
-            className="flex flex-col gap-0.5 rounded-xl px-4 py-3.5"
+            className="flex flex-col gap-2 rounded-xl px-4 py-3.5"
             style={{
               background: "var(--surface-elevated)",
               boxShadow: "0 0 0 1px var(--border-subtle)",
@@ -474,8 +474,8 @@ export function AxsOfferView() {
                 color: "var(--text-primary)",
               }}
             >
-              {AXS_OFFER_TENURE}{" "}
-              <span className="text-xs font-normal opacity-50">months</span>
+              {AXS_OFFER_TENURE}
+              <span className="ml-1 text-xs font-normal opacity-50" style={{ letterSpacing: "0.04em" }}>months</span>
             </span>
           </div>
         </div>
