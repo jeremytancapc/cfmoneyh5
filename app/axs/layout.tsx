@@ -21,8 +21,8 @@ export default function AxsLayout({ children }: { children: React.ReactNode }) {
           className="h-5 w-auto"
           priority
         />
-        <span className="hidden sm:inline-block text-xs font-medium text-[var(--text-on-brand)] opacity-75 tracking-wide uppercase">
-          Loan Application
+        <span className="text-xs font-medium text-[var(--text-on-brand)] opacity-75 tracking-wide uppercase">
+          AXS Ready Cash
         </span>
       </header>
 
