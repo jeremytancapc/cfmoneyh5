@@ -13,47 +13,47 @@ export interface PaymentHistoryOption {
   gradientTo: string;
 }
 
-// Gradient: dark emerald → teal-blue → brand blue
+// Green → yellow → amber → orange → red (best to worst repayment history)
 export const PAYMENT_HISTORY_SLIDER_OPTIONS: PaymentHistoryOption[] = [
   {
     id: "on_time",
     label: "Always On-time",
     value: "on_time",
-    color: "#059669",
-    gradientFrom: "#059669",
-    gradientTo: "#0A94A0",
+    color: "#16a34a",
+    gradientFrom: "#16a34a",
+    gradientTo: "#16a34a",
   },
   {
     id: "late_14",
     label: "Up to 14 days late",
     value: "late_14",
-    color: "#0A94A0",
-    gradientFrom: "#0A94A0",
-    gradientTo: "#0B7CB4",
+    color: "#65a30d",
+    gradientFrom: "#65a30d",
+    gradientTo: "#65a30d",
   },
   {
     id: "late_30",
     label: "Up to 30 days late",
     value: "late_30",
-    color: "#0B7CB4",
-    gradientFrom: "#0B7CB4",
-    gradientTo: "#0A55A8",
+    color: "#ca8a04",
+    gradientFrom: "#ca8a04",
+    gradientTo: "#ca8a04",
   },
   {
     id: "late_60",
     label: "Up to 60 days late",
     value: "late_60",
-    color: "#0A55A8",
-    gradientFrom: "#0A55A8",
-    gradientTo: "#0033AA",
+    color: "#ea580c",
+    gradientFrom: "#ea580c",
+    gradientTo: "#ea580c",
   },
   {
     id: "bad_debt",
     label: "More than 60 days late",
     value: "bad_debt",
-    color: "#0033AA",
-    gradientFrom: "#0033AA",
-    gradientTo: "#001F88",
+    color: "#dc2626",
+    gradientFrom: "#dc2626",
+    gradientTo: "#dc2626",
   },
 ];
 
@@ -96,7 +96,6 @@ export function PaymentHistorySelector({
                 <div className="flex flex-col items-center w-5 shrink-0">
                   <motion.div
                     className="relative rounded-full shrink-0"
-                    tabIndex={-1}
                     style={{
                       width: 20,
                       height: 20,

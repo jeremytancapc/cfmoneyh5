@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -66,12 +66,27 @@ function MoneylenderStep({
   const hasAmount =
     rawAmount.trim() !== "" && !Number.isNaN(parseInt(rawAmount, 10));
 
+  // Delay revealing the payment history section by 1.5 s after a valid amount
+  // is entered, so it doesn't pop up abruptly while the user is still typing.
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (hasAmount && !state.moneylenderNoLoans) {
+      timerRef.current = setTimeout(() => setShowPaymentHistory(true), 1000);
+    } else {
+      setShowPaymentHistory(false);
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [hasAmount, state.moneylenderNoLoans]);
+
   return (
     <div className="animate-slide-in">
       {/* Intro context — only on step 1 */}
       <div className="mb-8">
         <h1
-          className="text-2xl font-bold text-[var(--text-primary)] leading-tight mb-2"
+          className="text-4xl font-bold text-[var(--text-primary)] leading-tight mb-2"
           style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.04em" }}
         >
           Two quick checks<br />to unlock your offer.
@@ -132,8 +147,8 @@ function MoneylenderStep({
           </div>
         </div>
 
-        {/* Payment history */}
-        {hasAmount && !state.moneylenderNoLoans && (
+        {/* Payment history — revealed 1.5 s after a valid amount is entered */}
+        {showPaymentHistory && (
           <div className="animate-slide-in">
             <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
               How is your loan repayment history?
@@ -208,12 +223,12 @@ function BankruptcyStep({
           <ShieldCheck size={18} weight="duotone" className="text-brand-blue" />
         </div>
         <div>
-          <h2
-            className="text-lg font-bold tracking-tight text-[var(--text-primary)]"
-            style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.025em" }}
+          <h1
+            className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
+            style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.04em" }}
           >
             One last step
-          </h2>
+          </h1>
           <p className="text-xs text-[var(--text-secondary)]">
             Help us confirm your financial standing to move forward.
           </p>
