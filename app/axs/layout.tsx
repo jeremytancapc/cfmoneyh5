@@ -13,12 +13,11 @@ export default function AxsLayout({ children }: { children: React.ReactNode }) {
     <div className="axs-theme min-h-[100dvh] flex flex-col bg-[var(--surface-primary)]">
       {/* Top nav */}
       <header
-        className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--surface-elevated)]"
-        style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-brand-blue"
       >
         <Link href="/" aria-label="CF Money home">
           <Image
-            src="/images/cf-money-full-color.png"
+            src="/images/cf-money-white.png"
             alt="CF Money"
             width={120}
             height={36}
@@ -26,7 +25,7 @@ export default function AxsLayout({ children }: { children: React.ReactNode }) {
             priority
           />
         </Link>
-        <span className="hidden sm:inline-block text-xs font-medium text-[var(--text-tertiary)] tracking-wide uppercase">
+        <span className="hidden sm:inline-block text-xs font-medium text-[var(--text-on-brand)] opacity-75 tracking-wide uppercase">
           Loan Application
         </span>
       </header>
@@ -43,7 +42,7 @@ export default function AxsLayout({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-[480px] flex flex-col gap-2">
           <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">
             CF Money Pte. Ltd. (UEN No. 201406595W) is licensed by the Ministry of Law as a moneylender.
-            Licensed Moneylender Licence No. 45/2024.
+            Licensed Moneylender Licence No. 86/2026.
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-tertiary)]">
             <a
