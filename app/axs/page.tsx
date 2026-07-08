@@ -74,7 +74,7 @@ function MoneylenderStep({
           className="text-2xl font-bold text-[var(--text-primary)] leading-tight mb-2"
           style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.04em" }}
         >
-          Two quick checks,<br />then your offer&apos;s confirmed.
+          Two quick checks<br />to unlock your offer.
         </h1>
         <p className="text-sm text-[var(--text-tertiary)]">
           Helps us calculate the most accurate rates for you.
