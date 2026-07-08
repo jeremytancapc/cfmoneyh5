@@ -65,8 +65,9 @@ function WhatToBring({ idType }: { idType: string }) {
             onClick={() => setTab(t)}
             className="rounded-full px-3.5 py-1 text-xs font-semibold transition-all duration-200"
             style={{
-              background: tab === t ? "var(--brand-teal-hex)" : "transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-tertiary)",
+              background: tab === t ? "var(--brand-teal-hex)" : "var(--surface-elevated)",
+              color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
+              boxShadow: tab === t ? "none" : "0 0 0 1px var(--border-subtle)",
             }}
           >
             {t === "sg_pr" ? "Singaporean / PR" : "Foreigner"}
@@ -244,11 +245,7 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
         </div>
       </div>
 
-      <div className="h-px bg-[var(--border-subtle)]" />
-
-      <div className="flex flex-col gap-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-        <p>We look forward to meeting you.</p>
-      </div>
+      <div className="pb-1" />
     </div>
   );
 }
