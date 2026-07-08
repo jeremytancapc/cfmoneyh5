@@ -89,16 +89,25 @@ export function PaymentHistorySelector({
             <div key={option.id} className="flex flex-col">
               <button
                 type="button"
-                onClick={() => handleSelect(option)}
+                onClick={() => {
+                  // Blur any focused element first so Android dismisses its keyboard
+                  // before we process the selection (prevents numpad from appearing).
+                  (document.activeElement as HTMLElement | null)?.blur();
+                  handleSelect(option);
+                }}
                 onPointerDown={(e) => e.preventDefault()}
                 className="flex items-center gap-3 py-0.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/40 rounded-md"
               >
                 <div className="flex flex-col items-center w-5 shrink-0">
+                  {/* pointer-events:none + no whileTap = no tabIndex injected by Framer Motion,
+                      which is what was causing Android to open the numpad on tap */}
                   <motion.div
+                    aria-hidden="true"
                     className="relative rounded-full shrink-0"
                     style={{
                       width: 20,
                       height: 20,
+                      pointerEvents: "none",
                       backgroundColor: isSelected
                         ? option.color
                         : "var(--border-medium)",
@@ -112,7 +121,6 @@ export function PaymentHistorySelector({
                         : { scale: 1 }
                     }
                     transition={{ duration: 0.35 }}
-                    whileTap={shouldReduceMotion ? {} : { scale: 0.88 }}
                   >
                     {isSelected && (
                       <motion.div
