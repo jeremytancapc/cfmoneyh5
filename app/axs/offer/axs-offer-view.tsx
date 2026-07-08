@@ -15,11 +15,11 @@ const AXS_OFFER_TENURE = 12;
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-function blurIn(active: boolean, delay = 0, extra?: React.CSSProperties) {
+function blurIn(active: boolean, delay = 0) {
   return {
     animate: active
-      ? { opacity: 1, filter: "blur(0px)", y: 0, ...extra }
-      : { opacity: 0, filter: "blur(12px)", y: 12, ...extra },
+      ? { opacity: 1, filter: "blur(0px)", y: 0 }
+      : { opacity: 0, filter: "blur(12px)", y: 12 },
     transition: { type: "spring" as const, stiffness: 180, damping: 22, delay },
   };
 }
@@ -151,11 +151,12 @@ export function AxsOfferView() {
       {/* Notice items */}
       <motion.div
         className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-5"
-        initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
-        {...blurIn(revealStage >= 2, 0, {
+        style={{
           background: "var(--surface-elevated)",
           boxShadow: "0 1px 0 0 var(--border-subtle), 0 0 0 1px var(--border-subtle)",
-        })}
+        }}
+        initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
+        {...blurIn(revealStage >= 2)}
       >
         <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
           To receive your funds
