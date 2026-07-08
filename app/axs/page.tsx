@@ -212,7 +212,7 @@ function BankruptcyStep({
             className="text-lg font-bold tracking-tight text-[var(--text-primary)]"
             style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.025em" }}
           >
-            A quick check
+            One last step
           </h2>
           <p className="text-xs text-[var(--text-secondary)]">
             Help us confirm your financial standing to move forward.
