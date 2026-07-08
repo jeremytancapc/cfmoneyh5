@@ -136,7 +136,7 @@ export function AxsOfferView() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: EASE, delay: 0.18 }}
-          className="text-sm text-[var(--text-secondary)]"
+          className="text-sm text-[var(--text-secondary)] mt-3"
         >
           Pre-approved in principle.<br />Secure it by booking an appointment below.
         </motion.p>

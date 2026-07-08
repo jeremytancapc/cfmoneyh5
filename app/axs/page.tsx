@@ -69,19 +69,15 @@ function MoneylenderStep({
   return (
     <div className="animate-slide-in">
       {/* Intro context — only on step 1 */}
-      <div className="mb-8 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
-          From CF Money
-        </p>
+      <div className="mb-8">
         <h1
-          className="text-xl font-bold tracking-tight text-[var(--text-primary)] leading-snug mb-2"
-          style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.03em" }}
+          className="text-2xl font-bold text-[var(--text-primary)] leading-tight mb-2"
+          style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.04em" }}
         >
-          You&apos;re almost there
+          Two quick checks,<br />then your offer&apos;s confirmed.
         </h1>
-        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-          Thanks for submitting your application. CF Money is the licensed lender reviewing your request.
-          We just need two quick declarations before we confirm your offer.
+        <p className="text-sm text-[var(--text-tertiary)]">
+          Helps us calculate the most accurate rates for you.
         </p>
       </div>
 
@@ -100,7 +96,7 @@ function MoneylenderStep({
             Outstanding moneylender loans
           </h2>
           <p className="text-xs text-[var(--text-secondary)]">
-            Helps us calculate the most accurate rates for you.
+            Licensed moneylenders only, no need to declare bank loans.
           </p>
         </div>
       </div>
@@ -140,7 +136,7 @@ function MoneylenderStep({
         {hasAmount && !state.moneylenderNoLoans && (
           <div className="animate-slide-in">
             <label className="mb-3 block text-sm font-medium text-[var(--text-primary)]">
-              How is your repayment history with this lender?
+              How is your loan repayment history?
             </label>
             <PaymentHistorySelector
               value={state.moneylenderPaymentHistory}
