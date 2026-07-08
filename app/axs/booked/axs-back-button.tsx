@@ -6,20 +6,21 @@ import { ArrowRight } from "@phosphor-icons/react";
 const BTN_CLASS =
   "flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal px-4 py-3.5 text-sm font-semibold text-[var(--text-primary)] shadow-[0_4px_16px_-2px_oklch(0.78_0.16_178_/_0.35)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]";
 
-// Roughly the scroll depth at which the shopfront image enters view on mobile.
-const SHOPFRONT_SCROLL_THRESHOLD = 280;
+// Minimum scroll depth (px) before the floating button is allowed to appear.
+// Low enough that a short swipe reveals it, but not instant on page load.
+const SCROLL_REVEAL_THRESHOLD = 80;
 
 /**
  * Renders an in-flow anchor button at the bottom of the page.
- * A fixed floating copy appears only after the user has scrolled past the
- * shopfront image, and disappears again once the anchor button itself is visible.
+ * A fixed floating copy appears only after the user has scrolled at least
+ * SCROLL_REVEAL_THRESHOLD px, and disappears once the anchor itself is visible.
  */
 export function AxsBackButton() {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [anchorVisible, setAnchorVisible] = useState(false);
   const [scrolledPast, setScrolledPast] = useState(false);
 
-  // Watch anchor visibility
+  // Watch anchor visibility via IntersectionObserver
   useEffect(() => {
     const el = anchorRef.current;
     if (!el) return;
@@ -31,13 +32,14 @@ export function AxsBackButton() {
     return () => observer.disconnect();
   }, []);
 
-  // Show floating button only after user scrolls past the shopfront image
+  // Reveal floating button only after a real scroll — never on initial mount.
   useEffect(() => {
     function onScroll() {
-      setScrolledPast(window.scrollY > SHOPFRONT_SCROLL_THRESHOLD);
+      setScrolledPast(window.scrollY > SCROLL_REVEAL_THRESHOLD);
     }
+    // Intentionally NOT calling onScroll() here so the button stays hidden
+    // until the user physically starts scrolling.
     window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
