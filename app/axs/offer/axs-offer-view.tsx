@@ -408,13 +408,14 @@ export function AxsOfferView() {
         entered={stage >= 2}
       />
 
-      {/* Disclaimer — sits directly below the card */}
-      <p
+      {/* Disclaimer — fades in first after the card, before the terms below */}
+      <motion.p
         className="text-[10px] leading-relaxed -mt-4"
         style={{ color: "var(--text-tertiary)", opacity: 0.75 }}
+        {...fadeUp(stage >= 3, 0)}
       >
         *{APPROVAL_PAGE_DISCLAIMER}
-      </p>
+      </motion.p>
 
       {/* 3 ── Terms + commitments */}
       <motion.div
