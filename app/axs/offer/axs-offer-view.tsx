@@ -91,28 +91,54 @@ export function AxsOfferView() {
           <CheckCircle size={28} weight="fill" className="text-brand-teal" />
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
-          style={{
-            fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
-            letterSpacing: "-0.04em",
-            fontSize: "clamp(1.75rem, 6vw, 2.25rem)",
-            fontWeight: 700,
-            lineHeight: 1.1,
-            color: "var(--text-primary)",
-          }}
-        >
-          Your offer is ready
-        </motion.h1>
+        <div className="relative inline-block">
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
+            style={{
+              fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+              letterSpacing: "-0.04em",
+              fontSize: "clamp(1.75rem, 6vw, 2.25rem)",
+              fontWeight: 700,
+              lineHeight: 1.1,
+              color: "var(--text-primary)",
+            }}
+          >
+            Your offer is ready
+          </motion.h1>
+
+          {/* Animated handwritten underline — slightly tilted, natural wobble */}
+          <svg
+            className="absolute left-0 -bottom-3 w-full"
+            height="14"
+            viewBox="0 0 300 14"
+            fill="none"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <motion.path
+              d="M2 9 C 30 8.5, 70 7.8, 110 8.2 C 150 8.6, 190 7.5, 230 8.0 C 258 8.4, 280 7.2, 298 7"
+              stroke="var(--text-primary)"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{
+                pathLength: { duration: 1.4, ease: [0.25, 0, 0.15, 1], delay: 0.75 },
+                opacity: { duration: 0.1, delay: 0.75 },
+              }}
+            />
+          </svg>
+        </div>
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: EASE, delay: 0.18 }}
-          className="text-sm text-[var(--text-secondary)] max-w-[32ch]"
+          className="text-sm text-[var(--text-secondary)]"
         >
-          Pre-approved in principle. Secure it by booking an appointment below.
+          Pre-approved in principle.<br />Secure it by booking an appointment below.
         </motion.p>
       </div>
 
