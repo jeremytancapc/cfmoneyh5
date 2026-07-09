@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { quicksand, manrope } from "./fonts";
+import { quicksand, manrope, interTight } from "./fonts";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${quicksand.variable} ${manrope.variable} h-full antialiased`}
+      className={`${quicksand.variable} ${manrope.variable} ${interTight.variable} h-full antialiased`}
     >
       <head>
         <Script

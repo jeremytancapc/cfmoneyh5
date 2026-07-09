@@ -21,7 +21,7 @@ export function ApprovalView({ formData }: Props) {
   const monthlyRepayment = calculateMonthlyRepayment(approvedLoanAmount, tenure);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-dvh">
+    <div className="approval-theme flex flex-col lg:flex-row min-h-dvh">
       {/* Sidebar */}
       <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between overflow-hidden bg-brand-blue p-12 xl:p-16">
         <div className="relative z-10">
@@ -35,8 +35,8 @@ export function ApprovalView({ formData }: Props) {
               priority
             />
           </div>
-          <h1 className="font-display text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-[var(--text-on-brand)] max-w-[420px]">
-            You&apos;re pre-approved!
+          <h1 className="font-display text-4xl xl:text-5xl font-extrabold leading-[1.08] tracking-[-0.04em] text-[var(--text-on-brand)] max-w-[420px]">
+            You&apos;re pre-approved.
           </h1>
           <p className="mt-6 text-lg leading-relaxed text-[var(--text-on-brand)] opacity-75 max-w-[380px]">
             This is an in-principle approval based on your verified income. Final approval is subject to our assessment at your appointment.

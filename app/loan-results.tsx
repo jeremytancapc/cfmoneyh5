@@ -9,7 +9,9 @@ import {
   ArrowLeft,
   X,
   TrendUp,
-  CheckCircle,
+  LockKey,
+  CalendarCheck,
+  CurrencyCircleDollar,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { trackEvent } from "@/lib/analytics";
@@ -44,17 +46,6 @@ function computeExpiry(from: Date, n = 4): Date {
   return d;
 }
 
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return "Offer expired";
-  const totalSec = Math.floor(ms / 1000);
-  const days = Math.floor(totalSec / 86400);
-  const hrs  = Math.floor((totalSec % 86400) / 3600);
-  const mins = Math.floor((totalSec % 3600) / 60);
-  const secs = totalSec % 60;
-  if (days > 0) return `${days}d ${hrs}h ${mins}m ${String(secs).padStart(2, "0")}s`;
-  return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-}
-
 const BLANK_PARTS = { days: 0, hrs: 0, mins: 0, secs: 0, expired: false };
 
 function useCountdownParts() {
@@ -83,132 +74,10 @@ function useCountdownParts() {
     return () => clearInterval(id);
   }, [getParts]);
 
-  return { parts, expiry: expiryRef.current ?? computeExpiry(new Date()) };
-}
-
-const CONFETTI_PIECES = Array.from({ length: 32 }, (_, i) => {
-  const zone = i / 32;
-  const jitter = ((i * 53.7 + 0.3) % 1) * (1 / 32);
-  const left = Math.min(98, Math.max(1, (zone + jitter) * 100));
-
-  const a = ((i * 97.3)  + 0.1) % 1;
-  const b = ((i * 61.8)  + 0.4) % 1;
-  const c = ((i * 41.2)  + 0.7) % 1;
-  const d = ((i * 29.6)  + 0.9) % 1;
-
-  const COLORS = ["#0033AA", "#06DEC0", "#f59e0b", "#e879f9", "#34d399", "#fb923c", "#60a5fa", "#f43f5e"];
   return {
-    color: COLORS[i % COLORS.length],
-    left: `${left.toFixed(1)}%`,
-    width:    `${(a * 7 + 5).toFixed(1)}px`,
-    height:   `${(b * 7 + 6).toFixed(1)}px`,
-    delay:    `${(c * 4).toFixed(2)}s`,
-    duration: `${(d * 2 + 4).toFixed(2)}s`,
-    rotate:   `${Math.round(a * 360)}deg`,
-    drift:    `${((b - 0.5) * 50).toFixed(1)}px`,
-    shape: i % 3 === 0 ? "50%" : i % 3 === 1 ? "3px" : "0%",
+    parts,
+    expiry: expiryRef.current ?? computeExpiry(new Date()),
   };
-});
-
-function ConfettiBanner() {
-  return (
-    <>
-      <style>{`
-        @keyframes confetti-fall {
-          0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
-          60%  { opacity: 0.9; }
-          85%  { opacity: 0; }
-          100% { transform: translateY(55vh) translateX(var(--drift)) rotate(var(--rot)); opacity: 0; }
-        }
-      `}</style>
-      <div
-        className="pointer-events-none overflow-hidden"
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          maskImage: "linear-gradient(to bottom, black 0%, black 15%, transparent 50%)",
-          WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 15%, transparent 50%)",
-        }}
-      >
-        {CONFETTI_PIECES.map((p, i) => (
-          <span
-            key={i}
-            style={{
-              position: "absolute",
-              top: "-12px",
-              left: p.left,
-              width: p.width,
-              height: p.height,
-              background: p.color,
-              borderRadius: p.shape,
-              opacity: 0,
-              ["--drift" as string]: p.drift,
-              ["--rot" as string]: p.rotate,
-              animation: `confetti-fall ${p.duration} ${p.delay} ease-in infinite`,
-            }}
-          />
-        ))}
-      </div>
-    </>
-  );
-}
-
-function OfferCountdown() {
-  const { parts } = useCountdownParts();
-  if (parts.expired) return <>Offer expired</>;
-  if (parts.days > 0) return <>{parts.days}d {parts.hrs}h {parts.mins}m {String(parts.secs).padStart(2, "0")}s</>;
-  return <>{String(parts.hrs).padStart(2, "0")}:{String(parts.mins).padStart(2, "0")}:{String(parts.secs).padStart(2, "0")}</>;
-}
-
-const FULL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-function FlipClockBadge() {
-  const { parts, expiry } = useCountdownParts();
-  const expiryLabel = `ENDS ${expiry.getDate()} ${FULL_MONTHS[expiry.getMonth()].slice(0,3).toUpperCase()} ${expiry.getFullYear()}`;
-
-  const tiles = [
-    { value: parts.days,  label: "Day"  },
-    { value: parts.hrs,   label: "Hour" },
-    { value: parts.mins,  label: "Min"  },
-    { value: parts.secs,  label: "Sec"  },
-  ];
-
-  if (parts.expired) return (
-    <div className="flex justify-center">
-      <span className="text-sm font-semibold text-red-500">Offer expired</span>
-    </div>
-  );
-
-  return (
-    <div
-      className="w-full rounded-[var(--radius-lg)] px-5 py-5 flex flex-col items-center gap-4"
-      style={{ background: "#111827" }}
-    >
-      <p className="text-[11px] font-bold tracking-[0.18em] text-white/60 uppercase">{expiryLabel}</p>
-
-      <div className="flex items-stretch gap-3">
-        {tiles.map(({ value, label }) => (
-          <div
-            key={label}
-            className="flex flex-1 flex-col items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-4"
-            style={{ background: "#1f2937", minWidth: 64 }}
-          >
-            <span
-              className="font-display text-4xl font-black tabular-nums leading-none"
-              style={{ color: "#f59e0b" }}
-            >
-              {String(value).padStart(2, "0")}
-            </span>
-            <span className="text-[11px] font-medium text-white/50 tracking-wide">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-[11px] font-semibold tracking-[0.12em] text-white/40 uppercase">Time Remaining</p>
-    </div>
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,19 +109,445 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+// ── Deadline strip (replaces FlipClockBadge) ─────────────────────────────────
+
+const FULL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+// ── Split-flap (airport board) tile ──────────────────────────────────────────
+
+const FLIP_TILE_W = 34;
+const FLIP_TILE_H = 30;
+const FLIP_DURATION_MS = 250;
+
+const flipDigitStyle: React.CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  height: "200%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+  fontSize: "1rem",
+  fontWeight: 700,
+  letterSpacing: "0.02em",
+  color: "#ffffff",
+  fontVariantNumeric: "tabular-nums",
+};
+
+/** One half (top or bottom) of a flip tile, clipping a full-height digit. */
+function FlipHalf({
+  pos,
+  text,
+  style,
+}: {
+  pos: "top" | "bottom";
+  text: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: pos === "top" ? 0 : "50%",
+        height: "50%",
+        overflow: "hidden",
+        background: pos === "top" ? "#1a1a1e" : "#0e0e11",
+        borderRadius: pos === "top" ? "4px 4px 0 0" : "0 0 4px 4px",
+        backfaceVisibility: "hidden",
+        ...style,
+      }}
+    >
+      <span style={{ ...flipDigitStyle, top: pos === "top" ? 0 : "-100%" }}>{text}</span>
+    </div>
+  );
+}
+
+/** Airport-style split-flap tile: black background, white digits, flips on change. */
+function FlipTile({ value, label, labelColor }: { value: number; label: string; labelColor: string }) {
+  const display = String(value).padStart(2, "0");
+  const [shown, setShown] = useState(display);
+  const isFlipping = display !== shown;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        style={{
+          position: "relative",
+          width: FLIP_TILE_W,
+          height: FLIP_TILE_H,
+          perspective: 240,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+          borderRadius: 4,
+        }}
+      >
+        {/* Static top half — already shows the incoming value */}
+        <FlipHalf pos="top" text={isFlipping ? display : shown} />
+        {/* Static bottom half — keeps the outgoing value until the flap lands */}
+        <FlipHalf pos="bottom" text={shown} />
+
+        {isFlipping && (
+          <>
+            {/* Outgoing top flap: folds down */}
+            <FlipHalf
+              key={`t-${display}`}
+              pos="top"
+              text={shown}
+              style={{
+                zIndex: 2,
+                transformOrigin: "50% 100%",
+                animation: `flip-top-down ${FLIP_DURATION_MS}ms ease-in both`,
+              }}
+            />
+            {/* Incoming bottom flap: folds up into place */}
+            <div
+              key={`b-${display}`}
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 2,
+                transformOrigin: "50% 50%",
+              }}
+              onAnimationEnd={() => setShown(display)}
+            >
+              <FlipHalf
+                pos="bottom"
+                text={display}
+                style={{
+                  transformOrigin: "50% 0%",
+                  animation: `flip-bottom-up ${FLIP_DURATION_MS}ms ${FLIP_DURATION_MS}ms ease-out both`,
+                }}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Centre seam */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 0,
+            right: 0,
+            height: 1,
+            background: "rgba(255,255,255,0.14)",
+            zIndex: 3,
+            transform: "translateY(-0.5px)",
+          }}
+        />
+      </div>
+      <span
+        className="text-[9px] font-semibold tracking-wider uppercase leading-none"
+        style={{ color: labelColor }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function DeadlineStrip() {
+  const { parts, expiry } = useCountdownParts();
+
+  const h = expiry.getHours();
+  const hour12 = ((h + 11) % 12) + 1;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const expiryDate = `${expiry.getDate()} ${FULL_MONTHS[expiry.getMonth()].slice(0, 3)} ${expiry.getFullYear()}`;
+  const expiryTime = `${hour12}:${String(expiry.getMinutes()).padStart(2, "0")} ${ampm}`;
+
+  const remainingMs = parts.expired ? 0 : (
+    (parts.days * 86400 + parts.hrs * 3600 + parts.mins * 60 + parts.secs) * 1000
+  );
+  const totalWindowMs = 4 * 24 * 60 * 60 * 1000;
+  const progress = Math.max(0, Math.min(1, remainingMs / totalWindowMs));
+
+  const isUrgent = parts.days < 1 && !parts.expired;
+
+  // Colour scheme toggles between amber (normal) and red (urgent)
+  const scheme = isUrgent
+    ? {
+        bg: "oklch(0.96 0.03 25)",
+        border: "oklch(0.85 0.06 25)",
+        leftBar: "#dc2626",
+        labelColor: "#7f1d1d",
+        dateColor: "#450a0a",
+        unitColor: "#991b1b",
+        trackBg: "oklch(0.90 0.04 25)",
+        barGradient: "linear-gradient(to right, #dc2626, #f97316)",
+      }
+    : {
+        bg: "oklch(0.97 0.03 85)",
+        border: "oklch(0.88 0.06 85)",
+        leftBar: "#f59e0b",
+        labelColor: "#78350f",
+        dateColor: "var(--text-primary)",
+        unitColor: "#92400e",
+        trackBg: "oklch(0.92 0.04 85)",
+        barGradient: "linear-gradient(to right, #f59e0b, #fbbf24)",
+      };
+
+  if (parts.expired) {
+    return (
+      <div
+        className="w-full rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-center"
+        style={{ background: "var(--surface-elevated)", boxShadow: "0 0 0 1px var(--border-subtle)" }}
+      >
+        <span className="text-sm font-semibold text-red-500">Offer expired</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="w-full rounded-[var(--radius-md)] overflow-hidden flex"
+      style={{
+        background: scheme.bg,
+        boxShadow: `0 0 0 1px ${scheme.border}`,
+      }}
+    >
+      {/* Left accent bar */}
+      <div
+        className="w-1 shrink-0 self-stretch"
+        style={{ background: scheme.leftBar }}
+        aria-hidden="true"
+      />
+
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Main row */}
+        <div className="flex items-center justify-between px-4 py-3">
+          {/* Left: label + date */}
+          <div className="flex flex-col gap-0.5">
+            <span
+              className="text-[10px] font-bold tracking-[0.16em] uppercase"
+              style={{ color: scheme.labelColor }}
+            >
+              Offer expires
+            </span>
+            <span
+              className="text-sm font-semibold"
+              style={{ color: scheme.dateColor }}
+            >
+              {expiryDate}, {expiryTime}
+            </span>
+          </div>
+
+          {/* Right: split-flap tiles */}
+          <div className="flex items-start gap-1">
+            {[
+              { value: parts.days, label: "d" },
+              { value: parts.hrs, label: "h" },
+              { value: parts.mins, label: "m" },
+              { value: parts.secs, label: "s" },
+            ].map(({ value, label }, i) => (
+              <div key={label} className="flex items-start gap-1">
+                {i > 0 && (
+                  <span
+                    className="text-[10px] font-bold"
+                    style={{
+                      color: scheme.unitColor,
+                      opacity: 0.5,
+                      lineHeight: `${FLIP_TILE_H}px`,
+                    }}
+                  >
+                    :
+                  </span>
+                )}
+                <FlipTile value={value} label={label} labelColor={scheme.unitColor} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Depleting progress bar */}
+        <div
+          className="h-[3px] w-full"
+          style={{ background: scheme.trackBg }}
+          aria-hidden="true"
+        >
+          <div
+            className="h-full transition-none"
+            style={{
+              width: `${(progress * 100).toFixed(2)}%`,
+              background: scheme.barGradient,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Term-sheet offer card ─────────────────────────────────────────────────────
+
+interface OfferCardProps {
+  formData: FormData;
+  monthlyRepayment: number;
+  revealStage: number;
+}
+
+function TermSheetCard({ formData, monthlyRepayment, revealStage }: OfferCardProps) {
+  const today = new Date();
+  const dateLabel = `${today.getDate()} ${FULL_MONTHS[today.getMonth()].slice(0, 3)} ${today.getFullYear()}`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={revealStage >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="relative w-full rounded-[var(--radius-lg)] overflow-hidden"
+      style={{
+        background: `
+          radial-gradient(ellipse at 30% 40%, oklch(0.38 0.20 260) 0%, transparent 60%),
+          linear-gradient(145deg, oklch(0.30 0.16 262) 0%, oklch(0.24 0.18 258) 100%)
+        `,
+        boxShadow:
+          "0 24px 60px oklch(0.24 0.18 258 / 0.45), 0 4px 16px oklch(0.24 0.18 258 / 0.25), inset 0 1px 0 oklch(1 0 0 / 0.10)",
+      }}
+    >
+      {/* Decorative circles for depth */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full"
+        style={{ background: "oklch(0.78 0.16 178 / 0.07)" }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full"
+        style={{ background: "oklch(0.78 0.16 178 / 0.05)" }}
+      />
+
+      {/* Card header row */}
+      <div
+        className="relative flex items-center justify-between px-5 py-3.5"
+        style={{ borderBottom: "1px solid oklch(1 0 0 / 0.10)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2" aria-hidden="true">
+            <span
+              className="absolute inline-flex h-full w-full rounded-full animate-ping"
+              style={{ background: "#06DEC0", opacity: 0.55 }}
+            />
+            <span
+              className="relative inline-flex h-2 w-2 rounded-full"
+              style={{ background: "#06DEC0" }}
+            />
+          </span>
+          <span
+            className="text-[10px] font-bold tracking-[0.18em] uppercase"
+            style={{ color: "#06DEC0" }}
+          >
+            In-principle approval
+          </span>
+        </div>
+        <span
+          className="text-[11px] font-medium"
+          style={{ color: "oklch(1 0 0 / 0.45)" }}
+        >
+          {dateLabel}
+        </span>
+      </div>
+
+      {/* Approved amount */}
+      <div className="relative px-5 pt-5 pb-4">
+        <p
+          className="text-[10px] font-bold tracking-[0.18em] uppercase mb-2"
+          style={{ color: "oklch(1 0 0 / 0.40)" }}
+        >
+          Approved amount
+        </p>
+        <p
+          className="tabular-nums leading-none"
+          style={{
+            fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+            fontSize: "clamp(2.4rem, 9vw, 3.25rem)",
+            fontWeight: 800,
+            letterSpacing: "-0.04em",
+            color: "#ffffff",
+            textShadow: "0 2px 12px oklch(0.24 0.18 258 / 0.5)",
+          }}
+        >
+          {formatCurrency(formData.amount)}
+          <sup
+            style={{
+              fontSize: "0.38em",
+              verticalAlign: "super",
+              letterSpacing: 0,
+              opacity: 0.50,
+            }}
+          >
+            *
+          </sup>
+        </p>
+      </div>
+
+      {/* Term rows */}
+      <div
+        className="relative"
+        style={{ borderTop: "1px solid oklch(1 0 0 / 0.10)" }}
+      >
+        <div
+          className="flex items-center justify-between px-5 py-3"
+          style={{ borderBottom: "1px solid oklch(1 0 0 / 0.10)" }}
+        >
+          <span
+            className="text-xs font-medium"
+            style={{ color: "oklch(1 0 0 / 0.45)" }}
+          >
+            Loan tenure
+          </span>
+          <span
+            className="text-sm font-semibold tabular-nums"
+            style={{
+              fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+              color: "oklch(1 0 0 / 0.90)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {formData.tenure} months*
+          </span>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3">
+          <span
+            className="text-xs font-medium"
+            style={{ color: "oklch(1 0 0 / 0.45)" }}
+          >
+            Monthly Instalment
+          </span>
+          <span
+            className="text-sm font-semibold tabular-nums"
+            style={{
+              fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+              color: "oklch(1 0 0 / 0.90)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {formatCurrency(monthlyRepayment)}
+            <span style={{ fontSize: "0.75em", fontWeight: 400, opacity: 0.45, marginLeft: 2 }}>/month*</span>
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Notice items ──────────────────────────────────────────────────────────────
+
 const NOTICE_ITEMS = [
   {
-    emoji: "🔒",
+    Icon: LockKey,
     short: "Lock in this offer now",
     text: "No obligation to take the loan, only decide later.",
   },
   {
-    emoji: "✅",
+    Icon: CalendarCheck,
     short: "Simple 30-minute verification",
     text: "A brief in-person discussion at our branch office.",
   },
   {
-    emoji: "💰",
+    Icon: CurrencyCircleDollar,
     short: "Same-day PayNow transfer",
     text: "Funds will be disbursed to you on the spot.",
   },
@@ -290,6 +585,13 @@ const SURVEY_REASONS = [
   { emoji: "💰", label: "Loan amount doesn't match my expectation" },
   { emoji: "📊", label: "Rates don't match my expectations" },
 ];
+
+function OfferCountdown() {
+  const { parts } = useCountdownParts();
+  if (parts.expired) return <>Offer expired</>;
+  if (parts.days > 0) return <>{parts.days}d {parts.hrs}h {parts.mins}m {String(parts.secs).padStart(2, "0")}s</>;
+  return <>{String(parts.hrs).padStart(2, "0")}:{String(parts.mins).padStart(2, "0")}:{String(parts.secs).padStart(2, "0")}</>;
+}
 
 type ModalStep = "deterrent" | "survey" | "final";
 
@@ -358,7 +660,10 @@ function ReconsiderModal({
         {step === "deterrent" && (
           <>
             <div className="flex flex-col gap-2 pr-8">
-              <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+              <p
+                className="text-xl font-bold tracking-tight text-[var(--text-primary)]"
+                style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.03em" }}
+              >
                 Are you sure?
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -425,7 +730,10 @@ function ReconsiderModal({
               className="flex flex-col gap-2 pr-8"
               style={{ animation: "fade-up 0.3s cubic-bezier(0.16,1,0.3,1) both" }}
             >
-              <p className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+              <p
+                className="text-xl font-bold tracking-tight text-[var(--text-primary)]"
+                style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.03em" }}
+              >
                 No worries, mind sharing why?
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -458,7 +766,10 @@ function ReconsiderModal({
               style={{ animation: "fade-up 0.35s cubic-bezier(0.16,1,0.3,1) both" }}
             >
               <span className="text-4xl">⚡</span>
-              <p className="font-display text-2xl font-black tracking-tight text-brand-blue">
+              <p
+                className="text-2xl font-black tracking-tight text-brand-blue"
+                style={{ fontFamily: "var(--font-inter-tight), system-ui, sans-serif", letterSpacing: "-0.04em" }}
+              >
                 Final Chance!
               </p>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)] max-w-[320px]">
@@ -488,38 +799,6 @@ function ReconsiderModal({
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-function blurIn(active: boolean, delay = 0, extraStyle?: React.CSSProperties) {
-  return {
-    animate: active
-      ? { opacity: 1, filter: "blur(0px)", y: 0 }
-      : { opacity: 0, filter: "blur(12px)", y: 12 },
-    transition: { duration: 0.55, ease: EASE, delay: active ? delay : 0 },
-    style: {
-      pointerEvents: (active ? "auto" : "none") as React.CSSProperties["pointerEvents"],
-      ...extraStyle,
-    },
-  };
-}
-
-function ApprovalHeading() {
-  return (
-    <motion.div
-      className="flex flex-col items-center gap-3 text-center"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, ease: EASE }}
-    >
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-blue/15 bg-brand-blue/[0.06] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-blue">
-        <CheckCircle size={14} weight="fill" aria-hidden="true" />
-        In-principle approval
-      </span>
-      <h1 className="font-display text-[clamp(1.75rem,6vw,2.25rem)] font-bold tracking-tight text-[var(--text-primary)] leading-[1.15]">
-        You&apos;re pre-approved
-      </h1>
-    </motion.div>
-  );
-}
-
 /* ── Main component ───────────────────────────────────────────────── */
 export function LoanResults({
   formData,
@@ -529,14 +808,17 @@ export function LoanResults({
   const [showModal, setShowModal] = useState(false);
 
   const ctaRef = useRef<HTMLDivElement>(null);
+  const ctaButtonRef = useRef<HTMLButtonElement>(null);
   const [isCtaVisible, setIsCtaVisible] = useState(false);
 
   useEffect(() => {
-    const el = ctaRef.current;
+    // Observe the actual button (not the wrapper) with a bottom margin equal to
+    // the sticky button height + gap (~80px) so the sticky disappears before overlap.
+    const el = ctaButtonRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => setIsCtaVisible(entry.isIntersecting),
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: "0px 0px -80px 0px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -551,10 +833,10 @@ export function LoanResults({
   const [revealStage, setRevealStage] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setRevealStage(1), 1200);
-    const t2 = setTimeout(() => setRevealStage(2), 1200 + 650);
-    const t3 = setTimeout(() => setRevealStage(3), 1200 + 650 + 550);
-    const t4 = setTimeout(() => setRevealStage(4), 1200 + 650 + 550 + 500);
+    const t1 = setTimeout(() => setRevealStage(1), 300);
+    const t2 = setTimeout(() => setRevealStage(2), 800);
+    const t3 = setTimeout(() => setRevealStage(3), 1200);
+    const t4 = setTimeout(() => setRevealStage(4), 1600);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, []);
 
@@ -565,98 +847,123 @@ export function LoanResults({
 
   return (
     <>
-      <div className="relative z-[1] flex flex-col gap-8">
-        <ApprovalHeading />
+      <div className="relative z-[1] flex flex-col gap-5">
 
-        <motion.p
-          className="font-display text-5xl sm:text-6xl font-black tracking-tighter text-brand-blue tabular-nums text-center mt-1"
-          initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
-          {...blurIn(revealStage >= 1)}
+        {/* Eyebrow heading */}
+        <motion.div
+          className="flex flex-col gap-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: EASE }}
         >
-          {formatCurrency(formData.amount)}<sup className="text-2xl sm:text-3xl align-super">*</sup>
+          <h1
+            style={{
+              fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+              fontSize: "clamp(1.5rem, 5vw, 1.9rem)",
+              fontWeight: 800,
+              letterSpacing: "-0.04em",
+              lineHeight: 1.1,
+              color: "var(--text-primary)",
+            }}
+          >
+            You&apos;re pre-approved.
+          </h1>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            Secure it by booking a quick appointment below.
+            <br />
+            No commitment until you decide on the day.
+          </p>
+        </motion.div>
+
+        {/* Term-sheet card */}
+        <TermSheetCard
+          formData={formData}
+          monthlyRepayment={monthlyRepayment}
+          revealStage={revealStage}
+        />
+
+        {/* Deadline strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={revealStage >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ duration: 0.45, ease: EASE }}
+          style={{ position: "relative", zIndex: 1 }}
+        >
+          <DeadlineStrip />
+        </motion.div>
+
+        {/* Disclaimer below the deadline strip */}
+        <motion.p
+          className="text-[10px] leading-relaxed -mt-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealStage >= 2 ? 1 : 0 }}
+          transition={{ duration: 0.4, delay: revealStage >= 2 ? 0.2 : 0 }}
+          style={{ color: "var(--text-secondary)", position: "relative", zIndex: 1, textAlign: "center" }}
+        >
+          *{APPROVAL_PAGE_DISCLAIMER}
         </motion.p>
 
-        <motion.div
-          className="flex flex-wrap items-baseline justify-center gap-x-4 gap-y-1 -mt-6"
-          initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
-          {...blurIn(revealStage >= 2)}
-        >
-          <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
-            {formData.tenure} months
-          </span>
-          <span className="text-base sm:text-lg font-semibold text-[var(--text-secondary)]">
-            {formatCurrency(monthlyRepayment)}/mo est.*
-          </span>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
-          animate={revealStage >= 3 ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 16, filter: "blur(8px)" }}
-          transition={{ type: "spring", stiffness: 180, damping: 22 }}
-        >
-          <FlipClockBadge />
-        </motion.div>
-
+        {/* To receive your funds */}
         <motion.div
           className="flex flex-col gap-4 rounded-[var(--radius-md)] px-5 py-4"
-          initial={{ opacity: 0, filter: "blur(12px)", y: 12 }}
-          {...blurIn(revealStage >= 4, 0, {
+          initial={{ opacity: 0, y: 12 }}
+          animate={revealStage >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.45, ease: EASE }}
+          style={{
+            pointerEvents: revealStage >= 3 ? "auto" : "none",
             background: "var(--surface-elevated)",
-            boxShadow: "0 4px 24px 0 oklch(0.32 0.14 260 / 0.18), 0 1px 4px 0 oklch(0.32 0.14 260 / 0.12)",
-          })}
+            boxShadow: "0 0 0 1px var(--border-subtle)",
+          }}
         >
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-            To receive your funds:
+          <p
+            className="text-[10px] font-bold tracking-[0.18em] uppercase"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            To receive your funds
           </p>
-          <ul className="flex flex-col gap-3 sm:gap-4">
-            {NOTICE_ITEMS.map(({ emoji, short, text }, i) => (
+          <ul className="flex flex-col gap-4">
+            {NOTICE_ITEMS.map(({ Icon, short, text }, i) => (
               <motion.li
                 key={i}
                 className="flex items-start gap-3"
-                initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
+                initial={{ opacity: 0, x: -8 }}
                 animate={
-                  revealStage >= 4
-                    ? { opacity: 1, filter: "blur(0px)", y: 0 }
-                    : { opacity: 0, filter: "blur(8px)", y: 8 }
+                  revealStage >= 3
+                    ? { opacity: 1, x: 0 }
+                    : { opacity: 0, x: -8 }
                 }
-                transition={{ duration: 0.4, ease: EASE, delay: revealStage >= 4 ? i * 0.1 : 0 }}
+                transition={{ duration: 0.35, ease: EASE, delay: revealStage >= 3 ? i * 0.08 : 0 }}
               >
-                <span className="mt-0.5 shrink-0 text-base leading-none" aria-hidden="true">
-                  {emoji}
+                <span
+                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                  style={{ background: "oklch(0.32 0.14 260 / 0.07)" }}
+                >
+                  <Icon size={15} weight="duotone" style={{ color: "var(--brand-blue-hex, #0033AA)" }} />
                 </span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium leading-snug text-[var(--text-secondary)]">{short}</span>
-                  <span className="flex items-center gap-1.5 text-xs leading-relaxed text-[var(--text-tertiary)]">
-                    <span className="shrink-0 text-brand-blue font-bold">→</span>
-                    <span>{text}</span>
+                  <span className="text-sm font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+                    {short}
+                  </span>
+                  <span className="text-xs leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+                    {text}
                   </span>
                 </span>
               </motion.li>
             ))}
           </ul>
-          <motion.p
-            className="text-[10px] sm:text-xs leading-relaxed text-[var(--text-tertiary)]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: revealStage >= 4 ? 1 : 0 }}
-            transition={{ duration: 0.4, delay: revealStage >= 4 ? NOTICE_ITEMS.length * 0.1 + 0.1 : 0 }}
-          >
-            *{APPROVAL_PAGE_DISCLAIMER}
-          </motion.p>
         </motion.div>
 
+        {/* CTA buttons */}
         <motion.div
           ref={ctaRef}
           className="flex flex-col gap-3"
-          initial={{ opacity: 0, filter: "blur(8px)", y: 8 }}
-          animate={
-            revealStage >= 4
-              ? { opacity: 1, filter: "blur(0px)", y: 0 }
-              : { opacity: 0, filter: "blur(8px)", y: 8 }
-          }
-          transition={{ duration: 0.5, ease: EASE, delay: revealStage >= 4 ? 0.35 : 0 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={revealStage >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+          transition={{ duration: 0.45, ease: EASE }}
           style={{ pointerEvents: revealStage >= 4 ? "auto" : "none" }}
         >
           <button
+            ref={ctaButtonRef}
             type="button"
             onClick={handleAccept}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"

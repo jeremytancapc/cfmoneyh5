@@ -171,6 +171,25 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+/* Split-flap (airport board) digit animation */
+@keyframes flip-top-down {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flip-bottom-up {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0deg);
+  }
+}
+
 @keyframes slide-in {
   from {
     opacity: 0;
@@ -319,4 +338,43 @@ input[type="range"]::-moz-range-thumb {
 .queue-card-glow {
   animation: queue-card-border-glow 2.4s ease-in-out infinite;
   will-change: box-shadow;
+}
+
+/* ─── Approval theme — Inter Tight headings, clean finance aesthetic ─── */
+
+.approval-theme {
+  --font-display: var(--font-inter-tight);
+}
+
+.approval-theme h1,
+.approval-theme h2,
+.approval-theme h3,
+.approval-theme h4,
+.approval-theme h5,
+.approval-theme h6 {
+  font-family: var(--font-inter-tight), system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/* ─── AXS theme — Inter Tight headings, finance-2.0 aesthetic ───── */
+
+.axs-theme {
+  --font-display: var(--font-inter-tight);
+  --surface-primary: oklch(0.99 0.001 260);
+  --surface-secondary: oklch(0.965 0.003 260);
+  --surface-elevated: oklch(1 0 0);
+  --border-subtle: oklch(0.91 0.005 260);
+  --border-medium: oklch(0.85 0.008 260);
+}
+
+.axs-theme h1,
+.axs-theme h2,
+.axs-theme h3,
+.axs-theme h4,
+.axs-theme h5,
+.axs-theme h6 {
+  font-family: var(--font-inter-tight), system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  font-weight: 700;
 }
