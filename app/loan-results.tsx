@@ -292,10 +292,53 @@ function DeadlineStrip() {
   if (parts.expired) {
     return (
       <div
-        className="w-full rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-center"
-        style={{ background: "var(--surface-elevated)", boxShadow: "0 0 0 1px var(--border-subtle)" }}
+        className="w-full rounded-[var(--radius-md)] overflow-hidden flex"
+        style={{
+          background: "oklch(0.96 0.03 25)",
+          boxShadow: "0 0 0 1px oklch(0.85 0.06 25)",
+        }}
       >
-        <span className="text-sm font-semibold text-red-500">Offer expired</span>
+        {/* Red left accent bar */}
+        <div className="w-1 shrink-0 self-stretch" style={{ background: "#dc2626" }} aria-hidden="true" />
+
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-start gap-3 px-4 py-3.5">
+            {/* Icon */}
+            <span
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+              style={{ background: "oklch(0.91 0.05 25)" }}
+            >
+              <Warning size={17} weight="duotone" style={{ color: "#dc2626" }} />
+            </span>
+
+            {/* Text block */}
+            <div className="flex flex-col gap-1 min-w-0">
+              <p
+                className="text-sm font-bold leading-snug"
+                style={{
+                  fontFamily: "var(--font-inter-tight), system-ui, sans-serif",
+                  color: "#450a0a",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Offer expired
+              </p>
+              <p
+                className="text-[11px] leading-relaxed"
+                style={{ color: "#7f1d1d" }}
+              >
+                Expired {expiryDate}, {expiryTime}. Submit a new application to receive a fresh offer.
+              </p>
+            </div>
+          </div>
+
+          {/* Fully depleted progress bar */}
+          <div
+            className="h-[3px] w-full"
+            style={{ background: "oklch(0.90 0.04 25)" }}
+            aria-hidden="true"
+          />
+        </div>
       </div>
     );
   }
@@ -806,6 +849,8 @@ export function LoanResults({
   onAccept,
 }: LoanResultsProps) {
   const [showModal, setShowModal] = useState(false);
+  const { parts: expiryParts } = useCountdownParts();
+  const isExpired = expiryParts.expired;
 
   const ctaRef = useRef<HTMLDivElement>(null);
   const ctaButtonRef = useRef<HTMLButtonElement>(null);
@@ -863,24 +908,27 @@ export function LoanResults({
               fontWeight: 800,
               letterSpacing: "-0.04em",
               lineHeight: 1.1,
-              color: "var(--text-primary)",
+              color: isExpired ? "#7f1d1d" : "var(--text-primary)",
             }}
           >
-            You&apos;re pre-approved.
+            {isExpired ? "Your offer has expired." : "You\u2019re pre-approved."}
           </h1>
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            Secure it by booking a quick appointment below.
-            <br />
-            No commitment until you decide on the day.
+            {isExpired
+              ? "This in-principle approval is no longer valid. Start a new application to get a fresh offer."
+              : <>Secure it by booking a quick appointment below.<br />No commitment until you decide on the day.</>
+            }
           </p>
         </motion.div>
 
-        {/* Term-sheet card */}
-        <TermSheetCard
-          formData={formData}
-          monthlyRepayment={monthlyRepayment}
-          revealStage={revealStage}
-        />
+        {/* Term-sheet card — dimmed when expired */}
+        <div style={isExpired ? { opacity: 0.5, filter: "grayscale(0.4)", pointerEvents: "none" } : undefined}>
+          <TermSheetCard
+            formData={formData}
+            monthlyRepayment={monthlyRepayment}
+            revealStage={revealStage}
+          />
+        </div>
 
         {/* Deadline strip */}
         <motion.div
@@ -962,22 +1010,35 @@ export function LoanResults({
           transition={{ duration: 0.45, ease: EASE }}
           style={{ pointerEvents: revealStage >= 4 ? "auto" : "none" }}
         >
-          <button
-            ref={ctaButtonRef}
-            type="button"
-            onClick={handleAccept}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-          >
-            Secure My Offer Now
-            <ArrowRight size={16} weight="bold" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className="text-center text-sm text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--text-secondary)]"
-          >
-            I need to think about it
-          </button>
+          {isExpired ? (
+            <a
+              ref={ctaButtonRef as unknown as React.RefObject<HTMLAnchorElement>}
+              href="/"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+            >
+              Start a New Application
+              <ArrowRight size={16} weight="bold" />
+            </a>
+          ) : (
+            <>
+              <button
+                ref={ctaButtonRef}
+                type="button"
+                onClick={handleAccept}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal text-sm font-semibold text-[var(--text-primary)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              >
+                Secure My Offer Now
+                <ArrowRight size={16} weight="bold" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                className="text-center text-sm text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--text-secondary)]"
+              >
+                I need to think about it
+              </button>
+            </>
+          )}
         </motion.div>
       </div>
 
@@ -986,14 +1047,24 @@ export function LoanResults({
           className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40"
           style={{ animation: "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 850ms both" }}
         >
-          <button
-            type="button"
-            onClick={scrollToCta}
-            className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal px-12 text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] whitespace-nowrap"
-          >
-            Secure Offer
-            <ArrowDown size={16} weight="bold" />
-          </button>
+          {isExpired ? (
+            <a
+              href="/"
+              className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-blue px-10 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:brightness-110 active:scale-[0.98] whitespace-nowrap"
+            >
+              Start New Application
+              <ArrowDown size={16} weight="bold" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={scrollToCta}
+              className="flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-brand-teal px-12 text-sm font-semibold text-[var(--text-primary)] shadow-lg shadow-brand-teal/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] whitespace-nowrap"
+            >
+              Secure Offer
+              <ArrowDown size={16} weight="bold" />
+            </button>
+          )}
         </div>
       )}
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  CalendarBlank,
   MapPin,
   Clock,
   ArrowSquareOut,
@@ -10,6 +9,8 @@ import {
   Train,
   Car,
   DownloadSimple,
+  Copy,
+  Check,
 } from "@phosphor-icons/react";
 import type { StoredBookingConfirmation } from "@/lib/booking-confirmation";
 
@@ -18,20 +19,6 @@ const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-const WHAT_TO_BRING = {
-  sg_pr: [
-    "NRIC (Original / Singpass)",
-    "Singpass on your phone",
-    "Latest 1–3 months payslip or bank statement (Not required if you have regular CPF/NOA record, unless your salary is above the CPF monthly cap)",
-  ],
-  foreigner: [
-    "Work Pass (WP / SP / EP / LTVP) with at least 3 months validity",
-    "Latest 1–3 months payslip",
-    "SingPass on your phone",
-    "Latest month proof of residence with your name and SG address (bank statement / utility bill / mobile bill)",
-  ],
-} as const;
 
 function formatDisplayDate(isoDate: string): string {
   const [y, mo, d] = isoDate.split("-").map(Number);
@@ -46,14 +33,164 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
+type BringItem = { title: string; titleSuffix?: string; sub?: string };
+
+type BringGroup = {
+  mustHave: BringItem[];
+  goodToHave?: BringItem[];
+};
+
+/** Previous 3 full calendar months, e.g. "Apr, May & Jun". */
+function lastThreeMonthsLabel(): string {
+  const now = new Date();
+  const months: string[] = [];
+  for (let i = 3; i >= 1; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(MONTH_LABELS[d.getMonth()]);
+  }
+  return `${months[0]}, ${months[1]} & ${months[2]}`;
+}
+
+function getWhatToBring(): { sg_pr: BringGroup; foreigner: BringGroup } {
+  const months = lastThreeMonthsLabel();
+  return {
+    sg_pr: {
+      mustHave: [
+        { title: "NRIC", sub: "Physical card or digital Singpass" },
+        { title: "Singpass app", sub: "Installed on your phone" },
+      ],
+      goodToHave: [
+        {
+          title: "Last 3 months of income proof",
+          titleSuffix: `(${months})`,
+          sub: "Based on your job nature - payslips, platform statements, or bank statements",
+        },
+      ],
+    },
+    foreigner: {
+      mustHave: [
+        { title: "Work Pass", sub: "WP / SP / EP / LTVP, 3+ months validity" },
+        { title: "Singpass app", sub: "Installed on your phone" },
+        { title: `Payslips (${months})`, sub: "Latest 3 months" },
+        { title: "Proof of SG address", sub: "Bank / utility / mobile bill, dated within 30 days" },
+      ],
+    },
+  };
+}
+
+function formatThingsToBringForShare(idType: "sg_pr" | "foreigner"): string {
+  const group = getWhatToBring()[idType];
+  const lines: string[] = ["Must have:"];
+  for (const item of group.mustHave) {
+    const fullTitle = item.titleSuffix ? `${item.title} ${item.titleSuffix}` : item.title;
+    lines.push(`• ${fullTitle}${item.sub ? ` — ${item.sub}` : ""}`);
+  }
+  if (group.goodToHave?.length) {
+    lines.push("", "Good to have (can help increase your loan amount):");
+    for (const item of group.goodToHave) {
+      const fullTitle = item.titleSuffix ? `${item.title} ${item.titleSuffix}` : item.title;
+      lines.push(`• ${fullTitle}${item.sub ? ` — ${item.sub}` : ""}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function GlowingDot({ color }: { color: "green" | "blue" }) {
+  const dotColor = color === "green" ? "#22c55e" : "var(--brand-blue-hex, #0033AA)";
+  return (
+    <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+      <span
+        className="absolute inline-flex h-full w-full rounded-full animate-ping"
+        style={{ background: dotColor, opacity: 0.55 }}
+      />
+      <span
+        className="relative inline-flex h-2 w-2 rounded-full"
+        style={{
+          background: dotColor,
+          boxShadow: color === "green"
+            ? "0 0 8px #22c55e88"
+            : "0 0 8px oklch(0.32 0.14 260 / 0.45)",
+        }}
+      />
+    </span>
+  );
+}
+
+function BringGroupSection({
+  label,
+  dotColor,
+  headerSub,
+  items,
+}: {
+  label: string;
+  dotColor: "green" | "blue";
+  headerSub?: string;
+  items: BringItem[];
+}) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-2">
+          <GlowingDot color={dotColor} />
+          <span
+            className="text-xs sm:text-[10px] font-bold tracking-[0.16em] uppercase"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {label}
+          </span>
+        </div>
+        {headerSub && (
+          <p className="text-xs sm:text-[11px] leading-snug pl-4" style={{ color: "var(--text-tertiary)" }}>
+            {headerSub}
+          </p>
+        )}
+      </div>
+      <ul className="flex flex-col gap-3 pl-4">
+        {items.map((item) => (
+          <li key={item.title} className="flex items-start gap-2.5">
+            <CheckCircle
+              size={16}
+              weight="duotone"
+              className="mt-0.5 shrink-0 text-brand-teal"
+            />
+            <span className="flex flex-col gap-0.5 min-w-0">
+              <span
+                className="text-sm sm:text-[13px] font-semibold leading-snug"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {item.title}
+                {item.titleSuffix && (
+                  <>
+                    <br className="sm:hidden" />
+                    <span className="hidden sm:inline"> </span>
+                    {item.titleSuffix}
+                  </>
+                )}
+              </span>
+              {item.sub && (
+                <span
+                  className="text-xs sm:text-[11px] leading-relaxed"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  {item.sub}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function WhatToBring({ idType }: { idType: string }) {
   const defaultTab = idType === "foreigner" ? "foreigner" : "sg_pr";
   const [tab, setTab] = useState<"sg_pr" | "foreigner">(defaultTab as "sg_pr" | "foreigner");
-  const items = WHAT_TO_BRING[tab];
+  const group = getWhatToBring()[tab];
 
   return (
     <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
-      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+      <p className="text-sm sm:text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
         Things to bring
       </p>
 
@@ -63,7 +200,7 @@ function WhatToBring({ idType }: { idType: string }) {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className="rounded-full px-3.5 py-1 text-xs font-semibold transition-all duration-200"
+            className="rounded-full px-4 py-1.5 text-sm sm:text-xs font-semibold transition-all duration-200"
             style={{
               background: tab === t ? "var(--brand-teal-hex)" : "var(--surface-elevated)",
               color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
@@ -75,18 +212,21 @@ function WhatToBring({ idType }: { idType: string }) {
         ))}
       </div>
 
-      <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
-        {items.map((item) => (
-          <li key={item} className="flex items-start gap-2">
-            <CheckCircle
-              size={15}
-              weight="duotone"
-              className="mt-0.5 shrink-0 text-brand-teal"
-            />
-            <span className="text-sm leading-snug text-[var(--text-secondary)]">{item}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-4">
+        <BringGroupSection
+          label="Must have"
+          dotColor="green"
+          items={group.mustHave}
+        />
+        {group.goodToHave && group.goodToHave.length > 0 && (
+          <BringGroupSection
+            label="Good to have"
+            dotColor="blue"
+            headerSub="Can help increase your loan amount"
+            items={group.goodToHave}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -96,10 +236,18 @@ interface BookingConfirmedViewProps {
 }
 
 export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyRef = () => {
+    navigator.clipboard.writeText(booking.cfh5Id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
   const idType = booking.idType === "foreigner" ? "foreigner" : "sg_pr";
 
-  const WHAT_TO_BRING_LIST = WHAT_TO_BRING[idType];
-  const thingsToBringLines = WHAT_TO_BRING_LIST.map((item) => `• ${item}`).join("\n");
+  const thingsToBringLines = formatThingsToBringForShare(idType);
 
   const appointmentMessage = [
     "[ CF Money Appointment ]",
@@ -164,15 +312,23 @@ export function BookingConfirmedView({ booking }: BookingConfirmedViewProps) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-4 text-left">
-        <div>
-          <p className="text-xs text-[var(--text-tertiary)]">Application reference</p>
-          <p className="mt-0.5 font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
+      <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-4 text-left">
+        <p className="text-xs text-[var(--text-tertiary)]">Application reference</p>
+        <div className="mt-0.5 flex items-center gap-2.5">
+          <p className="font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
             {booking.cfh5Id}
           </p>
-        </div>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-teal/10">
-          <CalendarBlank size={18} weight="duotone" className="text-brand-blue" />
+          <button
+            type="button"
+            onClick={handleCopyRef}
+            aria-label="Copy reference number"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded transition-opacity duration-150 hover:opacity-60 active:scale-95"
+          >
+            {copied
+              ? <Check size={20} weight="bold" style={{ color: "var(--text-primary)" }} />
+              : <Copy size={20} weight="regular" style={{ color: "var(--text-primary)" }} />
+            }
+          </button>
         </div>
       </div>
 
