@@ -137,6 +137,8 @@ function BringGroupSection({
   headerSub?: string;
   items: BringItem[];
 }) {
+  const iconColor = dotColor === "green" ? "#22c55e" : "var(--brand-blue-hex, #0033AA)";
+
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-0.5">
@@ -161,7 +163,8 @@ function BringGroupSection({
             <CheckCircle
               size={18}
               weight="duotone"
-              className="mt-0.5 shrink-0 text-brand-teal"
+              className="mt-0.5 shrink-0"
+              color={iconColor}
             />
             <span className="flex flex-col gap-0.5 min-w-0">
               <span
@@ -223,7 +226,7 @@ function WhatToBring({ idType }: { idType: string }) {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className="rounded-full px-4 py-1.5 text-base sm:text-sm font-semibold transition-all duration-200"
+            className="rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-200"
             style={{
               background: tab === t ? "var(--brand-teal-hex)" : "var(--surface-elevated)",
               color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
