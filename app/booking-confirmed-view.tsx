@@ -145,14 +145,14 @@ function BringGroupSection({
         <div className="flex items-center gap-2">
           <GlowingDot color={dotColor} />
           <span
-            className="text-sm sm:text-xs font-bold tracking-[0.16em] uppercase"
+            className="text-xs sm:text-[10px] font-bold tracking-[0.16em] uppercase"
             style={{ color: "var(--text-primary)" }}
           >
             {label}
           </span>
         </div>
         {headerSub && (
-          <p className="text-sm sm:text-xs leading-snug pl-4" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs sm:text-[11px] leading-snug pl-4" style={{ color: "var(--text-tertiary)" }}>
             {headerSub}
           </p>
         )}
@@ -161,14 +161,14 @@ function BringGroupSection({
         {items.map((item) => (
           <li key={item.title} className="flex items-start gap-2.5">
             <CheckCircle
-              size={18}
+              size={16}
               weight="duotone"
               className="mt-0.5 shrink-0"
               color={iconColor}
             />
             <span className="flex flex-col gap-0.5 min-w-0">
               <span
-                className="text-base sm:text-sm font-semibold leading-snug"
+                className="text-sm sm:text-[13px] font-semibold leading-snug"
                 style={{ color: "var(--text-primary)" }}
               >
                 {item.title}
@@ -185,17 +185,19 @@ function BringGroupSection({
                   {item.subItems.map((line) => (
                     <li
                       key={line}
-                      className="flex items-start gap-1.5 text-sm sm:text-xs leading-relaxed"
+                      className="flex gap-1.5 text-xs sm:text-[11px] leading-relaxed"
                       style={{ color: "var(--text-tertiary)" }}
                     >
-                      <span className="mt-[0.35em] h-1 w-1 shrink-0 rounded-full bg-[var(--text-tertiary)] opacity-60" aria-hidden="true" />
+                      <span className="flex h-[1.625em] shrink-0 items-center" aria-hidden="true">
+                        <span className="h-1 w-1 rounded-full bg-[var(--text-tertiary)] opacity-60" />
+                      </span>
                       {line}
                     </li>
                   ))}
                 </ul>
               ) : item.sub ? (
                 <span
-                  className="text-sm sm:text-xs leading-relaxed"
+                  className="text-xs sm:text-[11px] leading-relaxed"
                   style={{ color: "var(--text-tertiary)" }}
                 >
                   {item.sub}
@@ -216,7 +218,7 @@ function WhatToBring({ idType }: { idType: string }) {
 
   return (
     <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
-      <p className="text-base sm:text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]">
+      <p className="text-sm sm:text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
         Things to bring
       </p>
 
