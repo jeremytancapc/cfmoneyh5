@@ -33,7 +33,7 @@ function formatDisplayTime(slot: string): string {
   return `${hour}:${m.toString().padStart(2, "0")}${period}`;
 }
 
-type BringItem = { title: string; titleSuffix?: string; sub?: string };
+type BringItem = { title: string; titleSuffix?: string; sub?: string; subItems?: string[] };
 
 type BringGroup = {
   mustHave: BringItem[];
@@ -63,7 +63,11 @@ function getWhatToBring(): { sg_pr: BringGroup; foreigner: BringGroup } {
         {
           title: "Last 3 months of income proof",
           titleSuffix: `(${months})`,
-          sub: "Based on your job nature - payslips, platform statements, or bank statements",
+          subItems: [
+            "Payslips",
+            "PHV platform / gig worker statements",
+            "Bank statements",
+          ],
         },
       ],
     },
@@ -78,18 +82,24 @@ function getWhatToBring(): { sg_pr: BringGroup; foreigner: BringGroup } {
   };
 }
 
+function formatItemForShare(item: BringItem): string[] {
+  const fullTitle = item.titleSuffix ? `${item.title} ${item.titleSuffix}` : item.title;
+  if (item.subItems?.length) {
+    return [fullTitle, ...item.subItems.map((s) => `  • ${s}`)];
+  }
+  return [`• ${fullTitle}${item.sub ? ` — ${item.sub}` : ""}`];
+}
+
 function formatThingsToBringForShare(idType: "sg_pr" | "foreigner"): string {
   const group = getWhatToBring()[idType];
   const lines: string[] = ["Must have:"];
   for (const item of group.mustHave) {
-    const fullTitle = item.titleSuffix ? `${item.title} ${item.titleSuffix}` : item.title;
-    lines.push(`• ${fullTitle}${item.sub ? ` — ${item.sub}` : ""}`);
+    lines.push(...formatItemForShare(item));
   }
   if (group.goodToHave?.length) {
     lines.push("", "Good to have (can help increase your loan amount):");
     for (const item of group.goodToHave) {
-      const fullTitle = item.titleSuffix ? `${item.title} ${item.titleSuffix}` : item.title;
-      lines.push(`• ${fullTitle}${item.sub ? ` — ${item.sub}` : ""}`);
+      lines.push(...formatItemForShare(item));
     }
   }
   return lines.join("\n");
@@ -133,14 +143,14 @@ function BringGroupSection({
         <div className="flex items-center gap-2">
           <GlowingDot color={dotColor} />
           <span
-            className="text-xs sm:text-[10px] font-bold tracking-[0.16em] uppercase"
+            className="text-sm sm:text-xs font-bold tracking-[0.16em] uppercase"
             style={{ color: "var(--text-primary)" }}
           >
             {label}
           </span>
         </div>
         {headerSub && (
-          <p className="text-xs sm:text-[11px] leading-snug pl-4" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-sm sm:text-xs leading-snug pl-4" style={{ color: "var(--text-tertiary)" }}>
             {headerSub}
           </p>
         )}
@@ -149,13 +159,13 @@ function BringGroupSection({
         {items.map((item) => (
           <li key={item.title} className="flex items-start gap-2.5">
             <CheckCircle
-              size={16}
+              size={18}
               weight="duotone"
               className="mt-0.5 shrink-0 text-brand-teal"
             />
             <span className="flex flex-col gap-0.5 min-w-0">
               <span
-                className="text-sm sm:text-[13px] font-semibold leading-snug"
+                className="text-base sm:text-sm font-semibold leading-snug"
                 style={{ color: "var(--text-primary)" }}
               >
                 {item.title}
@@ -167,14 +177,27 @@ function BringGroupSection({
                   </>
                 )}
               </span>
-              {item.sub && (
+              {item.subItems ? (
+                <ul className="flex flex-col gap-0.5 mt-0.5">
+                  {item.subItems.map((line) => (
+                    <li
+                      key={line}
+                      className="flex items-start gap-1.5 text-sm sm:text-xs leading-relaxed"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      <span className="mt-[0.35em] h-1 w-1 shrink-0 rounded-full bg-[var(--text-tertiary)] opacity-60" aria-hidden="true" />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              ) : item.sub ? (
                 <span
-                  className="text-xs sm:text-[11px] leading-relaxed"
+                  className="text-sm sm:text-xs leading-relaxed"
                   style={{ color: "var(--text-tertiary)" }}
                 >
                   {item.sub}
                 </span>
-              )}
+              ) : null}
             </span>
           </li>
         ))}
@@ -190,7 +213,7 @@ function WhatToBring({ idType }: { idType: string }) {
 
   return (
     <div className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-5 py-5 text-left">
-      <p className="text-sm sm:text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+      <p className="text-base sm:text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]">
         Things to bring
       </p>
 
@@ -200,7 +223,7 @@ function WhatToBring({ idType }: { idType: string }) {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className="rounded-full px-4 py-1.5 text-sm sm:text-xs font-semibold transition-all duration-200"
+            className="rounded-full px-4 py-1.5 text-base sm:text-sm font-semibold transition-all duration-200"
             style={{
               background: tab === t ? "var(--brand-teal-hex)" : "var(--surface-elevated)",
               color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
