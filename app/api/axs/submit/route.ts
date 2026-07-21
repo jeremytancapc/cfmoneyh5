@@ -64,6 +64,8 @@ interface AxsMyInfoPayload {
     "education-level"?: string;
     "occupation-type"?: string;
     employments?: AxsEmployment[];
+    loan_amount?: number;
+    tenure?: number;
   };
 }
 
@@ -161,6 +163,8 @@ export async function POST(request: NextRequest) {
   const axsRef = myinfo.axs?.["reference-id"] ?? "";
   const nationalityCode = myinfo.nationality?.code ?? "";
   const idType = determineIdType(nationalityCode);
+  const requestedLoanAmount = myinfo.axs?.loan_amount ?? 20000;
+  const requestedTenure = myinfo.axs?.tenure ?? DEFAULT_TENURE;
 
   console.info(`${LOG} processing`, { nric: nric.slice(0, 2) + "***", fullName, axsRef, idType });
 
@@ -182,8 +186,8 @@ export async function POST(request: NextRequest) {
       address: address || null,
       postal_code: postalCode || null,
       id_type: idType === "foreigner" ? "foreigner" : "singaporean",
-      loan_amount: 0, // Will be updated after scoring
-      loan_tenure: DEFAULT_TENURE,
+      loan_amount: requestedLoanAmount,
+      loan_tenure: requestedTenure,
       moneylender_no_loans: true, // Not asking for AXS
       status: "new",
     })
@@ -246,7 +250,7 @@ export async function POST(request: NextRequest) {
     cpfContributions,
     noaHistory,
     selfDeclaredMonthlyIncome: 0,
-    requestedLoanAmount: 20000, // Use max to get the full eligible amount
+    requestedLoanAmount,
     moneylenderNoLoans: true,
     moneylenderLoanAmount: "",
     moneylenderPaymentHistory: "",
@@ -295,7 +299,7 @@ export async function POST(request: NextRequest) {
     leadId,
     axsRef,
     approvedAmount,
-    tenure: DEFAULT_TENURE,
+    tenure: requestedTenure,
   });
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
@@ -308,13 +312,15 @@ export async function POST(request: NextRequest) {
     maxEligibleLoan: assessment.maxEligibleLoan,
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
+    requestedLoanAmount,
+    requestedTenure,
   });
 
   return NextResponse.json({
     status: "approved",
     approvedLoanAmount: approvedAmount,
     maxEligibleLoan: assessment.maxEligibleLoan,
-    tenure: DEFAULT_TENURE,
+    tenure: requestedTenure,
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
     bookingUrl,
