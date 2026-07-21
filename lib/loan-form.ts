@@ -95,11 +95,11 @@ export const initialLoanFormData: LoanFormData = {
   incomeSource: "",
 };
 
-/** Illustrative rate for estimated monthly repayment in the apply flow (1% per month). */
-export const ESTIMATED_MONTHLY_INTEREST_RATE = 0.01;
+/** Illustrative rate for estimated monthly repayment in the apply flow (3.92% per month). */
+export const ESTIMATED_MONTHLY_INTEREST_RATE = 0.0392;
 
 export const MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER =
-  "Estimate only (1% p.m.). Final instalment and rate confirmed at your appointment.";
+  "Estimate only. Your actual instalment may be lower.";
 
 export const APPROVAL_PAGE_DISCLAIMER =
   "Indicative offer. Pre-approved amount and monthly repayment may change following final assessment.";

@@ -197,45 +197,7 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", leadId);
 
-  // If NOT ELIGIBLE (blacklisted) or RELOAN per AirConnect, reject immediately
-  if (eligibility.status === "NOT_ELIGIBLE" || eligibility.status === "RELOAN") {
-    const rejectionReason = eligibility.status === "RELOAN"
-      ? "airconnect_reloan"
-      : "airconnect_not_eligible";
-
-    // Save a credit assessment record for analytics
-    await admin.from("credit_assessments").insert({
-      lead_id: leadId,
-      income_source: "self_declared",
-      verified_monthly_income: 0,
-      approved_loan_amount: 0,
-      max_eligible_loan: 0,
-      is_eligible: false,
-      credit_rejection_reason: rejectionReason,
-      explanation: `AirConnect eligibility check: ${eligibility.notes}${eligibility.reloanReason ? ` (reloan: ${eligibility.reloanReason})` : ""}`,
-      raw_assessment: { eligibility: eligibility.raw } as unknown as Record<string, unknown>,
-    });
-
-    // Update lead status
-    await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
-
-    const rejectRes = NextResponse.json({
-      leadId,
-      approvedLoanAmount: 0,
-      verifiedMonthlyIncome: 0,
-      incomeSource: "self_declared",
-      isEligible: false,
-      maxEligibleLoan: 0,
-      explanation: `We're unable to process your application at this time.`,
-      eligibilityStatus: eligibility.status,
-      eligibilityNotes: eligibility.notes,
-      reloanReason: eligibility.reloanReason,
-    });
-    rejectRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
-    applyClearApplyCookiesOnResponse(rejectRes);
-    return rejectRes;
-  }
-
+  // Always run credit scoring (for analytics even if rejected)
   const assessment = assessCredit({
     dob: formData.dob,
     idType: formData.idType,
@@ -248,6 +210,49 @@ export async function POST(request: NextRequest) {
     moneylenderPaymentHistory: formData.moneylenderPaymentHistory,
     authMethod: formData.authMethod,
   });
+
+  // If NOT ELIGIBLE (blacklisted) or RELOAN per AirConnect, reject but save real income data
+  if (eligibility.status === "NOT_ELIGIBLE" || eligibility.status === "RELOAN") {
+    const rejectionReason = eligibility.status === "RELOAN"
+      ? "airconnect_reloan"
+      : "airconnect_not_eligible";
+
+    // Save credit assessment with real income data for analytics
+    await admin.from("credit_assessments").insert({
+      lead_id: leadId,
+      income_source: assessment.incomeSource,
+      verified_monthly_income: assessment.verifiedMonthlyIncome,
+      approved_loan_amount: 0,
+      max_eligible_loan: assessment.maxEligibleLoan,
+      is_eligible: false,
+      credit_rejection_reason: rejectionReason,
+      age_at_application: assessment.age || null,
+      existing_loans: assessment.existingLoans,
+      moneylender_loan_amount: assessment.existingLoans > 0 ? assessment.existingLoans : null,
+      moneylender_payment_history: formData.moneylenderNoLoans ? null : (formData.moneylenderPaymentHistory || null),
+      explanation: `AirConnect: ${eligibility.notes}${eligibility.reloanReason ? ` (reloan: ${eligibility.reloanReason})` : ""} | Income: ${assessment.explanation}`,
+      raw_assessment: { eligibility: eligibility.raw, assessment } as unknown as Record<string, unknown>,
+    });
+
+    // Update lead status
+    await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
+
+    const rejectRes = NextResponse.json({
+      leadId,
+      approvedLoanAmount: 0,
+      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+      incomeSource: assessment.incomeSource,
+      isEligible: false,
+      maxEligibleLoan: 0,
+      explanation: `We're unable to process your application at this time.`,
+      eligibilityStatus: eligibility.status,
+      eligibilityNotes: eligibility.notes,
+      reloanReason: eligibility.reloanReason,
+    });
+    rejectRes.cookies.set({ name: DRAFT_LEAD_COOKIE, value: "", maxAge: 0, path: "/" });
+    applyClearApplyCookiesOnResponse(rejectRes);
+    return rejectRes;
+  }
 
   const creditRejectionReason = deriveCreditRejectionReason(assessment);
 
