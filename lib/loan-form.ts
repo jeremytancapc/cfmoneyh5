@@ -99,7 +99,7 @@ export const initialLoanFormData: LoanFormData = {
 export const ESTIMATED_MONTHLY_INTEREST_RATE = 0.0392;
 
 export const MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER =
-  "Estimate only. Your actual instalment may be lower.";
+  "Estimate only. Your final instalment and rates might be lower depending on your loan amount, tenure and credit profile.";
 
 export const APPROVAL_PAGE_DISCLAIMER =
   "Indicative offer. Pre-approved amount and monthly repayment may change following final assessment.";
