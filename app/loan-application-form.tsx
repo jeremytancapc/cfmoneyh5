@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   CheckCircle,
   ShieldCheck,
+  Info,
   CurrencyDollar,
   User,
   Briefcase,
@@ -524,24 +525,27 @@ export function Step1_LoanDetails({
           </p>
         </div>
 
-        <div>
-          <div
-            className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] px-4 py-3 flex items-center justify-between gap-3"
-            style={{ boxShadow: "3px 3px 0px 0px var(--brand-blue-hex)" }}
-          >
+        <div
+          className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] flex flex-col overflow-hidden"
+          style={{ boxShadow: "3px 3px 0px 0px var(--brand-blue-hex)" }}
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-primary)]">
               Monthly repayment
             </span>
             <div className="flex items-baseline gap-0.5 shrink-0">
               <span className="font-display text-xl font-bold tracking-tight text-brand-blue tabular-nums">
-                {formatCurrency(monthlyRepayment)}*
+                {formatCurrency(monthlyRepayment)}
               </span>
               <span className="text-xs text-[var(--text-tertiary)]">/mo</span>
             </div>
           </div>
-          <p className="mt-1.5 text-right text-xs text-[var(--text-tertiary)]">
-            *{MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER}
-          </p>
+          <div className="border-t border-[var(--border-subtle)] flex items-start gap-2 px-4 py-2.5">
+            <Info size={13} weight="duotone" className="mt-px shrink-0 text-[var(--text-tertiary)]" />
+            <p className="text-[11px] leading-snug text-[var(--text-tertiary)]">
+              {MONTHLY_REPAYMENT_ESTIMATE_DISCLAIMER}
+            </p>
+          </div>
         </div>
 
         <div>
