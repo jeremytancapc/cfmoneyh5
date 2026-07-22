@@ -234,12 +234,51 @@ export async function POST(request: NextRequest) {
     console.info(`${LOG} rejected by eligibility`, { leadId, status: eligibility.status });
     await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
 
+    // Still run credit scoring for analytics
+    const assessment = assessCredit({
+      dob,
+      idType,
+      cpfContributions,
+      noaHistory,
+      selfDeclaredMonthlyIncome: 0,
+      requestedLoanAmount,
+      moneylenderNoLoans: true,
+      moneylenderLoanAmount: "",
+      moneylenderPaymentHistory: "",
+      authMethod: "singpass",
+    });
+
+    const creditRejectionReason = eligibility.status === "RELOAN" ? "airconnect_reloan" : "airconnect_not_eligible";
+
+    await admin.from("credit_assessments").insert({
+      lead_id: leadId,
+      income_source: assessment.incomeSource,
+      verified_monthly_income: assessment.verifiedMonthlyIncome,
+      approved_loan_amount: 0,
+      max_eligible_loan: assessment.maxEligibleLoan,
+      is_eligible: false,
+      credit_rejection_reason: creditRejectionReason,
+      age_at_application: assessment.age || null,
+      existing_loans: 0,
+      explanation: `AirConnect: ${eligibility.notes} | Income: ${assessment.explanation}`,
+      raw_assessment: { eligibility: eligibility.raw, assessment } as unknown as Record<string, unknown>,
+    });
+
+    // Still generate booking URL — rejected customers can still book
+    const token = createAxsToken({ leadId, axsRef, approvedAmount: requestedLoanAmount, tenure: requestedTenure });
+    const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
+    const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
+
     return NextResponse.json({
-      status: "rejected",
-      reason: eligibility.status === "RELOAN" ? "airconnect_reloan" : "airconnect_not_eligible",
+      status: "pending",
+      decision: "rejected",
+      reason: creditRejectionReason,
       notes: eligibility.notes,
+      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+      maxEligibleLoan: assessment.maxEligibleLoan,
       leadId,
       axsRef,
+      bookingUrl,
     });
   }
 
@@ -281,31 +320,20 @@ export async function POST(request: NextRequest) {
     status: assessment.isEligible ? "approved" : "rejected",
   }).eq("id", leadId);
 
-  if (!assessment.isEligible || approvedAmount <= 0) {
-    console.info(`${LOG} credit declined`, { leadId, axsRef, reason: creditRejectionReason });
-    return NextResponse.json({
-      status: "rejected",
-      reason: creditRejectionReason ?? "credit_declined",
-      notes: assessment.explanation,
-      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
-      maxEligibleLoan: assessment.maxEligibleLoan,
-      leadId,
-      axsRef,
-    });
-  }
-
-  // 7. Generate booking token
+  // Always generate a booking token — all customers can book regardless of decision
   const token = createAxsToken({
     leadId,
     axsRef,
-    approvedAmount,
+    approvedAmount: approvedAmount > 0 ? approvedAmount : requestedLoanAmount,
     tenure: requestedTenure,
   });
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
   const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
 
-  console.info(`${LOG} approved`, {
+  const decision = (assessment.isEligible && approvedAmount > 0) ? "approved" : "rejected";
+
+  console.info(`${LOG} ${decision}`, {
     leadId,
     axsRef,
     approvedAmount,
@@ -317,7 +345,10 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({
-    status: "approved",
+    status: "pending",
+    decision,
+    reason: creditRejectionReason ?? null,
+    notes: assessment.explanation,
     approvedLoanAmount: approvedAmount,
     maxEligibleLoan: assessment.maxEligibleLoan,
     tenure: requestedTenure,
