@@ -48,12 +48,19 @@ describe("deriveCreditRejectionReason", () => {
     expect(deriveCreditRejectionReason({ ...BASE })).toBe("zero_cap_income_too_low");
   });
 
+  it("returns below_min_loan_amount when cap is positive but under $300", () => {
+    expect(
+      deriveCreditRejectionReason({ ...BASE, maxEligibleLoan: 200 }),
+    ).toBe("below_min_loan_amount");
+  });
+
   it("has a label for every code", () => {
     const codes = [
       "under_18",
       "foreigner_income_floor",
       "zero_cap_moneylender_os",
       "zero_cap_income_too_low",
+      "below_min_loan_amount",
     ] as const;
     for (const code of codes) {
       expect(creditRejectionLabel(code)).toBeTruthy();
