@@ -367,6 +367,32 @@ describe("assessCredit — eligibility flags", () => {
     expect(r.maxEligibleLoan).toBe(0);
     expect(r.isEligible).toBe(false);
   });
+
+  it("rejects when cap is positive but below the $300 minimum loan size", () => {
+    // annual income $12k ≤ $20k → flat $3,000 cap; O/S $2,800 → cap = $200
+    const r = assessCredit({
+      ...BASE,
+      selfDeclaredMonthlyIncome: 1000,
+      moneylenderNoLoans: false,
+      moneylenderLoanAmount: "2800",
+      moneylenderPaymentHistory: "on_time",
+    });
+    expect(r.maxEligibleLoan).toBe(200);
+    expect(r.isEligible).toBe(false);
+    expect(r.approvedLoanAmount).toBe(0);
+  });
+
+  it("approves when cap is just above the $300 minimum loan size", () => {
+    const r = assessCredit({
+      ...BASE,
+      selfDeclaredMonthlyIncome: 1000,
+      moneylenderNoLoans: false,
+      moneylenderLoanAmount: "2699",
+      moneylenderPaymentHistory: "on_time",
+    });
+    expect(r.maxEligibleLoan).toBe(301);
+    expect(r.isEligible).toBe(true);
+  });
 });
 
 describe("assessCredit — all 5 payment history multipliers end-to-end", () => {

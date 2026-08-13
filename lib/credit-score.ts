@@ -232,6 +232,9 @@ export function scoreNoa(
 
 export type IncomeSource = "cpf" | "noa" | "self_declared";
 
+/** Smallest loan we actually offer — an applicant eligible for less than this is rejected outright. */
+export const MIN_LOAN_AMOUNT = 300;
+
 export interface CreditAssessment {
   /** Which income source was used for scoring. */
   incomeSource: IncomeSource;
@@ -367,7 +370,7 @@ export function assessCredit(params: {
   const isEligible =
     meetsAgeRequirement &&
     meetsForeignerIncomeFloor &&
-    maxEligibleLoan > 0;
+    maxEligibleLoan > MIN_LOAN_AMOUNT;
 
   // Approved = what they asked for, capped at eligibility max, floored to nearest $100
   const rawApproved = Math.min(params.requestedLoanAmount, maxEligibleLoan);

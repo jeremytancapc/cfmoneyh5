@@ -1,3 +1,4 @@
+import { MIN_LOAN_AMOUNT } from "./credit-score";
 import type { CreditAssessment } from "./credit-score";
 
 /**
@@ -9,6 +10,7 @@ export type CreditRejectionCode =
   | "foreigner_income_floor"
   | "zero_cap_moneylender_os"
   | "zero_cap_income_too_low"
+  | "below_min_loan_amount"
   | "airconnect_not_eligible"
   | "airconnect_reloan";
 
@@ -17,6 +19,7 @@ const REJECTION_LABELS: Record<CreditRejectionCode, string> = {
   foreigner_income_floor: "Foreigner income below minimum",
   zero_cap_moneylender_os: "Cap zero — moneylender O/S",
   zero_cap_income_too_low: "Cap zero — income too low",
+  below_min_loan_amount: `Eligible amount below $${MIN_LOAN_AMOUNT} minimum`,
   airconnect_not_eligible: "AirConnect — not eligible",
   airconnect_reloan: "AirConnect — reloan (send to lender)",
 };
@@ -41,6 +44,7 @@ export function deriveCreditRejectionReason(
       ? "zero_cap_moneylender_os"
       : "zero_cap_income_too_low";
   }
+  if (assessment.maxEligibleLoan <= MIN_LOAN_AMOUNT) return "below_min_loan_amount";
 
   return "zero_cap_income_too_low";
 }
