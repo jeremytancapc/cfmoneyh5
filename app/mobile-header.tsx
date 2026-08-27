@@ -14,10 +14,10 @@ export function MobileHeader() {
     >
       <a href="/">
         <Image
-          src="/images/cf-money-white.png"
-          alt="CF Money"
-          width={120}
-          height={36}
+          src="/images/crawfort-white-color-dot.png"
+          alt="Crawfort"
+          width={163}
+          height={20}
           className="h-5 w-auto"
           priority
         />
