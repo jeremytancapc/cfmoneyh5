@@ -24,10 +24,10 @@ function ApplyLandingLayout({
         <div className="relative z-10">
           <div className="mb-16">
             <Image
-              src="/images/cf-money-white.png"
-              alt="CF Money"
-              width={160}
-              height={48}
+              src="/images/crawfort-white-color-dot.png"
+              alt="Crawfort"
+              width={196}
+              height={24}
               className="h-6 w-auto"
               priority
             />
@@ -72,10 +72,10 @@ function ApplyLandingLayout({
 
         <footer className="lg:hidden bg-brand-blue px-5 pb-10 pt-12 text-[var(--text-on-brand)]">
           <Image
-            src="/images/cf-money-white.png"
-            alt="CF Money"
-            width={160}
-            height={48}
+            src="/images/crawfort-white-color-dot.png"
+            alt="Crawfort"
+            width={163}
+            height={20}
             className="mb-4 h-5 w-auto"
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
