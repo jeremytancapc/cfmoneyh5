@@ -14,10 +14,10 @@ export default function AxsLayout({ children }: { children: React.ReactNode }) {
       {/* Top nav — logo is non-interactive to keep users in the flow */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-brand-blue">
         <Image
-          src="/images/cf-money-white.png"
-          alt="CF Money"
-          width={120}
-          height={36}
+          src="/images/crawfort-white-color-dot.png"
+          alt="Crawfort"
+          width={200}
+          height={25}
           className="h-5 w-auto"
           priority
         />
