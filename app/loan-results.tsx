@@ -493,13 +493,13 @@ function TermSheetCard({ formData, monthlyRepayment, revealStage }: OfferCardPro
         </span>
       </div>
 
-      {/* Approved amount */}
+      {/* Loan amount */}
       <div className="relative px-5 pt-5 pb-4">
         <p
           className="text-[10px] font-bold tracking-[0.18em] uppercase mb-2"
           style={{ color: "oklch(1 0 0 / 0.40)" }}
         >
-          Approved amount
+          Loan amount
         </p>
         <p
           className="tabular-nums leading-none"
