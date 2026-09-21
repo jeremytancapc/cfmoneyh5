@@ -95,6 +95,19 @@ function isDisabledDate(date: Date): boolean {
   return SG_PUBLIC_HOLIDAYS_2026.has(iso);
 }
 
+/** Dates where the office closes earlier than usual — last slot only, all other dates unaffected. */
+const LAST_SLOT_OVERRIDE_BY_DATE: Record<string, string> = {
+  "2026-09-25": "13:30", // office closes early — last appointment is 1:30pm
+};
+
+/** Time slots offered for a given date — full day unless overridden above. */
+function timeSlotsForDate(date: string | null): string[] {
+  const lastSlot = date ? LAST_SLOT_OVERRIDE_BY_DATE[date] : undefined;
+  if (!lastSlot) return TIME_SLOTS;
+  const cutoff = TIME_SLOTS.indexOf(lastSlot);
+  return cutoff === -1 ? TIME_SLOTS : TIME_SLOTS.slice(0, cutoff + 1);
+}
+
 function formatDisplayDate(date: Date): string {
   return `${DAY_LABELS[date.getDay()]}, ${date.getDate()} ${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
 }
@@ -761,9 +774,10 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
                     style={{ top: timePos.top, left: timePos.left, width: timePos.width, maxHeight: 280, overscrollBehavior: "contain" }}
                   >
                     {(() => {
+                      const daySlots = timeSlotsForDate(selectedDate);
                       const bookedIdx = fullyBookedIndex(selectedDate);
                       const limitedSet = limitedSlotIndices(selectedDate, bookedIdx);
-                      return TIME_SLOTS.map((slot, i) => {
+                      return daySlots.map((slot, i) => {
                         const pastDisabled = isSlotDisabled(slot);
                         const isFullyBooked = !pastDisabled && i === bookedIdx;
                         const disabled = pastDisabled || isFullyBooked;
@@ -796,7 +810,7 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
                                   : "var(--surface-elevated)",
                               opacity: pastDisabled ? 0.35 : 1,
                               pointerEvents: disabled ? "none" : "auto",
-                              borderBottom: i < TIME_SLOTS.length - 1
+                              borderBottom: i < daySlots.length - 1
                                 ? "1px solid var(--border-subtle)"
                                 : "none",
                             }}
@@ -870,7 +884,9 @@ export function AppointmentBooking({ formData, onBack, onConfirm, onBookedRedire
           <p className="flex items-center justify-center gap-1.5 text-xs text-[var(--text-tertiary)]">
             <Clock size={12} className="shrink-0" />
             {selectedDate
-              ? "Appointment slots open from 10:30am – 7pm"
+              ? selectedDate in LAST_SLOT_OVERRIDE_BY_DATE
+                ? "Appointment slots open from 10:30am – 1:30pm"
+                : "Appointment slots open from 10:30am – 7pm"
               : "Open Mondays – Saturdays"}
           </p>
 
