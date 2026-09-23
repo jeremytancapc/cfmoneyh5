@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/client";
 import { checkLeadEligibility } from "@/lib/eligibility-check";
-import { assessCredit } from "@/lib/credit-score";
+import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
 import { logExternalApi } from "@/lib/external-api-logger";
@@ -126,6 +126,32 @@ function determineIdType(nationality?: string): string {
   if (code === "SG") return "singaporean";
   // PR detection would need residentialstatus; for now treat non-SG as foreigner
   return "foreigner";
+}
+
+/**
+ * The single response contract returned to AXS.
+ *
+ * Both the eligibility-rejection path and the credit-scored path go through
+ * here so they always emit the same keys — AXS parses one shape regardless of
+ * outcome. `status` is always "pending"; the real outcome is `decision`.
+ * `reason` is null when approved.
+ */
+interface AxsSubmitResult {
+  decision: "approved" | "rejected";
+  reason: string | null;
+  notes: string;
+  approvedLoanAmount: number;
+  maxEligibleLoan: number;
+  tenure: number;
+  verifiedMonthlyIncome: number;
+  incomeSource: IncomeSource;
+  bookingUrl: string;
+  leadId: string;
+  axsRef: string;
+}
+
+function axsSubmitResponse(result: AxsSubmitResult) {
+  return NextResponse.json({ status: "pending", ...result });
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -269,16 +295,19 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
     const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
 
-    return NextResponse.json({
-      status: "pending",
+    return axsSubmitResponse({
       decision: "rejected",
       reason: creditRejectionReason,
       notes: eligibility.notes,
-      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+      // Rejected here, so nothing is approved — matches the 0 persisted above.
+      approvedLoanAmount: 0,
       maxEligibleLoan: assessment.maxEligibleLoan,
+      tenure: requestedTenure,
+      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+      incomeSource: assessment.incomeSource,
+      bookingUrl,
       leadId,
       axsRef,
-      bookingUrl,
     });
   }
 
@@ -344,8 +373,7 @@ export async function POST(request: NextRequest) {
     requestedTenure,
   });
 
-  return NextResponse.json({
-    status: "pending",
+  return axsSubmitResponse({
     decision,
     reason: creditRejectionReason ?? null,
     notes: assessment.explanation,
