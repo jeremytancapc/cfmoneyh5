@@ -17,6 +17,7 @@ import { checkLeadEligibility } from "@/lib/eligibility-check";
 import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
+import { axsApplicationRef } from "@/lib/lead-id";
 import { logExternalApi } from "@/lib/external-api-logger";
 import type { CpfContribution, NoaRecord } from "@/lib/loan-form";
 
@@ -135,6 +136,11 @@ function determineIdType(nationality?: string): string {
  * here so they always emit the same keys — AXS parses one shape regardless of
  * outcome. `status` is always "pending"; the real outcome is `decision`.
  * `reason` is null when approved.
+ *
+ * `leadId` carries the customer-facing CFAXS-XXXXXXXX ref, not the raw lead
+ * UUID — it is the same string the booking UI shows, so AXS and the customer
+ * quote one identifier. The UUID stays internal (it travels in the signed
+ * booking token).
  */
 interface AxsSubmitResult {
   decision: "approved" | "rejected";
@@ -226,7 +232,9 @@ export async function POST(request: NextRequest) {
   }
 
   const leadId = lead.id as string;
-  console.info(`${LOG} lead created`, { leadId, axsRef });
+  // Customer-facing ref returned to AXS and shown in the booking UI.
+  const applicationRef = axsApplicationRef(leadId);
+  console.info(`${LOG} lead created`, { leadId, applicationRef, axsRef });
 
   // 4. Save MyInfo profile
   const cpfContributions = extractCpfContributions(myinfo.cpfcontributions);
@@ -306,7 +314,7 @@ export async function POST(request: NextRequest) {
       verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
       incomeSource: assessment.incomeSource,
       bookingUrl,
-      leadId,
+      leadId: applicationRef,
       axsRef,
     });
   }
@@ -383,7 +391,7 @@ export async function POST(request: NextRequest) {
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
     bookingUrl,
-    leadId,
+    leadId: applicationRef,
     axsRef,
   });
 }

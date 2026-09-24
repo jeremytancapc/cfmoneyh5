@@ -11,16 +11,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/client";
 import { verifyAxsToken } from "@/lib/axs-token";
 import { logExternalApi } from "@/lib/external-api-logger";
+import { axsApplicationRef, cfh5ApplicationRef } from "@/lib/lead-id";
 
 export const runtime = "nodejs";
 
 const LOG = "[axs/book]";
 
 type Body = { date: string; time: string; token: string };
-
-function cfh5ApplicationRef(leadId: string): string {
-  return `CFH5-${leadId.replace(/-/g, "").slice(-8).toUpperCase()}`;
-}
 
 async function notifyAirConnect(payload: {
   customerName: string;
@@ -40,6 +37,10 @@ async function notifyAirConnect(payload: {
     return;
   }
 
+  // AirConnect has keyed on the CFH5- form since before AXS existed, so this
+  // payload deliberately keeps that prefix while everything customer-facing
+  // moved to CFAXS-. The 8-char suffix is identical either way, so a search on
+  // the suffix still finds the same lead in both systems.
   const cfh5Id = cfh5ApplicationRef(payload.leadId);
 
   try {
@@ -99,6 +100,64 @@ async function notifyAirConnect(payload: {
   }
 }
 
+async function notifyBookingWebhook(payload: {
+  axsRef: string;
+  leadId: string;
+  cfh5Id: string;
+  appointmentId: string;
+  customerName: string;
+  phoneNumber: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  approvedAmount: number;
+  bookingLink: string;
+}) {
+  const url = process.env.AXS_BOOKING_WEBHOOK_URL;
+
+  if (!url) {
+    console.warn(`${LOG} AXS_BOOKING_WEBHOOK_URL not configured — skipping booking webhook`);
+    return;
+  }
+
+  const requestBody = {
+    event: "appointment_booked",
+    ...payload,
+    bookedAt: new Date().toISOString(),
+  };
+
+  try {
+    const started = Date.now();
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    const ms = Date.now() - started;
+    const responseBody = !res.ok ? await res.text() : undefined;
+
+    logExternalApi({
+      tag: "[axs/book:webhook]",
+      url,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+      status: res.status,
+      ok: res.ok,
+      ms,
+      responseBody,
+      leadId: payload.leadId,
+    });
+
+    if (!res.ok) {
+      console.error(`${LOG} booking webhook failed`, { status: res.status, ms });
+    }
+  } catch (err) {
+    console.error(`${LOG} booking webhook error`, err);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Partial<Body>;
   const { date, time, token } = body;
@@ -115,7 +174,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { leadId, axsRef, approvedAmount } = payload;
-  const cfh5Id = cfh5ApplicationRef(leadId);
+  // Customer-facing ref — CFAXS-, matching what /api/axs/submit returned.
+  const cfh5Id = axsApplicationRef(leadId);
 
   console.info(`${LOG} POST`, { leadId, axsRef, cfh5Id, date, time });
 
@@ -165,6 +225,20 @@ export async function POST(request: NextRequest) {
     loanAmount: approvedAmount,
     idNumber: lead.nric ?? undefined,
     axsRef,
+  });
+
+  // Notify custom booking webhook (no-op until AXS_BOOKING_WEBHOOK_URL is set)
+  await notifyBookingWebhook({
+    axsRef,
+    leadId,
+    cfh5Id,
+    appointmentId: appointment.id as string,
+    customerName: lead.full_name ?? "",
+    phoneNumber: lead.mobile ?? "",
+    appointmentDate: date,
+    appointmentTime: time,
+    approvedAmount,
+    bookingLink: `${process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com"}/axs/book?token=${token}`,
   });
 
   return NextResponse.json({
