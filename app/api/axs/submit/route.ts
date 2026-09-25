@@ -18,6 +18,7 @@ import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
 import { axsApplicationRef } from "@/lib/lead-id";
+import { partnerNotes, round2 } from "@/lib/axs-response";
 import { logExternalApi } from "@/lib/external-api-logger";
 import type { CpfContribution, NoaRecord } from "@/lib/loan-form";
 
@@ -141,11 +142,13 @@ function determineIdType(nationality?: string): string {
  * UUID — it is the same string the booking UI shows, so AXS and the customer
  * quote one identifier. The UUID stays internal (it travels in the signed
  * booking token).
+ *
+ * `notes` is derived here rather than passed in, so no internal string can
+ * reach the partner by accident — see partnerNotes().
  */
 interface AxsSubmitResult {
   decision: "approved" | "rejected";
   reason: string | null;
-  notes: string;
   approvedLoanAmount: number;
   maxEligibleLoan: number;
   tenure: number;
@@ -157,7 +160,14 @@ interface AxsSubmitResult {
 }
 
 function axsSubmitResponse(result: AxsSubmitResult) {
-  return NextResponse.json({ status: "pending", ...result });
+  return NextResponse.json({
+    status: "pending",
+    ...result,
+    notes: partnerNotes(result.decision, result.reason),
+    approvedLoanAmount: round2(result.approvedLoanAmount),
+    maxEligibleLoan: round2(result.maxEligibleLoan),
+    verifiedMonthlyIncome: round2(result.verifiedMonthlyIncome),
+  });
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -306,7 +316,6 @@ export async function POST(request: NextRequest) {
     return axsSubmitResponse({
       decision: "rejected",
       reason: creditRejectionReason,
-      notes: eligibility.notes,
       // Rejected here, so nothing is approved — matches the 0 persisted above.
       approvedLoanAmount: 0,
       maxEligibleLoan: assessment.maxEligibleLoan,
@@ -384,7 +393,6 @@ export async function POST(request: NextRequest) {
   return axsSubmitResponse({
     decision,
     reason: creditRejectionReason ?? null,
-    notes: assessment.explanation,
     approvedLoanAmount: approvedAmount,
     maxEligibleLoan: assessment.maxEligibleLoan,
     tenure: requestedTenure,
