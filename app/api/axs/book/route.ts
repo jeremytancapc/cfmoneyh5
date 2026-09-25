@@ -224,36 +224,63 @@ export async function POST(request: NextRequest) {
   // submit time. Falls back to the token for leads created before axs_ref.
   const axsRef = lead.axs_ref || tokenAxsRef;
 
-  // Idempotency guard. The booking link is valid for 72h and can be reopened
-  // and resubmitted, so a double-tap or a back-button retry would otherwise
-  // insert a second appointment AND re-notify both AirConnect and AXS. Matches
-  // on the exact slot, so a genuine move to a different time still goes
-  // through rather than being silently swallowed.
-  const { data: duplicate } = await admin
+  // One booking per application. The link is valid for 72h and replayable, so
+  // without this a customer can return and book again — each one inserting a
+  // row and re-notifying both AirConnect and AXS. A repeat of the same slot is
+  // treated as a double-tap and answered idempotently; a different slot is a
+  // reschedule attempt, which we have no flow for, so it is refused.
+  const { data: existing } = await admin
     .from("appointments")
-    .select("id")
+    .select("id, appointment_date, appointment_time")
     .eq("lead_id", leadId)
-    .eq("appointment_date", date)
-    .eq("appointment_time", time)
     .eq("status", "confirmed")
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (duplicate?.id) {
-    console.info(`${LOG} duplicate booking ignored — returning existing`, {
+  if (existing?.id) {
+    const sameSlot =
+      String(existing.appointment_date) === date &&
+      String(existing.appointment_time ?? "").slice(0, 5) === time.slice(0, 5);
+
+    // A double-tap on the same slot is not an error — hand back the booking
+    // they already have, without creating a second one or re-notifying.
+    if (sameSlot) {
+      console.info(`${LOG} repeat submit for the same slot — returning existing`, {
+        leadId,
+        appointmentId: existing.id,
+        date,
+        time,
+      });
+      return NextResponse.json({
+        ok: true,
+        appointmentId: existing.id as string,
+        cfh5Id,
+        loanAmount: approvedAmount,
+        date,
+        time,
+      });
+    }
+
+    // A different slot means they are trying to move the appointment. We have
+    // no reschedule flow — AirConnect and AXS have both been told about the
+    // first one — so refuse rather than silently double-book.
+    console.warn(`${LOG} second booking refused — appointment already exists`, {
       leadId,
-      appointmentId: duplicate.id,
-      date,
-      time,
+      appointmentId: existing.id,
+      existingDate: existing.appointment_date,
+      requested: `${date} ${time}`,
     });
-    return NextResponse.json({
-      ok: true,
-      appointmentId: duplicate.id as string,
-      cfh5Id,
-      loanAmount: approvedAmount,
-      date,
-      time,
-    });
+    return NextResponse.json(
+      {
+        error: "This application already has a confirmed appointment.",
+        appointmentId: existing.id as string,
+        cfh5Id,
+        date: String(existing.appointment_date),
+        time: String(existing.appointment_time ?? "").slice(0, 5),
+      },
+      { status: 409 },
+    );
   }
 
   // Create appointment
