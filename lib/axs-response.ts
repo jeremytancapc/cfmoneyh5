@@ -6,6 +6,33 @@
  * that guarantee is worth a test.
  */
 
+/**
+ * Rejections AXS should act on themselves: the applicant is already our
+ * customer, is blacklisted, or is under 18. These are identity facts that will
+ * not change on a second look.
+ *
+ * Income-based declines are deliberately NOT here — those stay "pending" so
+ * AXS still pass the customer on, and income is verified at the appointment.
+ */
+const HARD_REJECT_CODES = new Set([
+  "airconnect_reloan",
+  "airconnect_not_eligible",
+  "under_18",
+]);
+
+/**
+ * The `status` AXS receive: "rejected" means stop, "pending" means proceed to
+ * an appointment (including an approval, which is pending until they book).
+ */
+export function partnerStatus(reason: string | null): "pending" | "rejected" {
+  return reason && HARD_REJECT_CODES.has(reason) ? "rejected" : "pending";
+}
+
+/** True when the applicant must not be given a booking link at all. */
+export function isHardReject(reason: string | null): boolean {
+  return partnerStatus(reason) === "rejected";
+}
+
 /** Money and income are rendered in a partner UI — don't leak raw float precision. */
 export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -42,7 +69,8 @@ export function partnerNotes(
     case "below_min_loan_amount":
       return "Eligible amount is below our minimum loan size.";
     case "airconnect_reloan":
-      return "Existing customer. Proceed to book an appointment.";
+      // Hard reject: AXS stop here, so this must not invite a booking.
+      return "Existing customer. Please contact us directly.";
     default:
       // Covers airconnect_not_eligible and any future code — deliberately vague.
       return "Not eligible at this time.";

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { partnerNotes, round2 } from "./axs-response";
+import { isHardReject, partnerNotes, partnerStatus, round2 } from "./axs-response";
 
 describe("round2", () => {
   it("trims float artefacts from a loan cap", () => {
@@ -36,6 +36,36 @@ describe("round2", () => {
   });
 });
 
+describe("partnerStatus", () => {
+  it("hard-rejects an existing customer, a blacklisted one, and an under-18", () => {
+    expect(partnerStatus("airconnect_reloan")).toBe("rejected");
+    expect(partnerStatus("airconnect_not_eligible")).toBe("rejected");
+    expect(partnerStatus("under_18")).toBe("rejected");
+  });
+
+  it("keeps every income-based decline as pending, since AXS re-check income", () => {
+    for (const r of [
+      "foreigner_income_floor",
+      "zero_cap_income_too_low",
+      "zero_cap_moneylender_os",
+      "below_min_loan_amount",
+    ]) {
+      expect(partnerStatus(r)).toBe("pending");
+    }
+  });
+
+  it("is pending when approved, and for an unknown code", () => {
+    expect(partnerStatus(null)).toBe("pending");
+    expect(partnerStatus("some_future_code")).toBe("pending");
+  });
+
+  it("isHardReject agrees with partnerStatus", () => {
+    for (const r of ["under_18", "foreigner_income_floor", null, "airconnect_reloan"]) {
+      expect(isHardReject(r)).toBe(partnerStatus(r) === "rejected");
+    }
+  });
+});
+
 describe("partnerNotes", () => {
   const ALL_REASONS = [
     "under_18",
@@ -51,6 +81,13 @@ describe("partnerNotes", () => {
 
   it("gives an approved applicant a next step", () => {
     expect(partnerNotes("approved", null)).toMatch(/book an appointment/i);
+  });
+
+  it("does not invite a hard-rejected applicant to book", () => {
+    // They get no bookingUrl, so the copy must not tell them to book.
+    for (const r of ["airconnect_reloan", "airconnect_not_eligible", "under_18"]) {
+      expect(partnerNotes("rejected", r)).not.toMatch(/book an appointment/i);
+    }
   });
 
   it("explains each rejection without naming the mechanism", () => {

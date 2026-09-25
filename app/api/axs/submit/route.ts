@@ -18,7 +18,7 @@ import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
 import { axsApplicationRef } from "@/lib/lead-id";
-import { partnerNotes, round2 } from "@/lib/axs-response";
+import { isHardReject, partnerNotes, partnerStatus, round2 } from "@/lib/axs-response";
 import { logExternalApi } from "@/lib/external-api-logger";
 import type { CpfContribution, NoaRecord } from "@/lib/loan-form";
 
@@ -135,7 +135,12 @@ function determineIdType(nationality?: string): string {
  *
  * Both the eligibility-rejection path and the credit-scored path go through
  * here so they always emit the same keys — AXS parses one shape regardless of
- * outcome. `status` is always "pending"; the real outcome is `decision`.
+ * outcome.
+ *
+ * `status` is the signal AXS act on: "rejected" means stop (already our
+ * customer, blacklisted, or under 18), "pending" means carry on to an
+ * appointment. Income-based declines stay "pending" because income is
+ * re-verified in branch. `decision` still carries our own credit outcome, and
  * `reason` is null when approved.
  *
  * `leadId` carries the customer-facing CFAXS-XXXXXXXX ref, not the raw lead
@@ -143,8 +148,9 @@ function determineIdType(nationality?: string): string {
  * quote one identifier. The UUID stays internal (it travels in the signed
  * booking token).
  *
- * `notes` is derived here rather than passed in, so no internal string can
- * reach the partner by accident — see partnerNotes().
+ * `notes`, `status` and the suppression of `bookingUrl` are all derived here
+ * rather than passed in, so no call site can leak an internal string or hand a
+ * booking link to someone we have hard-rejected.
  */
 interface AxsSubmitResult {
   decision: "approved" | "rejected";
@@ -160,10 +166,14 @@ interface AxsSubmitResult {
 }
 
 function axsSubmitResponse(result: AxsSubmitResult) {
+  const status = partnerStatus(result.reason);
   return NextResponse.json({
-    status: "pending",
+    status,
     ...result,
     notes: partnerNotes(result.decision, result.reason),
+    // A hard-rejected applicant gets no link: AXS stop, and they must not be
+    // able to book by holding on to the URL.
+    bookingUrl: isHardReject(result.reason) ? null : result.bookingUrl,
     approvedLoanAmount: round2(result.approvedLoanAmount),
     maxEligibleLoan: round2(result.maxEligibleLoan),
     verifiedMonthlyIncome: round2(result.verifiedMonthlyIncome),

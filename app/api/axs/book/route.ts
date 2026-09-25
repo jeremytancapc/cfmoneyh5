@@ -224,6 +224,38 @@ export async function POST(request: NextRequest) {
   // submit time. Falls back to the token for leads created before axs_ref.
   const axsRef = lead.axs_ref || tokenAxsRef;
 
+  // Idempotency guard. The booking link is valid for 72h and can be reopened
+  // and resubmitted, so a double-tap or a back-button retry would otherwise
+  // insert a second appointment AND re-notify both AirConnect and AXS. Matches
+  // on the exact slot, so a genuine move to a different time still goes
+  // through rather than being silently swallowed.
+  const { data: duplicate } = await admin
+    .from("appointments")
+    .select("id")
+    .eq("lead_id", leadId)
+    .eq("appointment_date", date)
+    .eq("appointment_time", time)
+    .eq("status", "confirmed")
+    .limit(1)
+    .maybeSingle();
+
+  if (duplicate?.id) {
+    console.info(`${LOG} duplicate booking ignored — returning existing`, {
+      leadId,
+      appointmentId: duplicate.id,
+      date,
+      time,
+    });
+    return NextResponse.json({
+      ok: true,
+      appointmentId: duplicate.id as string,
+      cfh5Id,
+      loanAmount: approvedAmount,
+      date,
+      time,
+    });
+  }
+
   // Create appointment
   const { data: appointment, error: apptError } = await admin
     .from("appointments")
