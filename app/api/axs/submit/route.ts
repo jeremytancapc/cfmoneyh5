@@ -221,6 +221,9 @@ export async function POST(request: NextRequest) {
     .from("leads")
     .insert({
       auth_method: "axs",
+      // Null rather than "" when AXS omit their reference, so the gap is
+      // visible in a query instead of looking like a blank string.
+      axs_ref: axsRef || null,
       full_name: fullName || null,
       nric: nric || null,
       mobile: mobile || null,

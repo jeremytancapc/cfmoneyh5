@@ -199,18 +199,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid or expired booking link" }, { status: 401 });
   }
 
-  const { leadId, axsRef, approvedAmount } = payload;
+  const { leadId, axsRef: tokenAxsRef, approvedAmount } = payload;
   // Customer-facing ref — CFAXS-, matching what /api/axs/submit returned.
   const cfh5Id = axsApplicationRef(leadId);
 
-  console.info(`${LOG} POST`, { leadId, axsRef, cfh5Id, date, time });
+  console.info(`${LOG} POST`, { leadId, axsRef: tokenAxsRef, cfh5Id, date, time });
 
   const admin = createAdminClient();
 
   // Fetch lead details
   const { data: lead } = await admin
     .from("leads")
-    .select("full_name, mobile, nric")
+    .select("full_name, mobile, nric, axs_ref")
     .eq("id", leadId)
     .single();
 
@@ -218,6 +218,11 @@ export async function POST(request: NextRequest) {
     console.error(`${LOG} lead not found`, { leadId });
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
   }
+
+  // Prefer our own record over the token. The stored value is the one we can
+  // audit and reconcile against; the token only carries what was in flight at
+  // submit time. Falls back to the token for leads created before axs_ref.
+  const axsRef = lead.axs_ref || tokenAxsRef;
 
   // Create appointment
   const { data: appointment, error: apptError } = await admin
