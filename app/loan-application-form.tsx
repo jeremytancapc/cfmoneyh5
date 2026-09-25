@@ -846,7 +846,9 @@ export function Step4_Identity({
           label="NRIC / FIN Number"
           placeholder="e.g. S1234567D"
           value={formData.nric}
-          onChange={(v) => updateField("nric", v.toUpperCase())}
+          // Trim on entry: the validator below tests v.trim() but the stored
+          // value was raw, which is how padded NRICs reached the database.
+          onChange={(v) => updateField("nric", v.trim().toUpperCase())}
           helper="Your NRIC is encrypted and never shared with third parties."
           validate={(v) =>
             /^[STFGM]\d{7}[A-Z]$/i.test(v.trim())
