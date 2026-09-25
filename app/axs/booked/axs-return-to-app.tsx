@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { ArrowRight } from "@phosphor-icons/react";
 
 const BTN_CLASS =
@@ -11,14 +11,45 @@ const BTN_CLASS =
 const SCROLL_REVEAL_THRESHOLD = 80;
 
 /**
- * Renders an in-flow anchor button at the bottom of the page.
- * A fixed floating copy appears only after the user has scrolled at least
- * SCROLL_REVEAL_THRESHOLD px, and disappears once the anchor itself is visible.
+ * Where AXS customers are sent once their appointment is confirmed.
+ *
+ * NEXT_PUBLIC_* is inlined at build time, so changing this in Vercel needs a
+ * redeploy to take effect — it is not read at runtime. Referenced as a full
+ * static expression because Next.js does not inline dynamic lookups.
  */
-export function AxsBackButton() {
+const AXS_APP_URL =
+  process.env.NEXT_PUBLIC_AXS_APP_URL || "https://app.axs.com.sg/mStation/capc";
+
+/** Seconds the confirmation stays on screen before we send them back. */
+const REDIRECT_SECONDS = 5;
+
+/**
+ * Closes the AXS journey: counts down, then returns the customer to the AXS
+ * app. The button is the manual fallback — an automatic navigation can be
+ * blocked (in-app webviews are the usual culprit), so it must always be
+ * reachable rather than only appearing once the timer has run out.
+ */
+export function AxsReturnToApp() {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [anchorVisible, setAnchorVisible] = useState(false);
   const [scrolledPast, setScrolledPast] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(REDIRECT_SECONDS);
+
+  // Navigation only — deliberately sets no state, so the countdown effect below
+  // stays free of setState (react-hooks/set-state-in-effect).
+  const goToAxs = useCallback(() => {
+    window.location.assign(AXS_APP_URL);
+  }, []);
+
+  // Countdown, then hand off. Tapping the button just gets there sooner.
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      goToAxs();
+      return;
+    }
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft, goToAxs]);
 
   // Watch anchor visibility via IntersectionObserver
   useEffect(() => {
@@ -45,13 +76,25 @@ export function AxsBackButton() {
 
   const showFloating = scrolledPast && !anchorVisible;
 
+  const notice =
+    secondsLeft <= 0
+      ? "Taking you back to the AXS app. If nothing happens, tap the button below."
+      : `Returning you to the AXS app in ${secondsLeft} second${secondsLeft === 1 ? "" : "s"}.`;
+
   return (
     <>
+      <p
+        aria-live="polite"
+        className="text-center text-xs text-[var(--text-secondary)]"
+      >
+        {notice}
+      </p>
+
       {/* In-flow anchor — becomes the button when user reaches the bottom */}
       <button
         ref={anchorRef}
         type="button"
-        onClick={() => window.history.back()}
+        onClick={goToAxs}
         className={BTN_CLASS}
       >
         Continue to AXS App
@@ -65,11 +108,7 @@ export function AxsBackButton() {
           style={{ animation: "fade-up 0.3s cubic-bezier(0.16,1,0.3,1) both" }}
         >
           <div className="mx-auto max-w-[480px] px-5 py-4">
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              className={BTN_CLASS}
-            >
+            <button type="button" onClick={goToAxs} className={BTN_CLASS}>
               Continue to AXS App
               <ArrowRight size={15} weight="bold" />
             </button>

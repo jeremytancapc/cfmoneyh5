@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { BookingConfirmedView } from "@/app/booking-confirmed-view";
-import { AxsBackButton } from "./axs-back-button";
+import { AxsReturnToApp } from "./axs-return-to-app";
 
 export const metadata: Metadata = {
   title: "Appointment Confirmed — CF Money",
@@ -31,7 +31,7 @@ export default async function AxsBookedPage({ searchParams }: Props) {
           idType: "singaporean",
         }}
       />
-      <AxsBackButton />
+      <AxsReturnToApp />
     </div>
   );
 }

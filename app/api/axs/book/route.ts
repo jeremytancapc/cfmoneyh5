@@ -100,16 +100,22 @@ async function notifyAirConnect(payload: {
   }
 }
 
+/**
+ * Notifies AXS that a customer has booked, in the format AXS specified.
+ *
+ * Deliberately carries no customer name or phone number — AXS already holds
+ * the applicant's details, and their schema has no field for them, so there is
+ * no reason to send personal data across this boundary.
+ *
+ * `loan_reference_no` is always null: the loan does not exist yet at booking
+ * time, it is only created once the customer is served at the branch.
+ */
 async function notifyBookingWebhook(payload: {
   axsRef: string;
   leadId: string;
-  cfh5Id: string;
-  appointmentId: string;
-  customerName: string;
-  phoneNumber: string;
+  applicationRef: string;
   appointmentDate: string;
   appointmentTime: string;
-  approvedAmount: number;
   bookingLink: string;
 }) {
   const url = process.env.AXS_BOOKING_WEBHOOK_URL;
@@ -120,16 +126,35 @@ async function notifyBookingWebhook(payload: {
   }
 
   const requestBody = {
-    event: "appointment_booked",
-    ...payload,
-    bookedAt: new Date().toISOString(),
+    loan_reference_no: null,
+    reference_id: payload.axsRef,
+    booking_date: payload.appointmentDate,
+    // AXS expect HH:MM:SS; our booking UI posts HH:MM.
+    booking_time: /^\d{2}:\d{2}$/.test(payload.appointmentTime)
+      ? `${payload.appointmentTime}:00`
+      : payload.appointmentTime,
+    booking_url: payload.bookingLink,
+    status: "booked",
+    metadata: {
+      booking_id: payload.applicationRef,
+    },
   };
+
+  const apiKey = process.env.AXS_BOOKING_WEBHOOK_API_KEY;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(apiKey ? { "x-api-key": apiKey } : {}),
+  };
+
+  if (!apiKey) {
+    console.warn(`${LOG} AXS_BOOKING_WEBHOOK_API_KEY not set — sending webhook unauthenticated`);
+  }
 
   try {
     const started = Date.now();
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(15_000),
     });
@@ -141,7 +166,8 @@ async function notifyBookingWebhook(payload: {
       tag: "[axs/book:webhook]",
       url,
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Key redacted — logExternalApi writes to api_logs, which we read in chat.
+      headers: { ...headers, ...(apiKey ? { "x-api-key": "***" } : {}) },
       body: requestBody,
       status: res.status,
       ok: res.ok,
@@ -227,17 +253,13 @@ export async function POST(request: NextRequest) {
     axsRef,
   });
 
-  // Notify custom booking webhook (no-op until AXS_BOOKING_WEBHOOK_URL is set)
+  // Notify AXS of the booking (no-op until AXS_BOOKING_WEBHOOK_URL is set)
   await notifyBookingWebhook({
     axsRef,
     leadId,
-    cfh5Id,
-    appointmentId: appointment.id as string,
-    customerName: lead.full_name ?? "",
-    phoneNumber: lead.mobile ?? "",
+    applicationRef: cfh5Id, // CFAXS-XXXXXXXX — goes out as metadata.booking_id
     appointmentDate: date,
     appointmentTime: time,
-    approvedAmount,
     bookingLink: `${process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com"}/axs/book?token=${token}`,
   });
 
