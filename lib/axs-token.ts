@@ -3,12 +3,21 @@
  * Used to generate secure one-time booking links for AXS customers.
  *
  * Token format: base64url(JSON payload) + "." + base64url(HMAC-SHA256 signature)
- * Payload: { leadId, axsRef, exp }
+ * Payload: { leadId, axsRef, approvedAmount, tenure }
+ *
+ * Booking links do not expire. Customers were losing their link before they
+ * got round to booking, with no way to recover it — the page just bounced them
+ * to /axs with no explanation. What now bounds reuse is the one-booking-per-
+ * application rule in /api/axs/book: once an appointment exists, the link
+ * redirects to the confirmation and a second booking is refused.
+ *
+ * The trade-off is that the link is a permanent bearer credential, so anyone
+ * who obtains the URL can book with it, and the approved amount it carries
+ * never goes stale on its own. `exp` is still honoured when present so tokens
+ * minted before this change keep their original lifetime.
  */
 
 import { createHmac } from "crypto";
-
-const TOKEN_EXPIRY_HOURS = 72;
 
 function getSecret(): string {
   const secret = process.env.AXS_TOKEN_SECRET;
@@ -40,7 +49,8 @@ export interface AxsTokenPayload {
   axsRef: string;
   approvedAmount: number;
   tenure: number;
-  exp: number; // Unix timestamp
+  /** Only present on tokens minted before booking links became permanent. */
+  exp?: number;
 }
 
 /**
@@ -48,10 +58,8 @@ export interface AxsTokenPayload {
  */
 export function createAxsToken(data: Omit<AxsTokenPayload, "exp">): string {
   const secret = getSecret();
-  const payload: AxsTokenPayload = {
-    ...data,
-    exp: Math.floor(Date.now() / 1000) + TOKEN_EXPIRY_HOURS * 3600,
-  };
+  // No exp — see the note at the top of this file.
+  const payload: AxsTokenPayload = { ...data };
   const encoded = base64UrlEncode(JSON.stringify(payload));
   const signature = sign(encoded, secret);
   return `${encoded}.${signature}`;
@@ -72,8 +80,11 @@ export function verifyAxsToken(token: string): AxsTokenPayload | null {
 
     const payload = JSON.parse(base64UrlDecode(encoded)) as AxsTokenPayload;
 
-    // Check expiry
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    // Legacy tokens carry an expiry; new ones do not. Still enforced when
+    // present so a link already issued with a lifetime keeps it.
+    if (payload.exp !== undefined && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
 
     return payload;
   } catch {
