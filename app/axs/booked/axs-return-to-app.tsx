@@ -20,8 +20,24 @@ const SCROLL_REVEAL_THRESHOLD = 80;
 const AXS_APP_URL =
   process.env.NEXT_PUBLIC_AXS_APP_URL || "https://app.axs.com.sg/mStation/capc";
 
-/** Seconds the confirmation stays on screen before we send them back. */
-const REDIRECT_SECONDS = 5;
+/**
+ * Seconds the confirmation stays on screen before we send them back.
+ *
+ * Long enough to actually read this page — it carries the appointment time,
+ * the things-to-bring checklist and the office address, none of which a
+ * customer can take in before being pulled away.
+ */
+const REDIRECT_SECONDS = 180;
+
+/** "2:59" once we are past a minute, plain seconds below it. */
+function formatCountdown(total: number): string {
+  if (total >= 60) {
+    const minutes = Math.floor(total / 60);
+    const seconds = total % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${total} second${total === 1 ? "" : "s"}`;
+}
 
 /**
  * Closes the AXS journey: counts down, then returns the customer to the AXS
@@ -79,7 +95,7 @@ export function AxsReturnToApp() {
   const notice =
     secondsLeft <= 0
       ? "Taking you back to the AXS app. If nothing happens, tap the button below."
-      : `Returning you to the AXS app in ${secondsLeft} second${secondsLeft === 1 ? "" : "s"}.`;
+      : `Returning you to the AXS app in ${formatCountdown(secondsLeft)}.`;
 
   return (
     <>
