@@ -20,6 +20,7 @@ import {
 } from "@/lib/approval-offer";
 import { bookingConfirmCookieValue } from "@/lib/booking-confirmation";
 import { createAdminClient } from "@/lib/supabase/client";
+import { buildCreditLimitFields, type CreditLimitFields } from "@/lib/airconnect-credit-limit";
 import { logExternalApi } from "@/lib/external-api-logger";
 
 export const runtime = "nodejs";
@@ -44,6 +45,8 @@ async function notifyAirConnect(payload: {
   leadId: string;
   loanAmount: number;
   idNumber?: string;
+  /** V1's own credit limit, omitted entirely when we produced none. */
+  creditLimit?: CreditLimitFields | null;
 }) {
   const apiKey = process.env.AIRCONNECT_API_KEY;
   const url = process.env.AIRCONNECT_APPOINTMENTS_URL;
@@ -79,6 +82,8 @@ async function notifyAirConnect(payload: {
       leadId: payload.leadId,
       loanAmount: payload.loanAmount,
       ...(payload.idNumber ? { idNumber: payload.idNumber } : {}),
+      // Spread or nothing — a partial set would misreport the limit.
+      ...(payload.creditLimit ?? {}),
     };
 
     const started = Date.now();
@@ -187,6 +192,14 @@ export async function POST(request: NextRequest) {
     .eq("id", leadId)
     .single();
 
+  // The limit V1 generated, reported to AirConnect alongside the booking.
+  // Null for a decline or an unscored lead, in which case no field is sent.
+  const { data: assessment } = await admin
+    .from("credit_assessments")
+    .select("approved_loan_amount, created_at")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+
   // Update the lead status to "appointed"
   const { error: leadUpdateError } = await admin
     .from("leads")
@@ -218,6 +231,12 @@ export async function POST(request: NextRequest) {
     leadId,
     loanAmount,
     ...(idNumber ? { idNumber } : {}),
+    creditLimit: buildCreditLimitFields({
+      approvedLoanAmount: assessment?.approved_loan_amount,
+      decidedAt: assessment?.created_at,
+      // Matches the cfh5Id already in this payload, so AirConnect sees one ref.
+      applicationRef: cfh5Id,
+    }),
   });
 
   const res = NextResponse.json({

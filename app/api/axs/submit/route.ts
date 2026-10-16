@@ -14,9 +14,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/client";
 import { checkLeadEligibility } from "@/lib/eligibility-check";
-import { assessCredit } from "@/lib/credit-score";
+import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
+import { axsApplicationRef } from "@/lib/lead-id";
+import { isHardReject, partnerNotes, partnerStatus, round2 } from "@/lib/axs-response";
 import { logExternalApi } from "@/lib/external-api-logger";
 import type { CpfContribution, NoaRecord } from "@/lib/loan-form";
 
@@ -128,6 +130,56 @@ function determineIdType(nationality?: string): string {
   return "foreigner";
 }
 
+/**
+ * The single response contract returned to AXS.
+ *
+ * Both the eligibility-rejection path and the credit-scored path go through
+ * here so they always emit the same keys — AXS parses one shape regardless of
+ * outcome.
+ *
+ * `status` is the signal AXS act on: "rejected" means stop (already our
+ * customer, blacklisted, or under 18), "pending" means carry on to an
+ * appointment. Income-based declines stay "pending" because income is
+ * re-verified in branch. `decision` still carries our own credit outcome, and
+ * `reason` is null when approved.
+ *
+ * `leadId` carries the customer-facing CFAXS-XXXXXXXX ref, not the raw lead
+ * UUID — it is the same string the booking UI shows, so AXS and the customer
+ * quote one identifier. The UUID stays internal (it travels in the signed
+ * booking token).
+ *
+ * `notes`, `status` and the suppression of `bookingUrl` are all derived here
+ * rather than passed in, so no call site can leak an internal string or hand a
+ * booking link to someone we have hard-rejected.
+ */
+interface AxsSubmitResult {
+  decision: "approved" | "rejected";
+  reason: string | null;
+  approvedLoanAmount: number;
+  maxEligibleLoan: number;
+  tenure: number;
+  verifiedMonthlyIncome: number;
+  incomeSource: IncomeSource;
+  bookingUrl: string;
+  leadId: string;
+  axsRef: string;
+}
+
+function axsSubmitResponse(result: AxsSubmitResult) {
+  const status = partnerStatus(result.reason);
+  return NextResponse.json({
+    status,
+    ...result,
+    notes: partnerNotes(result.decision, result.reason),
+    // A hard-rejected applicant gets no link: AXS stop, and they must not be
+    // able to book by holding on to the URL.
+    bookingUrl: isHardReject(result.reason) ? null : result.bookingUrl,
+    approvedLoanAmount: round2(result.approvedLoanAmount),
+    maxEligibleLoan: round2(result.maxEligibleLoan),
+    verifiedMonthlyIncome: round2(result.verifiedMonthlyIncome),
+  });
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -179,6 +231,9 @@ export async function POST(request: NextRequest) {
     .from("leads")
     .insert({
       auth_method: "axs",
+      // Null rather than "" when AXS omit their reference, so the gap is
+      // visible in a query instead of looking like a blank string.
+      axs_ref: axsRef || null,
       full_name: fullName || null,
       nric: nric || null,
       mobile: mobile || null,
@@ -200,7 +255,9 @@ export async function POST(request: NextRequest) {
   }
 
   const leadId = lead.id as string;
-  console.info(`${LOG} lead created`, { leadId, axsRef });
+  // Customer-facing ref returned to AXS and shown in the booking UI.
+  const applicationRef = axsApplicationRef(leadId);
+  console.info(`${LOG} lead created`, { leadId, applicationRef, axsRef });
 
   // 4. Save MyInfo profile
   const cpfContributions = extractCpfContributions(myinfo.cpfcontributions);
@@ -269,16 +326,18 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
     const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
 
-    return NextResponse.json({
-      status: "pending",
+    return axsSubmitResponse({
       decision: "rejected",
       reason: creditRejectionReason,
-      notes: eligibility.notes,
-      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+      // Rejected here, so nothing is approved — matches the 0 persisted above.
+      approvedLoanAmount: 0,
       maxEligibleLoan: assessment.maxEligibleLoan,
-      leadId,
-      axsRef,
+      tenure: requestedTenure,
+      verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
+      incomeSource: assessment.incomeSource,
       bookingUrl,
+      leadId: applicationRef,
+      axsRef,
     });
   }
 
@@ -344,18 +403,16 @@ export async function POST(request: NextRequest) {
     requestedTenure,
   });
 
-  return NextResponse.json({
-    status: "pending",
+  return axsSubmitResponse({
     decision,
     reason: creditRejectionReason ?? null,
-    notes: assessment.explanation,
     approvedLoanAmount: approvedAmount,
     maxEligibleLoan: assessment.maxEligibleLoan,
     tenure: requestedTenure,
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
     bookingUrl,
-    leadId,
+    leadId: applicationRef,
     axsRef,
   });
 }

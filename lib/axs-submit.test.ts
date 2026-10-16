@@ -4,6 +4,7 @@
  * and response format validation.
  */
 
+import { createHmac } from "crypto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createAxsToken, verifyAxsToken } from "./axs-token";
 import { assessCredit } from "./credit-score";
@@ -36,7 +37,8 @@ describe("AXS Token", () => {
     expect(payload!.axsRef).toBe("AXS25072100001");
     expect(payload!.approvedAmount).toBe(20000);
     expect(payload!.tenure).toBe(24);
-    expect(payload!.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
+    // Booking links are permanent — no expiry is stamped any more.
+    expect(payload!.exp).toBeUndefined();
   });
 
   it("rejects a tampered token", () => {
@@ -54,8 +56,7 @@ describe("AXS Token", () => {
     expect(verifyAxsToken(tampered)).toBeNull();
   });
 
-  it("rejects an expired token", () => {
-    // Manually create a token with past expiry
+  it("still accepts a token years later — links no longer expire", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2020-01-01"));
 
@@ -66,12 +67,35 @@ describe("AXS Token", () => {
       tenure: 6,
     });
 
-    // Move time forward past 72h
-    vi.setSystemTime(new Date("2020-01-05"));
+    // Far past the old 72h window.
+    vi.setSystemTime(new Date("2024-06-01"));
 
-    expect(verifyAxsToken(token)).toBeNull();
+    const payload = verifyAxsToken(token);
+    expect(payload).not.toBeNull();
+    expect(payload!.leadId).toBe("old-lead");
 
     vi.useRealTimers();
+  });
+
+  it("still rejects a legacy token whose exp has passed", () => {
+    // Tokens minted before links became permanent carry an exp, and it is
+    // still honoured — an already-lapsed link must not spring back to life.
+    const secret = "test-secret-at-least-16-chars-long";
+    const body = JSON.stringify({
+      leadId: "legacy-lead",
+      axsRef: "AXS-LEGACY",
+      approvedAmount: 3000,
+      tenure: 24,
+      exp: Math.floor(Date.now() / 1000) - 3600,
+    });
+    const enc = Buffer.from(body, "utf-8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    const sig = createHmac("sha256", secret).update(enc).digest("base64url");
+
+    expect(verifyAxsToken(`${enc}.${sig}`)).toBeNull();
   });
 
   it("rejects empty/invalid strings", () => {

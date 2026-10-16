@@ -35,7 +35,29 @@ export function AxsBookingView({ leadId, axsRef, approvedAmount, tenure, token }
     console.info(`${LOG} response`, { status: res.status, ok: res.ok });
 
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        cfh5Id?: string;
+        date?: string;
+        time?: string;
+      };
+
+      // 409 means this application is already booked. "Try again" would send
+      // them round the same loop forever, so show the booking they have.
+      if (res.status === 409 && body.date && body.time && body.cfh5Id) {
+        console.info(`${LOG} already booked — redirecting to existing confirmation`, {
+          date: body.date,
+          time: body.time,
+        });
+        const existing = new URLSearchParams({
+          date: body.date,
+          time: body.time,
+          ref: body.cfh5Id,
+        });
+        router.replace(`/axs/booked?${existing.toString()}`);
+        return null;
+      }
+
       console.error(`${LOG} book failed`, { status: res.status, error: body.error });
       alert("We couldn't confirm your appointment. Please try again.");
       return null;

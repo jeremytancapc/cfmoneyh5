@@ -11,16 +11,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/client";
 import { verifyAxsToken } from "@/lib/axs-token";
 import { logExternalApi } from "@/lib/external-api-logger";
+import { axsApplicationRef, cfh5ApplicationRef } from "@/lib/lead-id";
+import { buildCreditLimitFields, type CreditLimitFields } from "@/lib/airconnect-credit-limit";
 
 export const runtime = "nodejs";
 
 const LOG = "[axs/book]";
 
 type Body = { date: string; time: string; token: string };
-
-function cfh5ApplicationRef(leadId: string): string {
-  return `CFH5-${leadId.replace(/-/g, "").slice(-8).toUpperCase()}`;
-}
 
 async function notifyAirConnect(payload: {
   customerName: string;
@@ -31,6 +29,8 @@ async function notifyAirConnect(payload: {
   loanAmount: number;
   idNumber?: string;
   axsRef?: string;
+  /** V1's own credit limit, omitted entirely when we produced none. */
+  creditLimit?: CreditLimitFields | null;
 }) {
   const apiKey = process.env.AIRCONNECT_API_KEY;
   const url = process.env.AIRCONNECT_APPOINTMENTS_URL;
@@ -40,6 +40,10 @@ async function notifyAirConnect(payload: {
     return;
   }
 
+  // AirConnect has keyed on the CFH5- form since before AXS existed, so this
+  // payload deliberately keeps that prefix while everything customer-facing
+  // moved to CFAXS-. The 8-char suffix is identical either way, so a search on
+  // the suffix still finds the same lead in both systems.
   const cfh5Id = cfh5ApplicationRef(payload.leadId);
 
   try {
@@ -65,6 +69,8 @@ async function notifyAirConnect(payload: {
       source: "axs",
       ...(payload.idNumber ? { idNumber: payload.idNumber } : {}),
       ...(payload.axsRef ? { axsRef: payload.axsRef } : {}),
+      // Spread or nothing — a partial set would misreport the limit.
+      ...(payload.creditLimit ?? {}),
     };
 
     const started = Date.now();
@@ -99,6 +105,90 @@ async function notifyAirConnect(payload: {
   }
 }
 
+/**
+ * Notifies AXS that a customer has booked, in the format AXS specified.
+ *
+ * Deliberately carries no customer name or phone number — AXS already holds
+ * the applicant's details, and their schema has no field for them, so there is
+ * no reason to send personal data across this boundary.
+ *
+ * `loan_reference_no` is always null: the loan does not exist yet at booking
+ * time, it is only created once the customer is served at the branch.
+ */
+async function notifyBookingWebhook(payload: {
+  axsRef: string;
+  leadId: string;
+  applicationRef: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  bookingLink: string;
+}) {
+  const url = process.env.AXS_BOOKING_WEBHOOK_URL;
+
+  if (!url) {
+    console.warn(`${LOG} AXS_BOOKING_WEBHOOK_URL not configured — skipping booking webhook`);
+    return;
+  }
+
+  const requestBody = {
+    loan_reference_no: null,
+    reference_id: payload.axsRef,
+    booking_date: payload.appointmentDate,
+    // AXS expect HH:MM:SS; our booking UI posts HH:MM.
+    booking_time: /^\d{2}:\d{2}$/.test(payload.appointmentTime)
+      ? `${payload.appointmentTime}:00`
+      : payload.appointmentTime,
+    booking_url: payload.bookingLink,
+    status: "booked",
+    metadata: {
+      booking_id: payload.applicationRef,
+    },
+  };
+
+  const apiKey = process.env.AXS_BOOKING_WEBHOOK_API_KEY;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(apiKey ? { "x-api-key": apiKey } : {}),
+  };
+
+  if (!apiKey) {
+    console.warn(`${LOG} AXS_BOOKING_WEBHOOK_API_KEY not set — sending webhook unauthenticated`);
+  }
+
+  try {
+    const started = Date.now();
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    const ms = Date.now() - started;
+    const responseBody = !res.ok ? await res.text() : undefined;
+
+    logExternalApi({
+      tag: "[axs/book:webhook]",
+      url,
+      method: "POST",
+      // Key redacted — logExternalApi writes to api_logs, which we read in chat.
+      headers: { ...headers, ...(apiKey ? { "x-api-key": "***" } : {}) },
+      body: requestBody,
+      status: res.status,
+      ok: res.ok,
+      ms,
+      responseBody,
+      leadId: payload.leadId,
+    });
+
+    if (!res.ok) {
+      console.error(`${LOG} booking webhook failed`, { status: res.status, ms });
+    }
+  } catch (err) {
+    console.error(`${LOG} booking webhook error`, err);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Partial<Body>;
   const { date, time, token } = body;
@@ -114,23 +204,88 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid or expired booking link" }, { status: 401 });
   }
 
-  const { leadId, axsRef, approvedAmount } = payload;
-  const cfh5Id = cfh5ApplicationRef(leadId);
+  const { leadId, axsRef: tokenAxsRef, approvedAmount } = payload;
+  // Customer-facing ref — CFAXS-, matching what /api/axs/submit returned.
+  const cfh5Id = axsApplicationRef(leadId);
 
-  console.info(`${LOG} POST`, { leadId, axsRef, cfh5Id, date, time });
+  console.info(`${LOG} POST`, { leadId, axsRef: tokenAxsRef, cfh5Id, date, time });
 
   const admin = createAdminClient();
 
   // Fetch lead details
   const { data: lead } = await admin
     .from("leads")
-    .select("full_name, mobile, nric")
+    .select("full_name, mobile, nric, axs_ref")
     .eq("id", leadId)
     .single();
 
   if (!lead) {
     console.error(`${LOG} lead not found`, { leadId });
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+
+  // Prefer our own record over the token. The stored value is the one we can
+  // audit and reconcile against; the token only carries what was in flight at
+  // submit time. Falls back to the token for leads created before axs_ref.
+  const axsRef = lead.axs_ref || tokenAxsRef;
+
+  // One booking per application. The link is valid for 72h and replayable, so
+  // without this a customer can return and book again — each one inserting a
+  // row and re-notifying both AirConnect and AXS. A repeat of the same slot is
+  // treated as a double-tap and answered idempotently; a different slot is a
+  // reschedule attempt, which we have no flow for, so it is refused.
+  const { data: existing } = await admin
+    .from("appointments")
+    .select("id, appointment_date, appointment_time")
+    .eq("lead_id", leadId)
+    .eq("status", "confirmed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const sameSlot =
+      String(existing.appointment_date) === date &&
+      String(existing.appointment_time ?? "").slice(0, 5) === time.slice(0, 5);
+
+    // A double-tap on the same slot is not an error — hand back the booking
+    // they already have, without creating a second one or re-notifying.
+    if (sameSlot) {
+      console.info(`${LOG} repeat submit for the same slot — returning existing`, {
+        leadId,
+        appointmentId: existing.id,
+        date,
+        time,
+      });
+      return NextResponse.json({
+        ok: true,
+        appointmentId: existing.id as string,
+        cfh5Id,
+        loanAmount: approvedAmount,
+        date,
+        time,
+      });
+    }
+
+    // A different slot means they are trying to move the appointment. We have
+    // no reschedule flow — AirConnect and AXS have both been told about the
+    // first one — so refuse rather than silently double-book.
+    console.warn(`${LOG} second booking refused — appointment already exists`, {
+      leadId,
+      appointmentId: existing.id,
+      existingDate: existing.appointment_date,
+      requested: `${date} ${time}`,
+    });
+    return NextResponse.json(
+      {
+        error: "This application already has a confirmed appointment.",
+        appointmentId: existing.id as string,
+        cfh5Id,
+        date: String(existing.appointment_date),
+        time: String(existing.appointment_time ?? "").slice(0, 5),
+      },
+      { status: 409 },
+    );
   }
 
   // Create appointment
@@ -155,6 +310,15 @@ export async function POST(request: NextRequest) {
 
   console.info(`${LOG} appointment saved`, { appointmentId: appointment.id, cfh5Id, date, time });
 
+  // The limit V1 generated. Read from our own record rather than the token:
+  // the token carries what was approved at submit, the assessment is what we
+  // can audit. Null for a decline, in which case no field is sent.
+  const { data: assessment } = await admin
+    .from("credit_assessments")
+    .select("approved_loan_amount, created_at")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+
   // Notify AirConnect
   await notifyAirConnect({
     customerName: lead.full_name ?? "",
@@ -165,6 +329,23 @@ export async function POST(request: NextRequest) {
     loanAmount: approvedAmount,
     idNumber: lead.nric ?? undefined,
     axsRef,
+    creditLimit: buildCreditLimitFields({
+      approvedLoanAmount: assessment?.approved_loan_amount,
+      decidedAt: assessment?.created_at,
+      // CFH5- form, matching the cfh5Id this payload already carries, so
+      // AirConnect sees one consistent reference for the lead.
+      applicationRef: cfh5ApplicationRef(leadId),
+    }),
+  });
+
+  // Notify AXS of the booking (no-op until AXS_BOOKING_WEBHOOK_URL is set)
+  await notifyBookingWebhook({
+    axsRef,
+    leadId,
+    applicationRef: cfh5Id, // CFAXS-XXXXXXXX — goes out as metadata.booking_id
+    appointmentDate: date,
+    appointmentTime: time,
+    bookingLink: `${process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com"}/axs/book?token=${token}`,
   });
 
   return NextResponse.json({

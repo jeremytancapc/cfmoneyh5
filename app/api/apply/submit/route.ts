@@ -59,6 +59,11 @@ export async function POST(request: NextRequest) {
   const sessionData = rawSession ? (decodeSession(rawSession) ?? {}) : {};
   // Body takes precedence over cookie so fresh data is always used.
   const formData = { ...initialLoanFormData, ...sessionData, ...bodyData };
+  // Normalise once. The manual form stores whatever was typed — its validator
+  // tests v.trim() but saves the untrimmed value, which is why 9 production
+  // rows carry a trailing space. A padded NRIC also fails to match in the
+  // eligibility check below, so trim before it is stored or sent anywhere.
+  const nric = (formData.nric || "").trim().toUpperCase();
   // SPA manual path: client JSON often omits or sends authMethod "" while the
   // cookie was set at the Singpass gate — don't let the body wipe it.
   const sessionAuth = sessionData.authMethod;
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
     auth_method: (formData.authMethod || null) as "manual" | "singpass" | null,
     id_type: (formData.idType || null) as "singaporean" | "pr" | "foreigner" | null,
     full_name: formData.fullName || null,
-    nric: formData.nric || null,
+    nric: nric || null,
     email: formData.email || null,
     mobile: formData.mobile || null,
     secondary_mobile: formData.secondaryMobile || null,
@@ -183,7 +188,12 @@ export async function POST(request: NextRequest) {
     : "";
   const eligibility = await checkLeadEligibility({
     phoneNumber: e164Phone,
-    idNumber: formData.authMethod === "singpass" && formData.nric ? formData.nric : undefined,
+    // Send the NRIC whatever the channel. Screening on phone alone let a
+    // manual applicant past the check that produced 50 of 64 blocks in
+    // production, so a returning blacklisted customer only had to change
+    // phone number. Self-typed NRICs are unverified, so a typo can raise a
+    // false match — a recoverable wrong block, unlike a missed one.
+    idNumber: nric || undefined,
     leadId,
   });
 
