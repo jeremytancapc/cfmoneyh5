@@ -12,6 +12,7 @@ import { createAdminClient } from "@/lib/supabase/client";
 import { verifyAxsToken } from "@/lib/axs-token";
 import { logExternalApi } from "@/lib/external-api-logger";
 import { axsApplicationRef, cfh5ApplicationRef } from "@/lib/lead-id";
+import { buildCreditLimitFields, type CreditLimitFields } from "@/lib/airconnect-credit-limit";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,8 @@ async function notifyAirConnect(payload: {
   loanAmount: number;
   idNumber?: string;
   axsRef?: string;
+  /** V1's own credit limit, omitted entirely when we produced none. */
+  creditLimit?: CreditLimitFields | null;
 }) {
   const apiKey = process.env.AIRCONNECT_API_KEY;
   const url = process.env.AIRCONNECT_APPOINTMENTS_URL;
@@ -66,6 +69,8 @@ async function notifyAirConnect(payload: {
       source: "axs",
       ...(payload.idNumber ? { idNumber: payload.idNumber } : {}),
       ...(payload.axsRef ? { axsRef: payload.axsRef } : {}),
+      // Spread or nothing — a partial set would misreport the limit.
+      ...(payload.creditLimit ?? {}),
     };
 
     const started = Date.now();
@@ -305,6 +310,15 @@ export async function POST(request: NextRequest) {
 
   console.info(`${LOG} appointment saved`, { appointmentId: appointment.id, cfh5Id, date, time });
 
+  // The limit V1 generated. Read from our own record rather than the token:
+  // the token carries what was approved at submit, the assessment is what we
+  // can audit. Null for a decline, in which case no field is sent.
+  const { data: assessment } = await admin
+    .from("credit_assessments")
+    .select("approved_loan_amount, created_at")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+
   // Notify AirConnect
   await notifyAirConnect({
     customerName: lead.full_name ?? "",
@@ -315,6 +329,13 @@ export async function POST(request: NextRequest) {
     loanAmount: approvedAmount,
     idNumber: lead.nric ?? undefined,
     axsRef,
+    creditLimit: buildCreditLimitFields({
+      approvedLoanAmount: assessment?.approved_loan_amount,
+      decidedAt: assessment?.created_at,
+      // CFH5- form, matching the cfh5Id this payload already carries, so
+      // AirConnect sees one consistent reference for the lead.
+      applicationRef: cfh5ApplicationRef(leadId),
+    }),
   });
 
   // Notify AXS of the booking (no-op until AXS_BOOKING_WEBHOOK_URL is set)
