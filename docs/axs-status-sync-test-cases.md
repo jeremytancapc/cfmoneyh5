@@ -157,7 +157,7 @@ AirConnect sees the earlier test lead.
 
 | # | Do | Expect |
 |---|---|---|
-| 24 | **Submit an applicant who is already a borrower** in AirConnect (test borrower phone). | **AXS:** `status = rejected`, notes "Existing customer. Please contact us directly.", and `bookingUrl` = `<H5 base>/axs/rejected`, the rejected page, **not** the booking link. **AirConnect:** the borrower gets the note "Reapplied via AXS – … please contact them for a reloan". **H5 `api_logs`:** `[airconnect/reapply-note]` with the phone and NRIC masked (`****xxxx`). |
+| 24 | **Submit an applicant who is already a borrower** in AirConnect. Use the test borrower's **NRIC/FIN**: AXS always sends one, and AirConnect's eligibility check then matches on NRIC only and ignores the phone. | **AXS:** `status = rejected`, notes "Existing customer. Please contact us directly.", and `bookingUrl` = `<H5 base>/axs/rejected`, the rejected page, **not** the booking link. **AirConnect:** the borrower gets the note "Reapplied via AXS – … please contact them for a reloan". **H5 `api_logs`:** `[airconnect/reapply-note]` with the phone and NRIC masked (`****xxxx`). |
 | 24b | **Open that link** in a fresh browser (no H5 session). | The rejected page loads: "We can't proceed with this application", with a WhatsApp contact. It shows no name and no reason. There is no date/time picker and no way to book. |
 | 25 | **Blacklisted test applicant**, and separately an **under-18**. | `status = rejected`, and `bookingUrl` = `/axs/rejected`, never `/axs/book`. **No** borrower note for either. |
 
@@ -169,7 +169,7 @@ lands on from `bookingUrl` follows one rule:
 | Customer | Page |
 |---|---|
 | SG/PR **with** CPF or NOA detected | **Book appointment** (`/axs/book`, picker shows) |
-| SG/PR with **no** CPF/NOA detected | **Pending** |
+| SG/PR with **no** CPF/NOA detected | **Pending** (`/axs/pending?leadId=…`) |
 | **Any foreigner**, whatever their income (docs are checked manually and the customer advised before booking) | **Pending** |
 | Under 18 | **Rejected** (`/axs/rejected`) |
 | Reloan (already a borrower) | **Rejected** |
@@ -183,11 +183,11 @@ nothing.
 | 30 | **SG with CPF** contributions in MyInfo. | `status = pending`. `bookingUrl` opens the booking page with the picker. |
 | 31 | **SG with NOA only**, no CPF. | Same as 30. |
 | 32 | **PR with CPF** (`nationality` not SG, `residentialstatus` = PR). | Same as 30. A PR must not be treated as a foreigner. |
-| 33 | **SG/PR with no CPF and no NOA.** | `status = pending`. `bookingUrl` = `/apply/pending?leadId=…`, the **pending** page. No picker, no way to book. |
-| 34 | **Foreigner with income** (CPF or NOA present). | Pending page, as 33. If approved, notes say the team will review and contact the customer, **not** "proceed to book". |
+| 33 | **SG/PR with no CPF and no NOA.** | `status = pending`. `bookingUrl` = `/axs/pending?leadId=…`, the AXS **pending** page. It shows the first name and the `CFAXS-` reference (the same as the submit response's `leadId`), with no picker and no way to book. |
+| 34 | **Foreigner with income** (CPF or NOA present). | Pending page, as 33, with no S$40,000 income note. If approved, notes say the team will review and contact the customer, **not** "proceed to book". |
 | 35 | **Foreigner with no income** data. | Pending page, as 33. |
 | 36 | **Under 18.** | `status = rejected`. `bookingUrl` = `/axs/rejected`. |
-| 37 | **Reloan** (test borrower phone). | `status = rejected`. `bookingUrl` = `/axs/rejected`. The borrower note from 24 is still added. |
+| 37 | **Reloan** (test borrower's NRIC/FIN, as in 24). | `status = rejected`. `bookingUrl` = `/axs/rejected`. The borrower note from 24 is still added. |
 | 38 | **Blacklisted.** | Same as 36. |
 
 For 32, check H5 `leads.id_type = pr` for the lead.

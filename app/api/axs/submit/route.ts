@@ -158,7 +158,7 @@ function determineIdType(nationality?: string, residentialStatus?: string): IdTy
  * `reason` is null when approved.
  *
  * `bookingUrl` opens the page partnerPage picks: the booking link only for an
- * SG/PR with CPF or NOA; the H5 pending page for a foreigner or an SG/PR
+ * SG/PR with CPF or NOA; the AXS pending page for a foreigner or an SG/PR
  * without either; the rejected page for a hard reject (existing borrower,
  * blacklisted, under 18).
  *
@@ -180,7 +180,7 @@ interface AxsSubmitResult {
   verifiedMonthlyIncome: number;
   incomeSource: IncomeSource;
   bookingUrl: string;
-  /** The H5 pending page for this lead, sent instead of bookingUrl when partnerPage says "pending". */
+  /** The AXS pending page for this lead, sent instead of bookingUrl when partnerPage says "pending". */
   pendingUrl: string;
   /** The rejected page, sent instead of bookingUrl to a hard reject. */
   rejectedUrl: string;
@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
     const token = createAxsToken({ leadId, axsRef, approvedAmount: requestedLoanAmount, tenure: requestedTenure });
     const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
     const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
-    const pendingUrl = `${baseUrl}${postSubmitUrl("/apply/pending", leadId)}`;
+    const pendingUrl = `${baseUrl}${postSubmitUrl("/axs/pending", leadId)}`;
     const rejectedUrl = `${baseUrl}/axs/rejected`;
 
     return axsSubmitResponse({
@@ -432,7 +432,7 @@ export async function POST(request: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
   const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
-  const pendingUrl = `${baseUrl}${postSubmitUrl("/apply/pending", leadId)}`;
+  const pendingUrl = `${baseUrl}${postSubmitUrl("/axs/pending", leadId)}`;
   const rejectedUrl = `${baseUrl}/axs/rejected`;
   const page = partnerPage({ reason: creditRejectionReason ?? null, idType, hasCpfOrNoa });
 

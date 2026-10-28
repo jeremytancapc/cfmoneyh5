@@ -103,7 +103,7 @@ describe("partnerPage", () => {
 describe("partnerLink", () => {
   const links = {
     bookingUrl: "https://apply-dev.crawfort.com/axs/book?token=abc.def",
-    pendingUrl: "https://apply-dev.crawfort.com/apply/pending?leadId=0f8fad5b-d9cb-469f-a165-70867728950e",
+    pendingUrl: "https://apply-dev.crawfort.com/axs/pending?leadId=0f8fad5b-d9cb-469f-a165-70867728950e",
     rejectedUrl: "https://apply-dev.crawfort.com/axs/rejected",
   };
 
