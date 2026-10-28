@@ -78,14 +78,11 @@ describe("partnerLink", () => {
     }
   });
 
-  it("gives an existing borrower the pending page, never the booking link", () => {
-    expect(partnerStatus("airconnect_reloan")).toBe("rejected");
-    expect(partnerLink("airconnect_reloan", links)).toBe(links.pendingUrl);
-  });
-
-  it("gives a blacklisted applicant and an under-18 no link at all", () => {
-    expect(partnerLink("airconnect_not_eligible", links)).toBeNull();
-    expect(partnerLink("under_18", links)).toBeNull();
+  it("gives every hard reject the pending page, never the booking link", () => {
+    for (const r of ["airconnect_reloan", "airconnect_not_eligible", "under_18"]) {
+      expect(partnerStatus(r)).toBe("rejected");
+      expect(partnerLink(r, links)).toBe(links.pendingUrl);
+    }
   });
 });
 

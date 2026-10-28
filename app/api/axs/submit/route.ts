@@ -145,9 +145,9 @@ function determineIdType(nationality?: string): string {
  * re-verified in branch. `decision` still carries our own credit outcome, and
  * `reason` is null when approved.
  *
- * `bookingUrl` is the booking link when pending. An existing borrower instead
- * gets the H5's pending page, the screen an H5 applicant sees when turned
- * away; blacklisted and under-18 applicants get null (see partnerLink).
+ * `bookingUrl` is the booking link when pending. A hard reject (existing
+ * borrower, blacklisted, under 18) instead gets the H5's pending page, the
+ * screen an H5 applicant sees when turned away (see partnerLink).
  *
  * `leadId` carries the customer-facing CFAXS-XXXXXXXX ref, not the raw lead
  * UUID — it is the same string the booking UI shows, so AXS and the customer
@@ -180,7 +180,7 @@ function axsSubmitResponse({ pendingUrl, ...result }: AxsSubmitResult) {
     ...result,
     notes: partnerNotes(result.decision, result.reason),
     // A hard-rejected applicant never gets the booking link, so they cannot
-    // book by holding on to the URL; an existing borrower gets the pending page.
+    // book by holding on to the URL; they get the pending page instead.
     bookingUrl: partnerLink(result.reason, { bookingUrl: result.bookingUrl, pendingUrl }),
     approvedLoanAmount: round2(result.approvedLoanAmount),
     maxEligibleLoan: round2(result.maxEligibleLoan),

@@ -34,24 +34,16 @@ export function isHardReject(reason: string | null): boolean {
 }
 
 /**
- * Rejections that still get a link: the H5's own pending page
- * (/apply/pending?leadId=…), the same screen an H5 applicant sees when turned
- * away. An existing borrower is not a new AXS customer, so they are rejected
- * and never get the booking link, but the page tells them we will be in touch.
- */
-const REJECTED_WITH_PENDING_PAGE = new Set(["airconnect_reloan"]);
-
-/**
- * The link AXS receive as `bookingUrl`: the booking link for anyone pending,
- * the pending page for an existing borrower, and nothing for the rest of the
- * hard rejects (blacklisted, under 18).
+ * The link AXS receive as `bookingUrl`: the booking link for anyone pending;
+ * for a hard reject (existing borrower, blacklisted, under 18), the H5's own
+ * pending page (/apply/pending?leadId=…), the same screen an H5 applicant sees
+ * when turned away. A hard reject never gets the booking link.
  */
 export function partnerLink(
   reason: string | null,
   links: { bookingUrl: string; pendingUrl: string },
-): string | null {
-  if (!isHardReject(reason)) return links.bookingUrl;
-  return REJECTED_WITH_PENDING_PAGE.has(reason ?? "") ? links.pendingUrl : null;
+): string {
+  return isHardReject(reason) ? links.pendingUrl : links.bookingUrl;
 }
 
 /** Money and income are rendered in a partner UI — don't leak raw float precision. */
