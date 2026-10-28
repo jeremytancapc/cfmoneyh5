@@ -19,7 +19,8 @@ import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
 import { axsApplicationRef } from "@/lib/lead-id";
-import { isHardReject, partnerNotes, partnerStatus, round2 } from "@/lib/axs-response";
+import { partnerLink, partnerNotes, partnerStatus, round2 } from "@/lib/axs-response";
+import { postSubmitUrl } from "@/lib/post-submit-nav";
 import { logExternalApi } from "@/lib/external-api-logger";
 import type { CpfContribution, NoaRecord } from "@/lib/loan-form";
 
@@ -144,6 +145,10 @@ function determineIdType(nationality?: string): string {
  * re-verified in branch. `decision` still carries our own credit outcome, and
  * `reason` is null when approved.
  *
+ * `bookingUrl` is the booking link when pending. An existing borrower instead
+ * gets the H5's pending page, the screen an H5 applicant sees when turned
+ * away; blacklisted and under-18 applicants get null (see partnerLink).
+ *
  * `leadId` carries the customer-facing CFAXS-XXXXXXXX ref, not the raw lead
  * UUID — it is the same string the booking UI shows, so AXS and the customer
  * quote one identifier. The UUID stays internal (it travels in the signed
@@ -162,19 +167,21 @@ interface AxsSubmitResult {
   verifiedMonthlyIncome: number;
   incomeSource: IncomeSource;
   bookingUrl: string;
+  /** The H5 pending page for this lead, sent instead of bookingUrl to an existing borrower. */
+  pendingUrl: string;
   leadId: string;
   axsRef: string;
 }
 
-function axsSubmitResponse(result: AxsSubmitResult) {
+function axsSubmitResponse({ pendingUrl, ...result }: AxsSubmitResult) {
   const status = partnerStatus(result.reason);
   return NextResponse.json({
     status,
     ...result,
     notes: partnerNotes(result.decision, result.reason),
-    // A hard-rejected applicant gets no link: AXS stop, and they must not be
-    // able to book by holding on to the URL.
-    bookingUrl: isHardReject(result.reason) ? null : result.bookingUrl,
+    // A hard-rejected applicant never gets the booking link, so they cannot
+    // book by holding on to the URL; an existing borrower gets the pending page.
+    bookingUrl: partnerLink(result.reason, { bookingUrl: result.bookingUrl, pendingUrl }),
     approvedLoanAmount: round2(result.approvedLoanAmount),
     maxEligibleLoan: round2(result.maxEligibleLoan),
     verifiedMonthlyIncome: round2(result.verifiedMonthlyIncome),
@@ -333,6 +340,7 @@ export async function POST(request: NextRequest) {
     const token = createAxsToken({ leadId, axsRef, approvedAmount: requestedLoanAmount, tenure: requestedTenure });
     const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
     const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
+    const pendingUrl = `${baseUrl}${postSubmitUrl("/apply/pending", leadId)}`;
 
     return axsSubmitResponse({
       decision: "rejected",
@@ -344,6 +352,7 @@ export async function POST(request: NextRequest) {
       verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
       incomeSource: assessment.incomeSource,
       bookingUrl,
+      pendingUrl,
       leadId: applicationRef,
       axsRef,
     });
@@ -401,6 +410,7 @@ export async function POST(request: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
   const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
+  const pendingUrl = `${baseUrl}${postSubmitUrl("/apply/pending", leadId)}`;
 
   const decision = (assessment.isEligible && approvedAmount > 0) ? "approved" : "rejected";
 
@@ -424,6 +434,7 @@ export async function POST(request: NextRequest) {
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
     bookingUrl,
+    pendingUrl,
     leadId: applicationRef,
     axsRef,
   });

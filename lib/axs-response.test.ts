@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isHardReject, partnerNotes, partnerStatus, round2 } from "./axs-response";
+import { isHardReject, partnerLink, partnerNotes, partnerStatus, round2 } from "./axs-response";
 
 describe("round2", () => {
   it("trims float artefacts from a loan cap", () => {
@@ -66,6 +66,29 @@ describe("partnerStatus", () => {
   });
 });
 
+describe("partnerLink", () => {
+  const links = {
+    bookingUrl: "https://apply-dev.crawfort.com/axs/book?token=abc.def",
+    pendingUrl: "https://apply-dev.crawfort.com/apply/pending?leadId=0f8fad5b-d9cb-469f-a165-70867728950e",
+  };
+
+  it("gives every pending applicant the booking link", () => {
+    for (const r of [null, "foreigner_income_floor", "zero_cap_income_too_low", "some_future_code"]) {
+      expect(partnerLink(r, links)).toBe(links.bookingUrl);
+    }
+  });
+
+  it("gives an existing borrower the pending page, never the booking link", () => {
+    expect(partnerStatus("airconnect_reloan")).toBe("rejected");
+    expect(partnerLink("airconnect_reloan", links)).toBe(links.pendingUrl);
+  });
+
+  it("gives a blacklisted applicant and an under-18 no link at all", () => {
+    expect(partnerLink("airconnect_not_eligible", links)).toBeNull();
+    expect(partnerLink("under_18", links)).toBeNull();
+  });
+});
+
 describe("partnerNotes", () => {
   const ALL_REASONS = [
     "under_18",
@@ -84,7 +107,7 @@ describe("partnerNotes", () => {
   });
 
   it("does not invite a hard-rejected applicant to book", () => {
-    // They get no bookingUrl, so the copy must not tell them to book.
+    // They get no booking link, so the copy must not tell them to book.
     for (const r of ["airconnect_reloan", "airconnect_not_eligible", "under_18"]) {
       expect(partnerNotes("rejected", r)).not.toMatch(/book an appointment/i);
     }
