@@ -33,17 +33,38 @@ export function isHardReject(reason: string | null): boolean {
   return partnerStatus(reason) === "rejected";
 }
 
+/** Which H5 page the AXS customer lands on from `bookingUrl`. */
+export type PartnerPage = "book" | "pending" | "rejected";
+
 /**
- * The link AXS receive as `bookingUrl`: the booking link for anyone pending;
- * for a hard reject (existing borrower, blacklisted, under 18), the H5's own
- * pending page (/apply/pending?leadId=…), the same screen an H5 applicant sees
- * when turned away. A hard reject never gets the booking link.
+ * The page rule agreed with the business:
+ *   - rejected: a hard reject (existing borrower, blacklisted, under 18).
+ *   - pending: any foreigner, whatever their income, because their documents
+ *     are checked by hand and the customer advised before an appointment; and
+ *     an SG/PR with no CPF or NOA in MyInfo.
+ *   - book: an SG/PR with CPF or NOA.
+ */
+export function partnerPage(applicant: {
+  reason: string | null;
+  idType: string;
+  hasCpfOrNoa: boolean;
+}): PartnerPage {
+  if (isHardReject(applicant.reason)) return "rejected";
+  if (applicant.idType === "foreigner") return "pending";
+  return applicant.hasCpfOrNoa ? "book" : "pending";
+}
+
+/**
+ * The link AXS receive as `bookingUrl` for that page. Only "book" gets the
+ * booking link; anyone else holding the URL cannot book with it.
  */
 export function partnerLink(
-  reason: string | null,
-  links: { bookingUrl: string; pendingUrl: string },
+  page: PartnerPage,
+  links: { bookingUrl: string; pendingUrl: string; rejectedUrl: string },
 ): string {
-  return isHardReject(reason) ? links.pendingUrl : links.bookingUrl;
+  if (page === "rejected") return links.rejectedUrl;
+  if (page === "pending") return links.pendingUrl;
+  return links.bookingUrl;
 }
 
 /** Money and income are rendered in a partner UI — don't leak raw float precision. */
@@ -65,9 +86,13 @@ export function round2(n: number): number {
 export function partnerNotes(
   decision: "approved" | "rejected",
   reason: string | null,
+  page: PartnerPage = "book",
 ): string {
   if (decision === "approved") {
-    return "Approved. Proceed to book an appointment.";
+    // A pending-page customer has no booking link, so don't tell them to book.
+    return page === "pending"
+      ? "Application received. Our team will review it and contact the customer to arrange an appointment."
+      : "Approved. Proceed to book an appointment.";
   }
 
   switch (reason) {
@@ -83,7 +108,7 @@ export function partnerNotes(
       return "Eligible amount is below our minimum loan size.";
     case "airconnect_reloan":
       // Hard reject: AXS stop here, so this must not invite a booking. Their
-      // link is the pending page, which says the same.
+      // link is the rejected page, which says the same.
       return "Existing customer. Please contact us directly.";
     default:
       // Covers airconnect_not_eligible and any future code — deliberately vague.

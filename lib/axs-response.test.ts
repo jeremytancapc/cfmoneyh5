@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isHardReject, partnerLink, partnerNotes, partnerStatus, round2 } from "./axs-response";
+import { isHardReject, partnerLink, partnerNotes, partnerPage, partnerStatus, round2 } from "./axs-response";
 
 describe("round2", () => {
   it("trims float artefacts from a loan cap", () => {
@@ -66,22 +66,57 @@ describe("partnerStatus", () => {
   });
 });
 
+describe("partnerPage", () => {
+  const HARD = ["airconnect_reloan", "airconnect_not_eligible", "under_18"];
+
+  it("books an SG or PR with CPF or NOA", () => {
+    for (const idType of ["singaporean", "pr"]) {
+      expect(partnerPage({ reason: null, idType, hasCpfOrNoa: true })).toBe("book");
+      // An income-based decline still books: income is re-checked in branch.
+      expect(partnerPage({ reason: "zero_cap_income_too_low", idType, hasCpfOrNoa: true })).toBe("book");
+    }
+  });
+
+  it("sends an SG or PR with no CPF and no NOA to the pending page", () => {
+    for (const idType of ["singaporean", "pr"]) {
+      expect(partnerPage({ reason: null, idType, hasCpfOrNoa: false })).toBe("pending");
+    }
+  });
+
+  it("sends every foreigner to the pending page, whatever their income", () => {
+    for (const hasCpfOrNoa of [true, false]) {
+      for (const reason of [null, "foreigner_income_floor"]) {
+        expect(partnerPage({ reason, idType: "foreigner", hasCpfOrNoa })).toBe("pending");
+      }
+    }
+  });
+
+  it("sends every hard reject to the rejected page, even with CPF", () => {
+    for (const reason of HARD) {
+      for (const idType of ["singaporean", "pr", "foreigner"]) {
+        expect(partnerPage({ reason, idType, hasCpfOrNoa: true })).toBe("rejected");
+      }
+    }
+  });
+});
+
 describe("partnerLink", () => {
   const links = {
     bookingUrl: "https://apply-dev.crawfort.com/axs/book?token=abc.def",
     pendingUrl: "https://apply-dev.crawfort.com/apply/pending?leadId=0f8fad5b-d9cb-469f-a165-70867728950e",
+    rejectedUrl: "https://apply-dev.crawfort.com/axs/rejected",
   };
 
-  it("gives every pending applicant the booking link", () => {
-    for (const r of [null, "foreigner_income_floor", "zero_cap_income_too_low", "some_future_code"]) {
-      expect(partnerLink(r, links)).toBe(links.bookingUrl);
-    }
+  it("gives the booking link only to a book page", () => {
+    expect(partnerLink("book", links)).toBe(links.bookingUrl);
+    expect(partnerLink("pending", links)).toBe(links.pendingUrl);
+    expect(partnerLink("rejected", links)).toBe(links.rejectedUrl);
   });
 
-  it("gives every hard reject the pending page, never the booking link", () => {
+  it("never gives a hard reject the booking link", () => {
     for (const r of ["airconnect_reloan", "airconnect_not_eligible", "under_18"]) {
-      expect(partnerStatus(r)).toBe("rejected");
-      expect(partnerLink(r, links)).toBe(links.pendingUrl);
+      const page = partnerPage({ reason: r, idType: "singaporean", hasCpfOrNoa: true });
+      expect(partnerLink(page, links)).toBe(links.rejectedUrl);
     }
   });
 });
@@ -101,6 +136,12 @@ describe("partnerNotes", () => {
 
   it("gives an approved applicant a next step", () => {
     expect(partnerNotes("approved", null)).toMatch(/book an appointment/i);
+  });
+
+  it("does not tell an approved pending-page applicant to book", () => {
+    // A foreigner or an SG/PR without CPF/NOA has no booking link.
+    expect(partnerNotes("approved", null, "pending")).not.toMatch(/book an appointment/i);
+    expect(partnerNotes("approved", null, "pending")).toMatch(/review/i);
   });
 
   it("does not invite a hard-rejected applicant to book", () => {
