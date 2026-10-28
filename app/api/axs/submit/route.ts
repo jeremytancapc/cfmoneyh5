@@ -11,7 +11,8 @@
  * 7. Returns status + approved amount + booking URL to AXS
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyAirConnectReapply } from "@/lib/airconnect-reapply-note";
 import { createAdminClient } from "@/lib/supabase/client";
 import { checkLeadEligibility } from "@/lib/eligibility-check";
 import { assessCredit, type IncomeSource } from "@/lib/credit-score";
@@ -291,6 +292,13 @@ export async function POST(request: NextRequest) {
     console.info(`${LOG} rejected by eligibility`, { leadId, status: eligibility.status });
     await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
 
+    // An existing borrower is told to contact us directly; note it on their
+    // AirConnect record so the reloan team does. After the response, so AXS
+    // never waits on it. Blacklisted applicants are deliberately not noted.
+    if (eligibility.status === "RELOAN") {
+      after(() => notifyAirConnectReapply({ leadId, phoneNumber: mobile, idNumber: nric, source: "AXS" }));
+    }
+
     // Still run credit scoring for analytics
     const assessment = assessCredit({
       dob,
@@ -386,6 +394,10 @@ export async function POST(request: NextRequest) {
     approvedAmount: approvedAmount > 0 ? approvedAmount : requestedLoanAmount,
     tenure: requestedTenure,
   });
+
+  // Kept so later status updates to AXS (cancelled, missed, ...) carry the
+  // exact link the customer was given here.
+  await admin.from("leads").update({ axs_booking_token: token }).eq("id", leadId);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
   const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
