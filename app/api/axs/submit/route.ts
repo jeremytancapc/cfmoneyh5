@@ -11,14 +11,24 @@
  * 7. Returns status + approved amount + booking URL to AXS
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyAirConnectReapply } from "@/lib/airconnect-reapply-note";
 import { createAdminClient } from "@/lib/supabase/client";
 import { checkLeadEligibility } from "@/lib/eligibility-check";
 import { assessCredit, type IncomeSource } from "@/lib/credit-score";
 import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
 import { axsApplicationRef } from "@/lib/lead-id";
-import { isHardReject, partnerNotes, partnerStatus, round2 } from "@/lib/axs-response";
+import {
+  partnerDecision,
+  partnerLink,
+  partnerNotes,
+  partnerPage,
+  partnerStatus,
+  round2,
+  type PartnerPage,
+} from "@/lib/axs-response";
+import { postSubmitUrl } from "@/lib/post-submit-nav";
 import { logExternalApi } from "@/lib/external-api-logger";
 import type { CpfContribution, NoaRecord } from "@/lib/loan-form";
 
@@ -122,11 +132,16 @@ function extractNoaHistory(noa: AxsMyInfoPayload["noa-basic"]): NoaRecord[] {
   }];
 }
 
-function determineIdType(nationality?: string): string {
+type IdType = "singaporean" | "pr" | "foreigner";
+
+/**
+ * A PR keeps their foreign nationality in MyInfo, so residentialstatus
+ * ("P" = PR) is what tells them apart from a foreigner.
+ */
+function determineIdType(nationality?: string, residentialStatus?: string): IdType {
+  if (residentialStatus?.toUpperCase() === "P") return "pr";
   if (!nationality) return "singaporean";
-  const code = nationality.toUpperCase();
-  if (code === "SG") return "singaporean";
-  // PR detection would need residentialstatus; for now treat non-SG as foreigner
+  if (nationality.toUpperCase() === "SG") return "singaporean";
   return "foreigner";
 }
 
@@ -140,8 +155,13 @@ function determineIdType(nationality?: string): string {
  * `status` is the signal AXS act on: "rejected" means stop (already our
  * customer, blacklisted, or under 18), "pending" means carry on to an
  * appointment. Income-based declines stay "pending" because income is
- * re-verified in branch. `decision` still carries our own credit outcome, and
- * `reason` is null when approved.
+ * re-verified in branch, and `decision`/`reason` agree (see partnerDecision):
+ * only a hard reject is sent "rejected" and a reason code.
+ *
+ * `bookingUrl` opens the page partnerPage picks: the booking link only for an
+ * SG/PR with CPF or NOA; the AXS pending page for a foreigner or an SG/PR
+ * without either; the rejected page for a hard reject (existing borrower,
+ * blacklisted, under 18).
  *
  * `leadId` carries the customer-facing CFAXS-XXXXXXXX ref, not the raw lead
  * UUID — it is the same string the booking UI shows, so AXS and the customer
@@ -161,19 +181,25 @@ interface AxsSubmitResult {
   verifiedMonthlyIncome: number;
   incomeSource: IncomeSource;
   bookingUrl: string;
+  /** The AXS pending page for this lead, sent instead of bookingUrl when partnerPage says "pending". */
+  pendingUrl: string;
+  /** The rejected page, sent instead of bookingUrl to a hard reject. */
+  rejectedUrl: string;
+  page: PartnerPage;
   leadId: string;
   axsRef: string;
 }
 
-function axsSubmitResponse(result: AxsSubmitResult) {
+function axsSubmitResponse({ pendingUrl, rejectedUrl, page, ...result }: AxsSubmitResult) {
   const status = partnerStatus(result.reason);
   return NextResponse.json({
     status,
     ...result,
-    notes: partnerNotes(result.decision, result.reason),
-    // A hard-rejected applicant gets no link: AXS stop, and they must not be
-    // able to book by holding on to the URL.
-    bookingUrl: isHardReject(result.reason) ? null : result.bookingUrl,
+    ...partnerDecision(result.reason),
+    notes: partnerNotes(result.decision, result.reason, page),
+    // Only a "book" customer gets the booking link, so nobody else can book by
+    // holding on to the URL.
+    bookingUrl: partnerLink(page, { bookingUrl: result.bookingUrl, pendingUrl, rejectedUrl }),
     approvedLoanAmount: round2(result.approvedLoanAmount),
     maxEligibleLoan: round2(result.maxEligibleLoan),
     verifiedMonthlyIncome: round2(result.verifiedMonthlyIncome),
@@ -214,7 +240,7 @@ export async function POST(request: NextRequest) {
   const postalCode = myinfo.regadd?.postal?.value ?? "";
   const axsRef = myinfo.axs?.["reference-id"] ?? "";
   const nationalityCode = myinfo.nationality?.code ?? "";
-  const idType = determineIdType(nationalityCode);
+  const idType = determineIdType(nationalityCode, myinfo.residentialstatus?.code);
   const requestedLoanAmount = myinfo.axs?.loan_amount ?? 20000;
   const requestedTenure = myinfo.axs?.tenure ?? DEFAULT_TENURE;
 
@@ -240,7 +266,7 @@ export async function POST(request: NextRequest) {
       email: email || null,
       address: address || null,
       postal_code: postalCode || null,
-      id_type: idType === "foreigner" ? "foreigner" : "singaporean",
+      id_type: idType,
       loan_amount: requestedLoanAmount,
       loan_tenure: requestedTenure,
       moneylender_no_loans: true, // Not asking for AXS
@@ -262,6 +288,7 @@ export async function POST(request: NextRequest) {
   // 4. Save MyInfo profile
   const cpfContributions = extractCpfContributions(myinfo.cpfcontributions);
   const noaHistory = extractNoaHistory(myinfo["noa-basic"]);
+  const hasCpfOrNoa = cpfContributions.length > 0 || noaHistory.length > 0;
 
   await admin.from("myinfo_profiles").insert({
     lead_id: leadId,
@@ -290,6 +317,13 @@ export async function POST(request: NextRequest) {
   if (eligibility.status === "NOT_ELIGIBLE" || eligibility.status === "RELOAN") {
     console.info(`${LOG} rejected by eligibility`, { leadId, status: eligibility.status });
     await admin.from("leads").update({ status: "rejected" }).eq("id", leadId);
+
+    // An existing borrower is told to contact us directly; note it on their
+    // AirConnect record so the reloan team does. After the response, so AXS
+    // never waits on it. Blacklisted applicants are deliberately not noted.
+    if (eligibility.status === "RELOAN") {
+      after(() => notifyAirConnectReapply({ leadId, phoneNumber: mobile, idNumber: nric, source: "AXS" }));
+    }
 
     // Still run credit scoring for analytics
     const assessment = assessCredit({
@@ -321,12 +355,17 @@ export async function POST(request: NextRequest) {
       raw_assessment: { eligibility: eligibility.raw, assessment } as unknown as Record<string, unknown>,
     });
 
-    // Still generate booking URL — rejected customers can still book
+    // A hard reject is sent the rejected page; the booking link is built only
+    // so every path fills the same response shape.
     const token = createAxsToken({ leadId, axsRef, approvedAmount: requestedLoanAmount, tenure: requestedTenure });
     const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
     const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
+    const pendingUrl = `${baseUrl}${postSubmitUrl("/axs/pending", leadId)}`;
+    const rejectedUrl = `${baseUrl}/axs/rejected`;
 
     return axsSubmitResponse({
+      page: partnerPage({ reason: creditRejectionReason, idType, hasCpfOrNoa }),
+      rejectedUrl,
       decision: "rejected",
       reason: creditRejectionReason,
       // Rejected here, so nothing is approved — matches the 0 persisted above.
@@ -336,6 +375,7 @@ export async function POST(request: NextRequest) {
       verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
       incomeSource: assessment.incomeSource,
       bookingUrl,
+      pendingUrl,
       leadId: applicationRef,
       axsRef,
     });
@@ -379,7 +419,8 @@ export async function POST(request: NextRequest) {
     status: assessment.isEligible ? "approved" : "rejected",
   }).eq("id", leadId);
 
-  // Always generate a booking token — all customers can book regardless of decision
+  // Always generate a booking token, whatever the decision. Only a "book"
+  // customer is sent the link (see partnerPage).
   const token = createAxsToken({
     leadId,
     axsRef,
@@ -387,8 +428,15 @@ export async function POST(request: NextRequest) {
     tenure: requestedTenure,
   });
 
+  // Kept so later status updates to AXS (cancelled, missed, ...) carry the
+  // exact link the customer was given here.
+  await admin.from("leads").update({ axs_booking_token: token }).eq("id", leadId);
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://apply.crawfort.com";
   const bookingUrl = `${baseUrl}/axs/book?token=${token}`;
+  const pendingUrl = `${baseUrl}${postSubmitUrl("/axs/pending", leadId)}`;
+  const rejectedUrl = `${baseUrl}/axs/rejected`;
+  const page = partnerPage({ reason: creditRejectionReason ?? null, idType, hasCpfOrNoa });
 
   const decision = (assessment.isEligible && approvedAmount > 0) ? "approved" : "rejected";
 
@@ -412,6 +460,9 @@ export async function POST(request: NextRequest) {
     verifiedMonthlyIncome: assessment.verifiedMonthlyIncome,
     incomeSource: assessment.incomeSource,
     bookingUrl,
+    pendingUrl,
+    rejectedUrl,
+    page,
     leadId: applicationRef,
     axsRef,
   });
