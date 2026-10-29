@@ -119,7 +119,7 @@ AirConnect sees the earlier test lead.
 |---|---|---|
 | 9 | **Agent cancels** the appointment. | **AXS:** `cancelled` with `booking_url` and the last slot. **H5:** row `cancelled`, `cancelled_at` set. **Link: open** (picker shows). |
 | 10 | **Customer rebooks** from the same link after 9. | **H5:** a **new** `confirmed` row. **AXS:** `booked` with the new slot. **AirConnect:** `h5_links.booked_at` moves to now. Link closed again. |
-| 11 | **After 10**, the agent cancels the **old** AirConnect appointment again (or any appointment from before the rebook). | Nothing. AirConnect logs no push, because the appointment is older than `booked_at`. |
+| 11 | **After 10**, the agent cancels the **old** AirConnect appointment again (or any appointment from before the rebook). | Nothing. AirConnect logs no push, because the appointment is older than `booked_at`. **Can't be done in the AirConnect UI** (a cancelled appointment can't be cancelled again); covered by the `belongsToH5Booking` unit test in AirConnect. |
 
 ## E. Missed
 
