@@ -79,7 +79,7 @@ top. The values are hardcoded in the script, so:
 ```javascript
 // Fill these in. See "2. Apps Script" for who can read them.
 const CONFIG = {
-  DB_URL: 'jdbc:postgresql://<pooler host>:5432/postgres?sslmode=require',
+  DB_URL: 'jdbc:postgresql://<pooler host>:5432/postgres',
   DB_USER: 'axs_worklist_reader',   // with the pooler's project suffix if it needs one
   DB_PASSWORD: '<reader password>',
   AXS_VOID_URL: '<AXS void endpoint, UAT or production>',
