@@ -208,9 +208,23 @@ function voidSelectedApplication() {
     muteHttpExceptions: true,
   });
   const code = res.getResponseCode();
-  const body = res.getContentText().slice(0, 200);
+  const text = res.getContentText();
+  // AXS replies in JSON; keep the parts worth reading, so the reason is never cut off.
+  let summary = text.slice(0, 1000);
+  try {
+    const j = JSON.parse(text);
+    summary = [
+      j.status || j.message,
+      j.void_reason && `reason: ${j.void_reason}`,
+      j.voided_by && `by ${j.voided_by}`,
+      j.voided_at && `at ${j.voided_at}`,
+      !j.status && j.error,
+    ].filter(Boolean).join(' · ') || summary;
+  } catch (e) {
+    // Not JSON (an AWS error page, say): keep the raw text.
+  }
 
-  sheet.getRange(row, COL.VOID_RESULT).setValue(`${code} ${body}`);
+  sheet.getRange(row, COL.VOID_RESULT).setValue(`${code} ${summary}`);
   if (code >= 200 && code < 300) {
     sheet.getRange(row, COL.VOIDED_AT, 1, 2).setValues([[sgtNow_(), Session.getActiveUser().getEmail()]]);
   }
