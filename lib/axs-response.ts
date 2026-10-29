@@ -33,6 +33,20 @@ export function isHardReject(reason: string | null): boolean {
   return partnerStatus(reason) === "rejected";
 }
 
+/**
+ * The `decision` and `reason` AXS receive. Only a hard reject is "rejected"
+ * with its reason code. An income-based decline is "approved" with no reason:
+ * we cannot be sure of income from MyInfo alone (a foreigner's especially), so
+ * the customer is given the chance to explain it to our team. Our own credit
+ * outcome is still saved in credit_assessments.
+ */
+export function partnerDecision(reason: string | null): {
+  decision: "approved" | "rejected";
+  reason: string | null;
+} {
+  return isHardReject(reason) ? { decision: "rejected", reason } : { decision: "approved", reason: null };
+}
+
 /** Which H5 page the AXS customer lands on from `bookingUrl`. */
 export type PartnerPage = "book" | "pending" | "rejected";
 

@@ -20,6 +20,7 @@ import { deriveCreditRejectionReason } from "@/lib/credit-rejection";
 import { createAxsToken } from "@/lib/axs-token";
 import { axsApplicationRef } from "@/lib/lead-id";
 import {
+  partnerDecision,
   partnerLink,
   partnerNotes,
   partnerPage,
@@ -154,8 +155,8 @@ function determineIdType(nationality?: string, residentialStatus?: string): IdTy
  * `status` is the signal AXS act on: "rejected" means stop (already our
  * customer, blacklisted, or under 18), "pending" means carry on to an
  * appointment. Income-based declines stay "pending" because income is
- * re-verified in branch. `decision` still carries our own credit outcome, and
- * `reason` is null when approved.
+ * re-verified in branch, and `decision`/`reason` agree (see partnerDecision):
+ * only a hard reject is sent "rejected" and a reason code.
  *
  * `bookingUrl` opens the page partnerPage picks: the booking link only for an
  * SG/PR with CPF or NOA; the AXS pending page for a foreigner or an SG/PR
@@ -194,6 +195,7 @@ function axsSubmitResponse({ pendingUrl, rejectedUrl, page, ...result }: AxsSubm
   return NextResponse.json({
     status,
     ...result,
+    ...partnerDecision(result.reason),
     notes: partnerNotes(result.decision, result.reason, page),
     // Only a "book" customer gets the booking link, so nobody else can book by
     // holding on to the URL.

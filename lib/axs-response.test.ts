@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isHardReject, partnerLink, partnerNotes, partnerPage, partnerStatus, round2 } from "./axs-response";
+import { isHardReject, partnerDecision, partnerLink, partnerNotes, partnerPage, partnerStatus, round2 } from "./axs-response";
 
 describe("round2", () => {
   it("trims float artefacts from a loan cap", () => {
@@ -62,6 +62,26 @@ describe("partnerStatus", () => {
   it("isHardReject agrees with partnerStatus", () => {
     for (const r of ["under_18", "foreigner_income_floor", null, "airconnect_reloan"]) {
       expect(isHardReject(r)).toBe(partnerStatus(r) === "rejected");
+    }
+  });
+});
+
+describe("partnerDecision", () => {
+  it("rejects with a reason only for an existing customer, a blacklisted one, and an under-18", () => {
+    for (const r of ["airconnect_reloan", "airconnect_not_eligible", "under_18"]) {
+      expect(partnerDecision(r)).toEqual({ decision: "rejected", reason: r });
+    }
+  });
+
+  it("never rejects on income, and sends no income reason code", () => {
+    for (const r of ["foreigner_income_floor", "zero_cap_income_too_low", "zero_cap_moneylender_os", "below_min_loan_amount", "some_future_code", null]) {
+      expect(partnerDecision(r)).toEqual({ decision: "approved", reason: null });
+    }
+  });
+
+  it("agrees with partnerStatus", () => {
+    for (const r of ["under_18", "foreigner_income_floor", null, "airconnect_reloan"]) {
+      expect(partnerDecision(r).decision === "rejected").toBe(partnerStatus(r) === "rejected");
     }
   });
 });
