@@ -82,36 +82,34 @@ export function round2(n: number): number {
  *
  * Both are still persisted for our own reporting — credit_assessments.explanation
  * and leads.eligibility_notes are written unchanged.
+ *
+ * Only a hard reject is told why. Anyone else follows the page: an income-based
+ * decline is not a rejection to AXS (income is checked again by our team), so
+ * a foreigner below the income floor reads the same as any pending-page
+ * customer.
  */
 export function partnerNotes(
   decision: "approved" | "rejected",
   reason: string | null,
-  page: PartnerPage = "book",
+  page: PartnerPage,
 ): string {
-  if (decision === "approved") {
-    // A pending-page customer has no booking link, so don't tell them to book.
-    return page === "pending"
-      ? "Application received. Our team will review it and contact the customer to arrange an appointment."
-      : "Approved. Proceed to book an appointment.";
+  if (isHardReject(reason)) {
+    switch (reason) {
+      case "under_18":
+        return "Applicant does not meet the minimum age requirement.";
+      case "airconnect_reloan":
+        // AXS stop here, so this must not invite a booking. Their link is the
+        // rejected page, which says the same.
+        return "Existing customer. Please contact us directly.";
+      default:
+        // airconnect_not_eligible (blacklisted) — deliberately vague.
+        return "Not eligible at this time.";
+    }
   }
 
-  switch (reason) {
-    case "under_18":
-      return "Applicant does not meet the minimum age requirement.";
-    case "foreigner_income_floor":
-      return "Income does not meet the minimum requirement for non-residents.";
-    case "zero_cap_moneylender_os":
-      return "Existing loan commitments exceed available borrowing capacity.";
-    case "zero_cap_income_too_low":
-      return "Income does not meet the minimum requirement.";
-    case "below_min_loan_amount":
-      return "Eligible amount is below our minimum loan size.";
-    case "airconnect_reloan":
-      // Hard reject: AXS stop here, so this must not invite a booking. Their
-      // link is the rejected page, which says the same.
-      return "Existing customer. Please contact us directly.";
-    default:
-      // Covers airconnect_not_eligible and any future code — deliberately vague.
-      return "Not eligible at this time.";
+  // A pending-page customer has no booking link, so don't tell them to book.
+  if (page === "pending") {
+    return "Application received. Our team will review it and contact the customer to arrange an appointment.";
   }
+  return decision === "approved" ? "Approved. Proceed to book an appointment." : "Proceed to book an appointment.";
 }

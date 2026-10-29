@@ -185,7 +185,7 @@ nothing.
 | 32 | **PR with CPF** (`nationality` not SG, `residentialstatus` = PR). | Same as 30. A PR must not be treated as a foreigner. |
 | 33 | **SG/PR with no CPF and no NOA.** | `status = pending`. `bookingUrl` = `/axs/pending?leadId=…`, the AXS **pending** page. It shows the first name and the `CFAXS-` reference (the same as the submit response's `leadId`), with no picker and no way to book. |
 | 34 | **Foreigner with income** (CPF or NOA present). | Pending page, as 33, with no S$40,000 income note. If approved, notes say the team will review and contact the customer, **not** "proceed to book". |
-| 35 | **Foreigner with no income** data. | Pending page, as 33. |
+| 35 | **Foreigner with no income** data. | Pending page, as 33. Notes are the same review-and-contact wording as 34, never an income reason: only a hard reject is told why. |
 | 36 | **Under 18.** | `status = rejected`. `bookingUrl` = `/axs/rejected`. |
 | 37 | **Reloan** (test borrower's NRIC/FIN, as in 24). | `status = rejected`. `bookingUrl` = `/axs/rejected`. The borrower note from 24 is still added. |
 | 38 | **Blacklisted.** | Same as 36. |

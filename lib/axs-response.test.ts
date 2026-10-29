@@ -133,55 +133,74 @@ describe("partnerNotes", () => {
     null,
     "some_future_code",
   ];
+  const PAGES = ["book", "pending", "rejected"] as const;
+  const REVIEW = /our team will review it and contact the customer/i;
 
   it("gives an approved applicant a next step", () => {
-    expect(partnerNotes("approved", null)).toMatch(/book an appointment/i);
+    expect(partnerNotes("approved", null, "book")).toMatch(/book an appointment/i);
   });
 
   it("does not tell an approved pending-page applicant to book", () => {
     // A foreigner or an SG/PR without CPF/NOA has no booking link.
     expect(partnerNotes("approved", null, "pending")).not.toMatch(/book an appointment/i);
-    expect(partnerNotes("approved", null, "pending")).toMatch(/review/i);
+    expect(partnerNotes("approved", null, "pending")).toMatch(REVIEW);
   });
 
   it("does not invite a hard-rejected applicant to book", () => {
     // They get no booking link, so the copy must not tell them to book.
     for (const r of ["airconnect_reloan", "airconnect_not_eligible", "under_18"]) {
-      expect(partnerNotes("rejected", r)).not.toMatch(/book an appointment/i);
+      expect(partnerNotes("rejected", r, "rejected")).not.toMatch(/book an appointment/i);
     }
   });
 
-  it("explains each rejection without naming the mechanism", () => {
-    expect(partnerNotes("rejected", "foreigner_income_floor")).toBe(
-      "Income does not meet the minimum requirement for non-residents.",
+  it("explains each hard reject without naming the mechanism", () => {
+    expect(partnerNotes("rejected", "under_18", "rejected")).toBe(
+      "Applicant does not meet the minimum age requirement.",
     );
-    expect(partnerNotes("rejected", "zero_cap_moneylender_os")).toBe(
-      "Existing loan commitments exceed available borrowing capacity.",
+    expect(partnerNotes("rejected", "airconnect_reloan", "rejected")).toBe(
+      "Existing customer. Please contact us directly.",
+    );
+    expect(partnerNotes("rejected", "airconnect_not_eligible", "rejected")).toBe("Not eligible at this time.");
+  });
+
+  it("gives a foreigner below the income floor the same review wording as any pending-page customer", () => {
+    expect(partnerNotes("rejected", "foreigner_income_floor", "pending")).toBe(
+      partnerNotes("approved", null, "pending"),
     );
   });
 
-  it("falls back to vague wording for unknown codes", () => {
-    expect(partnerNotes("rejected", "some_future_code")).toBe("Not eligible at this time.");
-    expect(partnerNotes("rejected", null)).toBe("Not eligible at this time.");
+  it("never tells an income-based decline it is not eligible", () => {
+    // Income is checked again by our team, so these are not rejections to AXS.
+    for (const r of ["foreigner_income_floor", "zero_cap_moneylender_os", "zero_cap_income_too_low", "below_min_loan_amount", "some_future_code"]) {
+      for (const page of ["book", "pending"] as const) {
+        const notes = partnerNotes("rejected", r, page);
+        expect(notes).not.toMatch(/not eligible|does not meet|exceed|below/i);
+        expect(notes).toMatch(page === "pending" ? REVIEW : /book an appointment/i);
+      }
+    }
   });
 
   it("never leaks the capacity multiplier or scoring internals", () => {
     for (const reason of ALL_REASONS) {
       for (const decision of ["approved", "rejected"] as const) {
-        const notes = partnerNotes(decision, reason);
-        expect(notes).not.toMatch(/capacity factor/i);
-        expect(notes).not.toMatch(/4\.5|multiplier|×/i);
-        expect(notes).not.toMatch(/CPF|NOA/);
+        for (const page of PAGES) {
+          const notes = partnerNotes(decision, reason, page);
+          expect(notes).not.toMatch(/capacity factor/i);
+          expect(notes).not.toMatch(/4\.5|multiplier|×/i);
+          expect(notes).not.toMatch(/CPF|NOA/);
+        }
       }
     }
   });
 
   it("never names an internal system or leaks internal lead IDs", () => {
     for (const reason of ALL_REASONS) {
-      const notes = partnerNotes("rejected", reason);
-      expect(notes).not.toMatch(/airconnect/i);
-      expect(notes).not.toMatch(/exists in leads/i);
-      expect(notes).not.toMatch(/\d{5,}/); // internal numeric lead IDs
+      for (const page of PAGES) {
+        const notes = partnerNotes("rejected", reason, page);
+        expect(notes).not.toMatch(/airconnect/i);
+        expect(notes).not.toMatch(/exists in leads/i);
+        expect(notes).not.toMatch(/\d{5,}/); // internal numeric lead IDs
+      }
     }
   });
 });
