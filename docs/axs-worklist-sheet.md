@@ -65,17 +65,27 @@ submit responses before relying on it.
 
 ## 2. Apps Script
 
-Extensions → Apps Script. Under Project Settings → Script Properties, add:
+Extensions → Apps Script, then paste the script below and fill in `CONFIG` at the
+top. The values are hardcoded in the script, so:
 
-| Property | Value |
-|---|---|
-| `DB_URL` | `jdbc:postgresql://<pooler host>:5432/postgres?sslmode=require` |
-| `DB_USER` | `axs_worklist_reader` (with the pooler's project suffix if it needs one) |
-| `DB_PASSWORD` | that role's password |
-| `AXS_VOID_URL` | the AXS void endpoint (UAT or production) |
-| `AXS_VOID_API_KEY` | the AXS key, **never** in a cell or in the code |
+- **Anyone who can edit the sheet's script can read them**, and **File → Make a
+  copy** copies them. Give edit access only to the few people who need it;
+  view-only users can't see the script.
+- **The database login is `axs_worklist_reader` only**, never the main database
+  user, so a leaked script can read nothing but this view.
+- **Use an AXS key issued for this sheet.** If a key is ever pasted into chat or
+  a screenshot, ask AXS to replace it.
 
 ```javascript
+// Fill these in. See "2. Apps Script" for who can read them.
+const CONFIG = {
+  DB_URL: 'jdbc:postgresql://<pooler host>:5432/postgres?sslmode=require',
+  DB_USER: 'axs_worklist_reader',   // with the pooler's project suffix if it needs one
+  DB_PASSWORD: '<reader password>',
+  AXS_VOID_URL: '<AXS void endpoint, UAT or production>',
+  AXS_VOID_API_KEY: '<AXS key>',
+};
+
 const SHEET_NAME = 'AXS worklist';
 const HEADER_ROWS = 1;
 const KEY_COL = 2;      // B: CFAXS ref
@@ -93,8 +103,8 @@ function onOpen() {
 }
 
 function props_(name) {
-  const v = PropertiesService.getScriptProperties().getProperty(name);
-  if (!v) throw new Error(`Script property ${name} is not set`);
+  const v = CONFIG[name];
+  if (!v || v.startsWith('<')) throw new Error(`${name} is not filled in at the top of the script`);
   return v;
 }
 
