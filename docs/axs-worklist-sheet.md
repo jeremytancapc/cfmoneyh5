@@ -20,7 +20,7 @@ Row 1 is the header. The script writes **A–N** on every sync and never touches
 | B | CFAXS ref | sync | **Key.** Our reference; the 8-character suffix finds the lead in AirConnect |
 | C | AXS reference | sync | AXS's `reference_id`, used by the void button |
 | D | Residency | sync | SG / PR / Foreigner |
-| E | Income found | sync | CPF / NOA / None |
+| E | Income found | sync | CPF / NOA / CPF + NOA / None, from MyInfo |
 | F | Page | sync | Book / Pending / Rejected (the page the AXS link opened) |
 | G | Rejected because | sync | Existing customer / Not eligible / Under 18 (blank otherwise) |
 | H | Stage | sync | See below |
@@ -37,17 +37,22 @@ Row 1 is the header. The script writes **A–N** on every sync and never touches
 | S | Voided at | script | When the void was sent |
 | T | Voided by | script | Google account that sent it |
 
-**Stage (H):**
+**Stage (H)**, first match wins:
 - `Rejected`: the AXS link opened the rejected page.
+- `Done` / `Missed` / `Cancelled`: what AirConnect last reported.
+- `Booked – agent confirmed`: the agent created the AirConnect appointment.
+- `Booked – waiting for agent`: picked a slot, no AirConnect appointment yet.
 - `Pending review`: the pending page (foreigner, or SG/PR with no CPF/NOA); our team must contact them.
 - `Not booked yet`: given the booking link but hasn't picked a slot (the "half-way" customers).
-- `Booked – waiting for agent`: picked a slot, no AirConnect appointment yet.
-- `Booked – agent confirmed`: the agent created the AirConnect appointment.
-- `Done` / `Missed` / `Cancelled`: what AirConnect last reported.
+
+A booking outranks the page because applications from before the page rule
+(28 Oct 2026) all got the booking link. For those, **Page** shows what the rule
+would give today, not what the customer saw.
 
 ## 1. Database: a view with no personal data (once per environment)
 
-Migration `supabase/migrations/20261029000001_axs_worklist_view.sql` creates
+Migrations `20261029000001_axs_worklist_view.sql` and
+`20261029000002_axs_worklist_view_fix.sql` (in `supabase/migrations/`) create
 `reporting.axs_worklist` and a login role, `axs_worklist_reader`, that can read
 that view and nothing else, so the password stored in Apps Script can never
 reach customer details. The `reporting` schema is not exposed by Supabase's API.
@@ -58,10 +63,8 @@ After applying it, give the role a password by hand (never commit it):
 alter role axs_worklist_reader with password '<from the password manager>';
 ```
 
-`Page` is worked out again from saved fields, not stored at submit time:
-"income found" uses the credit assessment's income source, which is CPF when
-any CPF was found and NOA when only an NOA was. Check a few rows against the
-submit responses before relying on it.
+`Page` is worked out again from saved fields, not stored at submit time. It
+reads CPF/NOA from the MyInfo payload the same way the submit route does.
 
 ## 2. Apps Script
 
@@ -92,6 +95,12 @@ const KEY_COL = 2;      // B: CFAXS ref
 const SYNC_COLS = 14;   // A–N; O–T are never written by the sync
 const COL = { AXS_REF: 3, VOID_REASON: 17, VOID_RESULT: 18, VOIDED_AT: 19, VOIDED_BY: 20 };
 const DAYS_BACK = 30;
+const HEADERS = [
+  'Submitted (SGT)', 'CFAXS ref', 'AXS reference', 'Residency', 'Income found', 'Page',
+  'Rejected because', 'Stage', 'Appointment (SGT)', 'Appointment status', 'AirConnect appt #',
+  'Last told AXS', 'AXS told at (SGT)', 'Last synced',
+  'Remarks', 'PIC', 'Void reason', 'Void result', 'Voided at', 'Voided by',
+];
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -106,6 +115,14 @@ function props_(name) {
   const v = CONFIG[name];
   if (!v || v.startsWith('<')) throw new Error(`${name} is not filled in at the top of the script`);
   return v;
+}
+
+/** Writes the header row if row 1 doesn't already have it. */
+function ensureHeader_(sheet) {
+  if (String(sheet.getRange(1, KEY_COL).getValue()).trim() === HEADERS[KEY_COL - 1]) return;
+  if (sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0].some(String)) sheet.insertRowBefore(1);
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+  sheet.setFrozenRows(1);
 }
 
 function sgtNow_() {
@@ -128,6 +145,7 @@ function syncAxsWorklist() {
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error(`Sheet "${SHEET_NAME}" not found`);
+  ensureHeader_(sheet);
 
   const lastRow = sheet.getLastRow();
   const rowOf = {};
