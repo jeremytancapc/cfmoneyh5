@@ -192,9 +192,16 @@ nothing.
 
 For 32, check H5 `leads.id_type = pr` for the lead.
 
-**Not covered:** a pending-page customer whom an agent later books in
-AirConnect isn't synced to AXS. They never booked through the H5, so there's
-no `h5_links` row for AirConnect to push against.
+### Pending-page customers in AirConnect
+
+Needs `AIRCONNECT_AXS_PENDING_URL` = `<AirConnect stg>/api/leads/axs` on the H5.
+
+| # | Do | Expect |
+|---|---|---|
+| 39 | **Submit a pending-page applicant** (as 33, 34 or 35) with a phone **not** in AirConnect. | **AirConnect:** new lead, `source = AXS`, `ascend_status = manual_verification_required` (yellow "Manual Verification" badge), verification link "AXS pending review: CFAXS-…"; `h5_links` row for the application. **H5 `api_logs`:** `[airconnect/axs-pending]` 200, phone and NRIC masked, no name. |
+| 40 | **Same, with a phone that is already a lead** (created ≤ 60 days ago). | The **existing** lead gets `manual_verification_required`, a "Reapply: AXS" note and apply count + 1; no second working lead. Past 60 days: a new AXS lead takes over (60-day rule). |
+| 41 | **After 39, an agent books the customer in AirConnect.** | Push `sent` (created). **H5:** a new `confirmed` row. **AXS:** `booked` with the agent's slot. |
+| 42 | **Book-page and rejected applicants** (30, 36, 37). | No `[airconnect/axs-pending]` call: only pending-page customers are sent. |
 
 ## J. Nothing else changed
 

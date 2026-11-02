@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyAirConnectReapply } from "@/lib/airconnect-reapply-note";
+import { notifyAirConnectAxsPending } from "@/lib/airconnect-axs-pending";
 import { createAdminClient } from "@/lib/supabase/client";
 import { checkLeadEligibility } from "@/lib/eligibility-check";
 import { assessCredit, type IncomeSource } from "@/lib/credit-score";
@@ -439,6 +440,21 @@ export async function POST(request: NextRequest) {
   const page = partnerPage({ reason: creditRejectionReason ?? null, idType, hasCpfOrNoa });
 
   const decision = (assessment.isEligible && approvedAmount > 0) ? "approved" : "rejected";
+
+  // A pending-page customer gets no booking link, so AirConnect would never hear
+  // of them. Send them as a Manual Verification lead for the team to follow up.
+  // After the response, so AXS never waits on it.
+  if (page === "pending") {
+    after(() =>
+      notifyAirConnectAxsPending({
+        leadId,
+        applicationRef,
+        customerName: fullName,
+        phoneNumber: mobile,
+        idNumber: nric || undefined,
+      }),
+    );
+  }
 
   console.info(`${LOG} ${decision}`, {
     leadId,
