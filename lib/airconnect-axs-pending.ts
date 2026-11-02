@@ -1,11 +1,12 @@
 /**
- * Sends an AXS applicant who got the pending page to AirConnect, where they
- * arrive as a Manual Verification lead credited to AXS.
+ * Sends an AXS applicant who never books through the H5 to AirConnect:
  *
- * Pending-page customers (every foreigner, and SG/PR with no CPF or NOA) get no
- * booking link, so without this nothing about them reaches AirConnect and the
- * team has no lead to follow up. The application uuid travels with them, so a
- * booking an agent later makes in AirConnect is reported back to AXS.
+ * - Pending page (every foreigner, and SG/PR with no CPF or NOA): they arrive as
+ *   a Manual Verification lead credited to AXS, for the team to follow up. The
+ *   application uuid travels with them, so a booking an agent later makes in
+ *   AirConnect is reported back to AXS.
+ * - Rejected (existing customer, blacklisted, under 18): AirConnect only keeps a
+ *   record lead (`unqualified`, source AXS), so every AXS applicant is counted.
  *
  * Best effort: never throws, and only masked identifiers reach api_logs.
  */
@@ -13,15 +14,33 @@
 import { maskLast4 } from "@/lib/airconnect-reapply-note";
 import { logExternalApi } from "@/lib/external-api-logger";
 
-const LOG = "[airconnect/axs-pending]";
+/** Why the H5 rejected an AXS applicant, in AirConnect's words. */
+export type AirConnectAxsRejection = "existing_customer" | "blacklisted" | "under_18";
 
-export async function notifyAirConnectAxsPending(payload: {
+/** The AirConnect reason for one of our hard-reject codes, or null for any other. */
+export function airConnectAxsRejection(reason: string | null): AirConnectAxsRejection | null {
+  switch (reason) {
+    case "airconnect_reloan":
+      return "existing_customer";
+    case "airconnect_not_eligible":
+      return "blacklisted";
+    case "under_18":
+      return "under_18";
+    default:
+      return null;
+  }
+}
+
+export async function notifyAirConnectAxsApplicant(payload: {
   leadId: string;
   applicationRef: string;
   customerName: string;
   phoneNumber: string;
   idNumber?: string;
+  /** Set for a rejected applicant; absent for a pending-page one. */
+  rejectedBecause?: AirConnectAxsRejection;
 }): Promise<void> {
+  const LOG = payload.rejectedBecause ? "[airconnect/axs-rejected]" : "[airconnect/axs-pending]";
   const url = process.env.AIRCONNECT_AXS_PENDING_URL;
   const apiKey = process.env.AIRCONNECT_API_KEY;
 
@@ -36,6 +55,7 @@ export async function notifyAirConnectAxsPending(payload: {
     ...(payload.idNumber ? { idNumber: payload.idNumber } : {}),
     leadId: payload.leadId,
     applicationRef: payload.applicationRef,
+    ...(payload.rejectedBecause ? { rejectedBecause: payload.rejectedBecause } : {}),
   };
   const headers: Record<string, string> = { apikey: apiKey, "Content-Type": "application/json" };
 
@@ -61,6 +81,7 @@ export async function notifyAirConnectAxsPending(payload: {
         ...(payload.idNumber ? { idNumber: maskLast4(payload.idNumber) } : {}),
         leadId: payload.leadId,
         applicationRef: payload.applicationRef,
+        ...(payload.rejectedBecause ? { rejectedBecause: payload.rejectedBecause } : {}),
       },
       status: res.status,
       ok: res.ok,

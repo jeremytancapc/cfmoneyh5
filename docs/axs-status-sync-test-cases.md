@@ -201,7 +201,12 @@ Needs `AIRCONNECT_AXS_PENDING_URL` = `<AirConnect stg>/api/leads/axs` on the H5.
 | 39 | **Submit a pending-page applicant** (as 33, 34 or 35) with a phone **not** in AirConnect. | **AirConnect:** new lead, `source = AXS`, `ascend_status = manual_verification_required` (yellow "Manual Verification" badge), verification link "AXS pending review: CFAXS-…"; `h5_links` row for the application. **H5 `api_logs`:** `[airconnect/axs-pending]` 200, phone and NRIC masked, no name. |
 | 40 | **Same, with a phone that is already a lead** (created ≤ 60 days ago). | The **existing** lead gets `manual_verification_required`, a "Reapply: AXS" note and apply count + 1; no second working lead. Past 60 days: a new AXS lead takes over (60-day rule). |
 | 41 | **After 39, an agent books the customer in AirConnect.** | Push `sent` (created). **H5:** a new `confirmed` row. **AXS:** `booked` with the agent's slot. |
-| 42 | **Book-page and rejected applicants** (30, 36, 37). | No `[airconnect/axs-pending]` call: only pending-page customers are sent. |
+| 42 | **Book-page applicant** (30). | No `[airconnect/axs-pending]` or `[airconnect/axs-rejected]` call: they reach AirConnect when they book. |
+| 43 | **Rejected applicants**: existing customer (37), blacklisted (38), under 18 (36). | **AirConnect:** a **new** record lead each, `source = AXS`, `status = unqualified`, never assigned, eligibility note "AXS rejected: existing customer / blacklisted / under 18 (CFAXS-…)". The existing blacklisted lead or borrower is unchanged; 37 still gets its borrower note. **H5 `api_logs`:** `[airconnect/axs-rejected]` 200, masked. |
+
+Counting AXS volume in AirConnect: every applicant is a lead with `source = AXS`.
+Rejected ones are `status = unqualified` with an eligibility note starting
+"AXS rejected:" (a reapply also leaves `unqualified` AXS rows, so filter on the note).
 
 ## J. Nothing else changed
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { notifyAirConnectAxsPending } from "./airconnect-axs-pending";
+import { airConnectAxsRejection, notifyAirConnectAxsApplicant } from "./airconnect-axs-pending";
 import { logExternalApi } from "@/lib/external-api-logger";
 
 const mockFetch = vi.fn();
@@ -28,11 +28,11 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("notifyAirConnectAxsPending", () => {
+describe("notifyAirConnectAxsApplicant", () => {
   it("sends the applicant and the application to AirConnect", async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" });
 
-    await notifyAirConnectAxsPending(APPLICANT);
+    await notifyAirConnectAxsApplicant(APPLICANT);
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
@@ -43,7 +43,7 @@ describe("notifyAirConnectAxsPending", () => {
   it("never sends a credit limit (AXS customers are not pre-approved)", async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" });
 
-    await notifyAirConnectAxsPending(APPLICANT);
+    await notifyAirConnectAxsApplicant(APPLICANT);
 
     const body = JSON.parse((mockFetch.mock.calls[0] as [string, RequestInit])[1].body as string);
     expect(body).not.toHaveProperty("creditLimit");
@@ -52,7 +52,7 @@ describe("notifyAirConnectAxsPending", () => {
   it("logs no name and only masked identifiers", async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" });
 
-    await notifyAirConnectAxsPending(APPLICANT);
+    await notifyAirConnectAxsApplicant(APPLICANT);
 
     const logged = JSON.stringify(vi.mocked(logExternalApi).mock.calls[0]?.[0]?.body);
     expect(logged).not.toContain("TEST APPLICANT");
@@ -65,7 +65,7 @@ describe("notifyAirConnectAxsPending", () => {
   it("skips quietly when AirConnect isn't configured", async () => {
     vi.stubEnv("AIRCONNECT_AXS_PENDING_URL", "");
 
-    await notifyAirConnectAxsPending(APPLICANT);
+    await notifyAirConnectAxsApplicant(APPLICANT);
 
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -73,6 +73,37 @@ describe("notifyAirConnectAxsPending", () => {
   it("never throws when AirConnect is down", async () => {
     mockFetch.mockRejectedValueOnce(new Error("network down"));
 
-    await expect(notifyAirConnectAxsPending(APPLICANT)).resolves.toBeUndefined();
+    await expect(notifyAirConnectAxsApplicant(APPLICANT)).resolves.toBeUndefined();
+  });
+});
+
+describe("rejected applicants", () => {
+  it("sends the reason, so AirConnect only keeps a record", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" });
+
+    await notifyAirConnectAxsApplicant({ ...APPLICANT, rejectedBecause: "under_18" });
+
+    const body = JSON.parse((mockFetch.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(body.rejectedBecause).toBe("under_18");
+    expect(vi.mocked(logExternalApi).mock.calls[0]?.[0]?.tag).toBe("[airconnect/axs-rejected]");
+  });
+
+  it("sends no reason for a pending-page applicant", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" });
+
+    await notifyAirConnectAxsApplicant(APPLICANT);
+
+    const body = JSON.parse((mockFetch.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(body).not.toHaveProperty("rejectedBecause");
+    expect(vi.mocked(logExternalApi).mock.calls[0]?.[0]?.tag).toBe("[airconnect/axs-pending]");
+  });
+
+  it("maps each hard reject, and nothing else", () => {
+    expect(airConnectAxsRejection("airconnect_reloan")).toBe("existing_customer");
+    expect(airConnectAxsRejection("airconnect_not_eligible")).toBe("blacklisted");
+    expect(airConnectAxsRejection("under_18")).toBe("under_18");
+    for (const r of [null, "foreigner_income_floor", "zero_cap_income_too_low"]) {
+      expect(airConnectAxsRejection(r)).toBeNull();
+    }
   });
 });

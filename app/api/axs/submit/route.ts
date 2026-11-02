@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyAirConnectReapply } from "@/lib/airconnect-reapply-note";
-import { notifyAirConnectAxsPending } from "@/lib/airconnect-axs-pending";
+import { airConnectAxsRejection, notifyAirConnectAxsApplicant } from "@/lib/airconnect-axs-pending";
 import { createAdminClient } from "@/lib/supabase/client";
 import { checkLeadEligibility } from "@/lib/eligibility-check";
 import { assessCredit, type IncomeSource } from "@/lib/credit-score";
@@ -326,6 +326,19 @@ export async function POST(request: NextRequest) {
       after(() => notifyAirConnectReapply({ leadId, phoneNumber: mobile, idNumber: nric, source: "AXS" }));
     }
 
+    // AirConnect keeps a record (unqualified, source AXS) so every AXS applicant
+    // is counted there, rejected or not. It never touches the existing record.
+    after(() =>
+      notifyAirConnectAxsApplicant({
+        leadId,
+        applicationRef,
+        customerName: fullName,
+        phoneNumber: mobile,
+        idNumber: nric || undefined,
+        rejectedBecause: eligibility.status === "RELOAN" ? "existing_customer" : "blacklisted",
+      }),
+    );
+
     // Still run credit scoring for analytics
     const assessment = assessCredit({
       dob,
@@ -441,19 +454,24 @@ export async function POST(request: NextRequest) {
 
   const decision = (assessment.isEligible && approvedAmount > 0) ? "approved" : "rejected";
 
-  // A pending-page customer gets no booking link, so AirConnect would never hear
-  // of them. Send them as a Manual Verification lead for the team to follow up.
-  // After the response, so AXS never waits on it.
-  if (page === "pending") {
-    after(() =>
-      notifyAirConnectAxsPending({
-        leadId,
-        applicationRef,
-        customerName: fullName,
-        phoneNumber: mobile,
-        idNumber: nric || undefined,
-      }),
-    );
+  // A pending-page or rejected customer never books, so AirConnect would never
+  // hear of them. Pending: a Manual Verification lead for the team to follow up.
+  // Rejected (under 18 here): a record only, so AXS volume is counted. After the
+  // response, so AXS never waits on it.
+  if (page !== "book") {
+    const rejectedBecause = page === "rejected" ? airConnectAxsRejection(creditRejectionReason ?? null) : null;
+    if (page === "pending" || rejectedBecause) {
+      after(() =>
+        notifyAirConnectAxsApplicant({
+          leadId,
+          applicationRef,
+          customerName: fullName,
+          phoneNumber: mobile,
+          idNumber: nric || undefined,
+          ...(rejectedBecause ? { rejectedBecause } : {}),
+        }),
+      );
+    }
   }
 
   console.info(`${LOG} ${decision}`, {
