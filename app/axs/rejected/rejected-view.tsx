@@ -2,6 +2,8 @@
 
 import { Info, WhatsappLogo } from "@phosphor-icons/react";
 
+import { AxsReturnButton } from "../axs-return-button";
+
 export function RejectedView() {
   return (
     <div className="flex flex-col gap-8 animate-fade-up">
@@ -24,6 +26,8 @@ export function RejectedView() {
           If you already have a loan with us, please contact us directly and our team will help you.
         </p>
       </div>
+
+      <AxsReturnButton />
 
       <div className="h-px bg-[var(--border-subtle)]" />
 

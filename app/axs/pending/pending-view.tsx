@@ -2,6 +2,8 @@
 
 import { CheckCircle, HourglassMedium, WhatsappLogo } from "@phosphor-icons/react";
 
+import { AxsReturnButton } from "../axs-return-button";
+
 interface Props {
   firstName: string | null;
   applicationRef: string | null;
@@ -58,6 +60,8 @@ export function PendingView({ firstName, applicationRef }: Props) {
           ))}
         </ul>
       </div>
+
+      <AxsReturnButton />
 
       <div className="h-px bg-[var(--border-subtle)]" />
 
