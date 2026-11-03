@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { BookingConfirmedView } from "@/app/booking-confirmed-view";
-import { AxsReturnToApp } from "./axs-return-to-app";
+import { AxsReturnToApp } from "../axs-return-to-app";
 
 export const metadata: Metadata = {
   title: "Appointment Confirmed — CF Money",

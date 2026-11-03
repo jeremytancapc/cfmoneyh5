@@ -2,7 +2,7 @@
 
 import { Info, WhatsappLogo } from "@phosphor-icons/react";
 
-import { AxsReturnButton } from "../axs-return-button";
+import { AxsReturnToApp } from "../axs-return-to-app";
 
 export function RejectedView() {
   return (
@@ -27,7 +27,9 @@ export function RejectedView() {
         </p>
       </div>
 
-      <AxsReturnButton />
+      <div className="flex flex-col gap-3">
+        <AxsReturnToApp label="Return to AXS" />
+      </div>
 
       <div className="h-px bg-[var(--border-subtle)]" />
 
