@@ -11,7 +11,8 @@ const BTN_CLASS =
 const SCROLL_REVEAL_THRESHOLD = 80;
 
 /**
- * Where AXS customers are sent once their appointment is confirmed.
+ * Where AXS customers are sent once they are done on CF Money's side —
+ * from the booked confirmation, and from the rejected and pending pages.
  *
  * NEXT_PUBLIC_* is inlined at build time, so changing this in Vercel needs a
  * redeploy to take effect — it is not read at runtime. Referenced as a full
@@ -21,11 +22,13 @@ const AXS_APP_URL =
   process.env.NEXT_PUBLIC_AXS_APP_URL || "https://app.axs.com.sg/mStation/capc";
 
 /**
- * Seconds the confirmation stays on screen before we send them back.
+ * Seconds the page stays on screen before we send them back.
  *
- * Long enough to actually read this page — it carries the appointment time,
- * the things-to-bring checklist and the office address, none of which a
- * customer can take in before being pulled away.
+ * Long enough to actually read the confirmation (appointment time,
+ * things-to-bring checklist, office address) and the rejected/pending copy
+ * (what happens next, who to contact) — none of which a customer can take
+ * in before being pulled away. The same timeout for every page keeps the
+ * handoff predictable for AXS.
  */
 const REDIRECT_SECONDS = 180;
 
@@ -39,13 +42,21 @@ function formatCountdown(total: number): string {
   return `${total} second${total === 1 ? "" : "s"}`;
 }
 
+interface Props {
+  label?: string;
+}
+
 /**
  * Closes the AXS journey: counts down, then returns the customer to the AXS
  * app. The button is the manual fallback — an automatic navigation can be
  * blocked (in-app webviews are the usual culprit), so it must always be
  * reachable rather than only appearing once the timer has run out.
+ *
+ * `label` lets the caller name the button for its context (the booked page
+ * continues the journey, the rejected and pending pages return to it). The
+ * countdown and auto-redirect behaviour is the same on every page.
  */
-export function AxsReturnToApp() {
+export function AxsReturnToApp({ label = "Continue to AXS App" }: Props = {}) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [anchorVisible, setAnchorVisible] = useState(false);
   const [scrolledPast, setScrolledPast] = useState(false);
@@ -113,7 +124,7 @@ export function AxsReturnToApp() {
         onClick={goToAxs}
         className={BTN_CLASS}
       >
-        Continue to AXS App
+        {label}
         <ArrowRight size={15} weight="bold" />
       </button>
 
@@ -125,7 +136,7 @@ export function AxsReturnToApp() {
         >
           <div className="mx-auto max-w-[480px] px-5 py-4">
             <button type="button" onClick={goToAxs} className={BTN_CLASS}>
-              Continue to AXS App
+              {label}
               <ArrowRight size={15} weight="bold" />
             </button>
           </div>

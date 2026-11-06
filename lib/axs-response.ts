@@ -33,6 +33,54 @@ export function isHardReject(reason: string | null): boolean {
   return partnerStatus(reason) === "rejected";
 }
 
+/**
+ * The `decision` and `reason` AXS receive. Only a hard reject is "rejected"
+ * with its reason code. An income-based decline is "approved" with no reason:
+ * we cannot be sure of income from MyInfo alone (a foreigner's especially), so
+ * the customer is given the chance to explain it to our team. Our own credit
+ * outcome is still saved in credit_assessments.
+ */
+export function partnerDecision(reason: string | null): {
+  decision: "approved" | "rejected";
+  reason: string | null;
+} {
+  return isHardReject(reason) ? { decision: "rejected", reason } : { decision: "approved", reason: null };
+}
+
+/** Which H5 page the AXS customer lands on from `bookingUrl`. */
+export type PartnerPage = "book" | "pending" | "rejected";
+
+/**
+ * The page rule agreed with the business:
+ *   - rejected: a hard reject (existing borrower, blacklisted, under 18).
+ *   - pending: any foreigner, whatever their income, because their documents
+ *     are checked by hand and the customer advised before an appointment; and
+ *     an SG/PR with no CPF or NOA in MyInfo.
+ *   - book: an SG/PR with CPF or NOA.
+ */
+export function partnerPage(applicant: {
+  reason: string | null;
+  idType: string;
+  hasCpfOrNoa: boolean;
+}): PartnerPage {
+  if (isHardReject(applicant.reason)) return "rejected";
+  if (applicant.idType === "foreigner") return "pending";
+  return applicant.hasCpfOrNoa ? "book" : "pending";
+}
+
+/**
+ * The link AXS receive as `bookingUrl` for that page. Only "book" gets the
+ * booking link; anyone else holding the URL cannot book with it.
+ */
+export function partnerLink(
+  page: PartnerPage,
+  links: { bookingUrl: string; pendingUrl: string; rejectedUrl: string },
+): string {
+  if (page === "rejected") return links.rejectedUrl;
+  if (page === "pending") return links.pendingUrl;
+  return links.bookingUrl;
+}
+
 /** Money and income are rendered in a partner UI — don't leak raw float precision. */
 export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -48,31 +96,34 @@ export function round2(n: number): number {
  *
  * Both are still persisted for our own reporting — credit_assessments.explanation
  * and leads.eligibility_notes are written unchanged.
+ *
+ * Only a hard reject is told why. Anyone else follows the page: an income-based
+ * decline is not a rejection to AXS (income is checked again by our team), so
+ * a foreigner below the income floor reads the same as any pending-page
+ * customer.
  */
 export function partnerNotes(
   decision: "approved" | "rejected",
   reason: string | null,
+  page: PartnerPage,
 ): string {
-  if (decision === "approved") {
-    return "Approved. Proceed to book an appointment.";
+  if (isHardReject(reason)) {
+    switch (reason) {
+      case "under_18":
+        return "Applicant does not meet the minimum age requirement.";
+      case "airconnect_reloan":
+        // AXS stop here, so this must not invite a booking. Their link is the
+        // rejected page, which says the same.
+        return "Existing customer. Please contact us directly.";
+      default:
+        // airconnect_not_eligible (blacklisted) — deliberately vague.
+        return "Not eligible at this time.";
+    }
   }
 
-  switch (reason) {
-    case "under_18":
-      return "Applicant does not meet the minimum age requirement.";
-    case "foreigner_income_floor":
-      return "Income does not meet the minimum requirement for non-residents.";
-    case "zero_cap_moneylender_os":
-      return "Existing loan commitments exceed available borrowing capacity.";
-    case "zero_cap_income_too_low":
-      return "Income does not meet the minimum requirement.";
-    case "below_min_loan_amount":
-      return "Eligible amount is below our minimum loan size.";
-    case "airconnect_reloan":
-      // Hard reject: AXS stop here, so this must not invite a booking.
-      return "Existing customer. Please contact us directly.";
-    default:
-      // Covers airconnect_not_eligible and any future code — deliberately vague.
-      return "Not eligible at this time.";
+  // A pending-page customer has no booking link, so don't tell them to book.
+  if (page === "pending") {
+    return "Application received. Our team will review it and contact the customer to arrange an appointment.";
   }
+  return decision === "approved" ? "Approved. Proceed to book an appointment." : "Proceed to book an appointment.";
 }
