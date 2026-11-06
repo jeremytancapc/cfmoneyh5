@@ -18,12 +18,12 @@ export default function AxsLayout({ children }: { children: React.ReactNode }) {
           alt="Crawfort"
           width={200}
           height={25}
-          className="h-5 w-auto shrink-0"
+          className="h-4 w-auto shrink-0 min-[360px]:h-5"
           priority
         />
-        {/* Sized to match the logo (AXS asked for it to read as large); one line
-            down to a 320px-wide phone. */}
-        <span className="whitespace-nowrap text-base font-bold uppercase leading-none tracking-wide text-[var(--text-on-brand)] min-[400px]:text-lg">
+        {/* Sized to match the logo (AXS asked for it to read as large). Both step
+            down together below 360px wide so they still fit on one line. */}
+        <span className="whitespace-nowrap text-[15px] font-bold uppercase leading-none tracking-wide text-[var(--text-on-brand)] min-[360px]:text-base min-[400px]:text-lg">
           AXS Ready Cash
         </span>
       </header>
