@@ -21,7 +21,7 @@ export type LeadStatus =
 export type AuthMethod = "manual" | "singpass" | "aip";
 export type IdType = "singaporean" | "pr" | "foreigner";
 export type BankruptcyDeclaration = "clear" | "discharged_lt5" | "active";
-export type AppointmentStatus = "pending" | "confirmed" | "cancelled" | "completed";
+export type AppointmentStatus = "pending" | "confirmed" | "cancelled" | "completed" | "missed";
 
 // ─── leads ────────────────────────────────────────────────────────────────────
 
@@ -122,6 +122,10 @@ export interface Appointment {
   reminder_sent_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+
+  airconnect_appointment_id: number | null;
+  axs_notified_status: string | null;
+  axs_notified_at: string | null;
 }
 
 export type AppointmentInsert = Omit<Appointment, "id" | "created_at" | "updated_at">;

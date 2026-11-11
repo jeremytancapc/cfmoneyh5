@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { verifyAxsToken } from "@/lib/axs-token";
 import { createAdminClient } from "@/lib/supabase/client";
 import { axsApplicationRef } from "@/lib/lead-id";
+import { BOOKING_LOCK_STATUSES } from "@/lib/axs-status-sync";
 import { AxsBookingView } from "./axs-booking-view";
 
 export const metadata: Metadata = {
@@ -31,16 +32,18 @@ export default async function AxsBookPage({ searchParams }: Props) {
     redirect("/axs");
   }
 
-  // One booking per application. The link stays valid for 72h and is
-  // replayable, so without this a returning customer is shown a fresh picker
-  // and can book a second slot. Send them to their existing confirmation
-  // instead — changes go through us, there is no self-serve reschedule.
+  // One booking per application. The link never expires and is replayable,
+  // so without this a returning customer is shown a fresh picker and can book
+  // a second slot. Send them to their existing confirmation instead — changes
+  // go through us, there is no self-serve reschedule. Once AirConnect reports
+  // the appointment cancelled or missed, the picker shows again so they can
+  // rebook from the same link.
   const admin = createAdminClient();
   const { data: existing } = await admin
     .from("appointments")
     .select("appointment_date, appointment_time")
     .eq("lead_id", payload.leadId)
-    .eq("status", "confirmed")
+    .in("status", BOOKING_LOCK_STATUSES)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

@@ -13,12 +13,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/client";
 import { initialLoanFormData } from "@/lib/loan-form";
 import type { LoanFormData } from "@/lib/loan-form";
-import { draftLeadCookieValue, DRAFT_LEAD_COOKIE } from "@/lib/apply-session";
+import {
+  draftLeadCookieValue,
+  DRAFT_LEAD_COOKIE,
+  SESSION_COOKIE,
+  GATE_COOKIE,
+  decodeSession,
+} from "@/lib/apply-session";
 import { looksLikeLeadUuid } from "@/lib/lead-id";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  // Silent gate. A legitimate request carries the funnel's apply_session and
+  // apply_gate cookies; without them, the route behaves as if it does not
+  // exist, so an unauthenticated probe cannot learn it is reachable or what
+  // it does.
+  const sessionRaw = request.cookies.get(SESSION_COOKIE)?.value;
+  const gateRaw = request.cookies.get(GATE_COOKIE)?.value;
+  if (!sessionRaw || !gateRaw || !decodeSession(sessionRaw)) {
+    return new Response(null, { status: 404 });
+  }
+
   let bodyData: Partial<LoanFormData> = {};
   try {
     const ct = request.headers.get("content-type") ?? "";

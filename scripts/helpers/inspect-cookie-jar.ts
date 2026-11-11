@@ -24,7 +24,11 @@ type SessionShape = {
 };
 
 function secret(): string {
-  return process.env.APPLY_SESSION_SECRET ?? "dev-insecure-secret-32chars-xx";
+  const value = process.env.APPLY_SESSION_SECRET;
+  if (!value || value.length < 32) {
+    throw new Error("APPLY_SESSION_SECRET env var is missing or too short (min 32 chars)");
+  }
+  return value;
 }
 
 function sign(payload: string): string {
