@@ -21,7 +21,11 @@ export const COOKIE_BASE_OPTS = {
 export const POST_SUBMIT_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
 function secret(): string {
-  return process.env.APPLY_SESSION_SECRET ?? "dev-insecure-secret-32chars-xx";
+  const value = process.env.APPLY_SESSION_SECRET;
+  if (!value || value.length < 32) {
+    throw new Error("APPLY_SESSION_SECRET env var is missing or too short (min 32 chars)");
+  }
+  return value;
 }
 
 function sign(payload: string): string {
